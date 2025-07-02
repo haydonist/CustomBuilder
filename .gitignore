@@ -1,0 +1,23 @@
+## Editor Configuration
+/.idea
+
+## System Files
+.DS_Store
+
+## NPM
+/node_modules/
+/npm-debug.log
+
+## Testing
+/coverage/
+
+## Temporary Files
+/.tmp/
+
+# Build Artifacts
+/_site/
+/dist/
+/build/
+
+storybook-static
+custom-elements.json

@@ -1,0 +1,28 @@
+:root {
+  /* Colors */
+  --neutral-white: #fff;
+  --neutral-lightest: #f2f2f2;
+  --neutral-lighter: #dadada;
+  --neutral-light: #b6b6b6;
+  --neutral: #fff;
+  --neutral-dark: #545454;
+  --neutral-darker: #242424;
+  --neutral-darkest: #0c0c0c;
+
+  --potters-clay-lightest: #f3eeeb;
+  --potters-clay-light: #ad8e76;
+  --potters-clay: #8b5e3c;
+  --potters-clay-darker: #372518;
+  --potters-clay-darkest: #291c12;
+
+  --spring-wood: #f8f5f0;
+
+  --old-gold: #d4af37;
+
+  /* Backgrounds */
+  --belt-wizard-background-color: var(--potters-clay-darkest);
+}
+
+a {
+  color: var(--potters-clay-light);
+}
