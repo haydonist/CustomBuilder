@@ -1,29 +1,30 @@
 // import { playwrightLauncher } from '@web/test-runner-playwright';
 
-const filteredLogs = ['Running in dev mode', 'Lit is in dev mode'];
+const filteredLogs = ["Running in dev mode", "Lit is in dev mode"];
 
 export default /** @type {import("@web/test-runner").TestRunnerConfig} */ ({
   /** Test files to run */
-  files: 'build/tests/**/*.test.js',
+  files: "build/tests/**/*.test.js",
   coverageConfig: {
-    exclude: ["node_modules/**/*.js"]
+    exclude: ["node_modules/**/*.js"],
   },
 
   /** Resolve bare module imports */
   nodeResolve: {
-    exportConditions: ['browser', 'development'],
+    exportConditions: ["browser", "development"],
   },
 
   /** Filter out lit dev mode logs */
   filterBrowserLogs(log) {
     for (const arg of log.args) {
-      if (typeof arg === 'string' && filteredLogs.some(l => arg.includes(l))) {
+      if (
+        typeof arg === "string" && filteredLogs.some((l) => arg.includes(l))
+      ) {
         return false;
       }
     }
     return true;
   },
-
   /** Compile JS for older browsers. Requires @web/dev-server-esbuild plugin */
   // esbuildTarget: 'auto',
 
