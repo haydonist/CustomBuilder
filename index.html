@@ -1,29 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="Description" content="Create and customize your own belt.">
+    <base href="/">
 
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="Description" content="Create and customize your own belt.">
-  <base href="/">
+    <!-- Third-Party Styles -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
+      rel="stylesheet"
+    />
+    <!-- App Styles -->
+    <link rel="stylesheet" href="./assets/theme.css">
+    <link rel="stylesheet" href="./assets/app.css">
+    <title>Customize Belt - BeltMaster</title>
+  </head>
 
-  <link rel="stylesheet" href="./assets/theme.css">
-  <style>
-    html,
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: sans-serif;
-      background-color: #ededed;
-    }
-  </style>
-  <title>Customize Belt - BeltMaster</title>
-</head>
-
-<body>
-  <belt-wizard></belt-wizard>
-
-  <script type="module" src="./build/src/belt-wizard.js"></script>
-</body>
-
+  <body>
+    <header>
+      <h1>
+        <span class="logo material-symbols-outlined" aria-label="BeltMaster logo">laundry</span>
+        <span class="wordmark">BeltMaster</span>
+      </h1>
+    </header>
+    <main>
+      <belt-wizard></belt-wizard>
+    </main>
+    <footer class="app-footer">
+      <p>
+        Created by
+        <a
+          target="_blank"
+          rel="noopener noreferrer"
+          href="https://www.jollywebconsulting.com"
+        >Jollyweb Consulting</a>.
+      </p>
+    </footer>
+    <script type="module" src="./build/src/belt-wizard.js"></script>
+  </body>
 </html>
