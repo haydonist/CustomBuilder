@@ -2,6 +2,7 @@ import { css, html, LitElement } from "lit";
 import { customElement, state } from "lit/decorators.js";
 
 import Wizard, { Step } from "./models/wizard/index.js";
+import { beltSizes } from "./models/belts.js";
 
 // See // See https://open-wc.org
 // See https://open-wc.org/guides/developing-components/code-examples
@@ -15,6 +16,16 @@ export enum Theme {
 export class CustomBeltWizard extends LitElement {
   @state()
   wizard = new Wizard([{
+    id: "waist",
+    title: "What is your waist size?",
+    subtitle: "We will add 3” to meet your perfect fit belt size",
+    view: html`<div>
+      ${ beltSizes.map(size => html`<span class="option">
+        <input id="size-${size}" type="radio" name="beltSize" value="${size}" />
+        <label for="size-${size}">${size}"</label>
+      </span>`) }
+    </div>`
+  }, {
     id: "belt",
     title: "Select a Belt Base",
     view: html``
