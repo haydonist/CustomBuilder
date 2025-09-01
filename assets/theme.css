@@ -10,15 +10,85 @@
   --neutral-darkest: #0c0c0c;
 
   --potters-clay-lightest: #f3eeeb;
+  --potters-clay-lighter: #e7ded8;
   --potters-clay-light: #ad8e76;
   --potters-clay: #8b5e3c;
+  --potters-clay-dark: #6f4b30;
   --potters-clay-darker: #372518;
   --potters-clay-darkest: #291c12;
 
+  --spring-wood-lightest: #fefefd;
+  --spring-wood-lighter: #fdfdfc;
+  --spring-wood-light: #faf8f4;
   --spring-wood: #f8f5f0;
+  --spring-wood-dark: #c6c4c0;
+  --spring-wood-darker: #636260;
+  --spring-wood-darkest: #4a4948;
 
+  --old-gold-lightest: #faf7eb;
+  --old-gold-lighter: #f6efd7;
+  --old-gold-light: #e8c773;
   --old-gold: #d4af37;
+  --old-gold-dark: #a98c2c;
+  --old-gold-darker: #544616;
+  --old-gold-darkest: #3f3410;
 
   /* Backgrounds */
   --belt-wizard-background-color: var(--potters-clay-darkest);
+
+  /* Sizes */
+  --radius-large: 16px;
+  --radius-medium: 16px;
+  --radius-large: 16px;
+
+  /* Shadows */
+  --shadow-xxs: 0 1px 2px 0 #0000000D;
+  --shadow-xs: 0 1px 2px 0 #0000000F, 0 1px 3px 0 #0000001A;
+  --shadow-small: 0 4px 2px -2px #0000000D, 0 4px 8px -2px #0000001A;
+  --shadow-medium: 0 4px 6px -2px #00000008, 0 12px 16px -4px #00000014;
+  --shadow-large: 0 8px 8px -4px #00000008, 0 20px 24px -4px #00000014;
+  --shadow-xl: 0 24px 48px -12px #0000002E;
+  --shadow-xxl: 0 32px 64px -12px #00000024;
+}
+
+body {
+  font-family: "Work Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: normal;
+  font-style: normal;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Founders Grotesque X Condensed", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: normal;
+  font-style: normal;
+}
+
+h1 {
+  font-size: 84px;
+}
+
+h2 {
+  font-size: 60px;
+}
+
+h3 {
+  font-size: 48px;
+}
+
+h4 {
+  font-size: 40px;
+}
+
+h5 {
+  font-size: 32px;
+}
+
+h6 {
+  font-size: 26px;
+}
+
+.tagline {
+  font-size: 16px;
 }
