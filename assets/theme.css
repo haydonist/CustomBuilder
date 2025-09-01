@@ -65,27 +65,27 @@ h1, h2, h3, h4, h5, h6 {
   font-style: normal;
 }
 
-h1 {
+h1, .heading-1 {
   font-size: 84px;
 }
 
-h2 {
+h2, .heading-2 {
   font-size: 60px;
 }
 
-h3 {
+h3, .heading-3 {
   font-size: 48px;
 }
 
-h4 {
+h4, .heading-4 {
   font-size: 40px;
 }
 
-h5 {
+h5, .heading-5 {
   font-size: 32px;
 }
 
-h6 {
+h6, .heading-6 {
   font-size: 26px;
 }
 

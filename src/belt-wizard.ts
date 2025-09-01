@@ -16,11 +16,15 @@ export class CustomBeltWizard extends LitElement {
   @state()
   wizard = new Wizard([{
     id: "belt",
-    title: "Pick a Belt",
+    title: "Select a Belt Base",
+    view: html``
+  }, {
+    id: "belt-color",
+    title: "Choose a Belt Color",
     view: html``
   }, {
     id: "buckle",
-    title: "Pick a Buckle",
+    title: "Choose a Belt Buckle",
     view: html``
   }, {
     id: "loops",
@@ -29,16 +33,17 @@ export class CustomBeltWizard extends LitElement {
   }, {
     id: "conchos",
     title: "Add Conchos",
+    subtitle: "Drag and drop conchos to style your belt",
     view: html``
   }, {
     id: "tip",
-    title: "Pick a Belt Tip",
+    title: "Choose a Belt Tip",
     view: html``
   }]);
 
   static override styles = css`
-    :host {
-      text-align: center;
+    #stepper {
+      position: sticky;
     }
   `;
 
@@ -49,15 +54,25 @@ export class CustomBeltWizard extends LitElement {
   }
 
   override render() {
+    const currentStep = this.wizard.currentStep;
     return html`
-      <h1>${this.wizard.currentStep.title}</h1>
-      <article>${this.wizard.currentView}</article>
-      <div class="row">
-        <a class="btn btn-secondary" href="#${this.wizard.previousStep.id}" @click=${(ev: Event) => {
-        ev.preventDefault();
-        this.wizard.previous();
-      }}>Back</a>
-      </div>
+      <section id="stepper">
+        ${this.wizard.hasPreviousStep ? html`
+            <a class="btn btn-secondary" href="#${this.wizard.previousStep.id}" @click=${(ev: Event) => {
+          ev.preventDefault();
+          this.wizard.previous();
+        }}>Back</a>
+          ` : null}
+        <p>Step ${this.wizard.stepIndex + 1} of ${this.wizard.steps.length}</p>
+      </section>
+      <section id="stepTitle">
+        <h2 class="heading-5">${currentStep.title}</h2>
+        ${currentStep.subtitle ? html`<p class="subtitle">${currentStep.subtitle}</p>` : null}
+      </section>
+      <section id="preview" style="position: sticky">
+        <img src="./assets/belts/belt-base.png" />
+      </section>
+      <section>${this.wizard.currentView}</section>
     `;
   }
 }

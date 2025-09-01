@@ -60,5 +60,6 @@ export default class Wizard {
 export interface Step {
   id: string;
   title: string;
+  subtitle?: string;
   view: LitElement | HTMLTemplateResult;
 }
