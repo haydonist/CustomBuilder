@@ -92,3 +92,41 @@ h6, .heading-6 {
 .tagline {
   font-size: 16px;
 }
+
+/* Components */
+
+button.btn, a.btn {
+  padding: 8px 20px;
+  font-family: "Work Sans", sans-serif;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+
+  color: var(--neutral-darkest);
+  background-color: #0C0C0C0D;
+  box-shadow: 0 1px 2px 0 #0C0C0C0D, inset 0 -2px 1px 0 #0C0C0C0D, inset 0 0 0 1px #0C0C0C0D;
+
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+button.btn.primary, a.btn.primary {
+  color: var(--neutral-white);
+  background-color: var(--potters-clay);
+  box-shadow: var(--shadow-xxs), inset 0 -2px 1px 0 #00000033, inset 0 0 0 1px #0C0C0C26, 0 2px 1px 0 #FFFFFF33, inset 0 32px 24px 0 #FFFFFF0D;
+}
+
+button.btn.secondary, a.btn.secondary {
+  color: var(--neutral-darkest);
+  background-color: #0C0C0C0D;
+  box-shadow: 0 1px 2px 0 #0C0C0C0D, inset 0 -2px 1px 0 #0C0C0C0D, inset 0 0 0 1px #0C0C0C0D;
+}
+
+button.btn.tertiary, a.btn.tertiary {
+  color: var(--neutral-darkest);
+  background-color: transparent;
+  box-shadow: none;
+}
+
+button.btn.tertiary:hover, a.btn.tertiary:hover {
+  box-shadow: 0 1px 2px 0 #0C0C0C0D, inset 0 -2px 1px 0 #0C0C0C0D, inset 0 0 0 1px #0C0C0C0D;
+}

@@ -28,10 +28,16 @@
 
   <body>
     <header id="navbar">
-      <h1>
-        <span class="logo material-symbols-outlined" aria-label="BeltMaster logo">laundry</span>
-        <span class="wordmark">BeltMaster</span>
-      </h1>
+      <img class="logo" srcset="./assets/logo.png 269w, ./assets/logo@2x.png 537w" sizes="(width <= 600px) 250px, 520px" src="./assets/logo@2x.png" alt="BeltMaster" />
+      <nav>
+        <ul>
+          <li><a href="#">Custom Belts</a></li>
+          <li><a href="#">Belt Builder</a></li>
+          <li><a href="#">Our Story</a></li>
+          <li><a href="#">Shop Now</a></li>
+        </ul>
+      </nav>
+      <button class="btn primary">Explore</button>
     </header>
     <main>
       <belt-wizard></belt-wizard>
