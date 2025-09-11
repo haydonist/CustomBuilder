@@ -134,6 +134,58 @@ body > main {
   align-self: flex-start;
 }
 
+/* Stepper */
+#stepper {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  margin-block-start: 10px;
+  margin-inline: 7px;
+}
+#stepper:before {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 1px;
+  background-color: var(--neutral-white);
+  top: 7px;
+  z-index: 0;
+}
+
+#stepper button.step {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  border: none;
+  background-color: #B6C6FD;
+  z-index: 1;
+  cursor: pointer;
+}
+#stepper button.step:not(:first-child):before {
+  content: "";
+  display: block;
+  position: absolute;
+  background-color: var(--belt-wizard-background-color);
+  width: 7px;
+  height: 1px;
+  left: -50%;
+}
+#stepper button.step:not(:last-child):after {
+  content: "";
+  display: block;
+  position: absolute;
+  background-color: var(--belt-wizard-background-color);
+  width: 7px;
+  height: 1px;
+  right: -50%;
+}
+
+#stepper button.step:disabled {
+  background-color: #476FFF;
+  cursor: not-allowed;
+}
+
 /* Steps */
 #stepTitle h2 {
   margin-block-end: 0;

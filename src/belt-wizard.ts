@@ -74,7 +74,9 @@ export class CustomBeltWizard extends LitElement {
           this.wizard.previous();
         }}>Back</a>
           ` : null}
-        <p>Step ${this.wizard.stepIndex + 1} of ${this.wizard.steps.length}</p>
+        ${this.wizard.steps.map((_, i) => html`
+          <button class="step" ?disabled=${this.wizard.stepIndex === i} title=${`Step ${i + 1} of ${this.wizard.steps.length}: ${this.wizard.steps[i].title}`} @click=${() => this.wizard.goTo(i)}></button>
+        `)}
       </section>
       <section id="stepTitle">
         <h2 class="heading-5">${currentStep.title}</h2>
