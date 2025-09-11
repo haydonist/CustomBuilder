@@ -1,3 +1,19 @@
+@font-face {
+  font-family: "Founders Grotesque X Condensed";
+  font-weight: bold;
+  src: url(./FoundersGroteskXCond-Bold.otf);
+}
+@font-face {
+  font-family: "Founders Grotesque X Condensed Light";
+  font-weight: lighter;
+  src: url(./FoundersGroteskXCond-Lt.otf);
+}
+@font-face {
+  font-family: "Founders Grotesque Condensed";
+  font-weight: lighter;
+  src: url(./FoundersGroteskCond-Lt.otf);
+}
+
 :root {
   /* Colors */
   --neutral-white: #fff;
