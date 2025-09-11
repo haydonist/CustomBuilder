@@ -87,3 +87,12 @@ export class CustomBeltWizard extends LitElement {
     `;
   }
 }
+
+// TODO: Remove this in favor of an own get started page on the Shopify site
+document.addEventListener("DOMContentLoaded", () => {
+  const getStarted = document.querySelector("#getStarted");
+  getStarted?.addEventListener("click", () => {
+    getStarted.parentElement?.setAttribute("hidden", "");
+    document.querySelector("belt-wizard")?.removeAttribute("hidden");
+  });
+});

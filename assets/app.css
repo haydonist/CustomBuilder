@@ -2,7 +2,7 @@ html,
 body {
   margin: 0;
   padding: 0;
-  font-family: sans-serif;
+  font-family: "Work Sans", sans-serif;
   background-color: var(--belt-wizard-background-color);
 }
 
@@ -22,16 +22,114 @@ a {
 }
 
 body > header {
-  margin-inline: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-inline: 20px;
+  height: 75px;
 }
 
-header#navbar h1 {
-  font-size: 48px;
+@media screen and (min-width: 500px) {
+  body > header {
+    padding-inline: 64px;
+    justify-content: unset;
+  }
+}
+
+header#navbar {
+  color: var(--neutral-darkest);
+  background-color: var(--potters-clay-lightest);
+}
+
+header#navbar .logo {
+  height: 28px;
+}
+
+header#navbar nav {
+  display: none;
+}
+
+@media screen and (min-width: 500px) {
+  header#navbar nav {
+    display: unset;
+    flex-grow: 1;
+  }
+}
+
+header#navbar ul {
+  display: flex;
+  justify-content: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 32px;
+}
+
+header#navbar li {
+  padding: 0;
+}
+
+header#navbar li a {
+  color: var(--neutral-darkest);
+  font-weight: 400;
+  text-decoration: none;
+}
+
+header#navbar li a:hover {
+  text-decoration: underline;
 }
 
 body > main {
   flex-grow: 1;
   margin-inline: 8px;
+}
+
+#jumbotron {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-inline: -8px;
+  padding-inline-start: 24px;
+  background: radial-gradient(#433F3C, #2D2D2D);
+  height: calc(100vh - 75px);
+}
+#jumbotron[hidden] {
+  display: none;
+}
+
+@media screen and (min-width: 500px) {
+  #jumbotron {
+    padding-inline-start: 50vw;
+  }
+}
+
+#jumbotron h1 {
+  font-family: "Founders Grotesque X Condensed Light";
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+#jumbotron h2 {
+  margin-block-start: 0;
+  margin-block-end: 0.5em;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 44px;
+}
+
+@media screen and (min-width: 500px) {
+  #jumbotron h2 {
+    font-size: 60px;
+  }
+}
+
+#jumbotron p {
+  margin-block-start: 0;
+  color: var(--potters-clay-light);
+}
+
+#jumbotron button.btn {
+  align-self: flex-start;
 }
 
 body > footer {
