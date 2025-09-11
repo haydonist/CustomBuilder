@@ -84,6 +84,8 @@ body > main {
   margin-inline: 8px;
 }
 
+/* Jumbotron */
+
 #jumbotron {
   display: flex;
   flex-direction: column;
@@ -130,6 +132,14 @@ body > main {
 
 #jumbotron button.btn {
   align-self: flex-start;
+}
+
+/* Steps */
+#stepTitle h2 {
+  margin-block-end: 0;
+}
+#stepTitle h2 ~ .subtitle {
+  margin-block-start: 0;
 }
 
 body > footer {

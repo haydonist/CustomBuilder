@@ -109,8 +109,26 @@ h6, .heading-6 {
   font-size: 16px;
 }
 
+.sr-only {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.row {
+  display: flex;
+}
+.row.wrap {
+  flex-wrap: wrap;
+}
+
 /* Components */
 
+/* Button */
 button.btn, a.btn {
   padding: 8px 20px;
   font-family: "Work Sans", sans-serif;
@@ -145,4 +163,33 @@ button.btn.tertiary, a.btn.tertiary {
 
 button.btn.tertiary:hover, a.btn.tertiary:hover {
   box-shadow: 0 1px 2px 0 #0C0C0C0D, inset 0 -2px 1px 0 #0C0C0C0D, inset 0 0 0 1px #0C0C0C0D;
+}
+
+/* Options */
+span.option {
+  margin: 3px;
+  border: 1px solid var(--neutral-white);
+  border-radius: 8px;
+  background: #FFFFFF33;
+  cursor: pointer;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+span.option label {
+  cursor: pointer;
+}
+
+span.option.text {
+  display: inline-block;
+}
+span.option.text label {
+  display: inline-block;
+  font-size: 24px;
+  padding: 8px 3px;
+}
+
+span.option:has(input:checked) {
+  margin: 0;
+  border-width: 4px;
+  background: #FFFFFF80;
 }
