@@ -3,8 +3,8 @@ import { css, html, LitElement } from "lit";
 import { customElement, eventOptions, state } from "lit/decorators.js";
 import { createRef, ref, Ref } from "lit/directives/ref.js";
 
-import { textOption, thumbnailOption } from "./components/option.ts";
-import { beltBases, beltSizes } from "./models/belts.js";
+import { colorChipOption, textOption, thumbnailOption } from "./components/option.ts";
+import { beltBases, beltColors, beltSizes } from "./models/belts.js";
 import Wizard from "./models/wizard/index.js";
 
 // See // See https://open-wc.org
@@ -36,12 +36,14 @@ export class CustomBeltWizard extends LitElement {
     id: "belt",
     title: "Select a Belt Base",
     view: html`<div class="row wrap" style="gap: 28px;">
-      ${beltBases.map(base => thumbnailOption(base.id, base.thumbnail, "beltBase", base.id, base.name || "", this.submitStep))}
+      ${beltBases.map(base => thumbnailOption(base.id, base.thumbnail, "beltBase", base.id, base.name, this.submitStep))}
     </div>`
   }, {
     id: "belt-color",
     title: "Choose a Belt Color",
-    view: html``
+    view: html`<div class="column" style="gap: 28px;">
+      ${beltColors.map(base => colorChipOption(base.id, base.color, "beltColor", base.id, base.name, this.submitStep))}
+    </div>`
   }, {
     id: "buckle",
     title: "Choose a Belt Buckle",

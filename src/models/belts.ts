@@ -28,3 +28,16 @@ export const beltBases: BeltBase[] = [
   { id: "4218968x18", thumbnail: "/assets/belts/tan-leather.png" },
   { id: "4218968x19", thumbnail: "/assets/belts/tan-leather.png" },
 ];
+
+export interface BeltColor {
+  id: string;
+  name: string;
+  color: string;
+}
+export const beltColors: BeltColor[] = [
+  { id: "brown", name: "Brown", color: "#753921" },
+  { id: "tan", name: "Tan", color: "#94390F" },
+  { id: "black", name: "Black", color: "#281A19" },
+  { id: "darkChocolate", name: "Dark Chocolate", color: "#2B170D" },
+  { id: "chocolate", name: "Chocolate", color: "#3B1F11" },
+];

@@ -130,6 +130,11 @@ h6, .heading-6 {
   flex-wrap: wrap;
 }
 
+.column {
+  display: flex;
+  flex-direction: column;
+}
+
 /* Components */
 
 /* Button */
@@ -174,18 +179,13 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   cursor: pointer;
 }
 
-.option:not(.text-only) label {
+.option:not(.text-only):not(.color-chip) label {
   display: flex;
   flex-direction: column;
 }
 
 .option.text-only {
   display: inline-block;
-  margin: 3px;
-  border: 1px solid var(--neutral-white);
-  border-radius: 8px;
-  background: #FFFFFF33;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .option.text-only:has(input:checked) {
@@ -194,7 +194,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   background: #FFFFFF80;
 }
 
-.option:not(.text-only) img.thumbnail {
+.option.text-only, .option .selection-indicator {
   margin: 3px;
   border: 1px solid var(--neutral-white);
   border-radius: 8px;
@@ -202,16 +202,26 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
+.option.color-chip label {
+  align-items: center;
+}
+
+.option.color-chip .selection-indicator {
+  display: inline-block;
+  width: 64px;
+  height: 64px;
+}
+
 .option label {
   cursor: pointer;
 }
 
-.option:not(.text-only) label {
+.option.thumbnail label span.label {
+  font-size: 26px;
   text-align: center;
 }
 
 .option:not(.text-only) label span.label {
-  font-size: 26px;
   margin-block-start: 8px;
 }
 
@@ -221,11 +231,11 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   padding: 8px 3px;
 }
 
-.option:not(.text-only) input:checked + label {
+.option:not(.text-only) input:checked + label .selection-indicator {
   padding: 0;
 }
 
-.option:not(.text-only) input:checked + label img.thumbnail {
+.option:not(.text-only) input:checked + label .selection-indicator {
   margin: 0;
   border-width: 4px;
   background: #FFFFFF80;
