@@ -3,8 +3,9 @@ import { css, html, LitElement } from "lit";
 import { customElement, eventOptions, state } from "lit/decorators.js";
 import { createRef, ref, Ref } from "lit/directives/ref.js";
 
-import Wizard, { Step } from "./models/wizard/index.js";
-import { beltSizes } from "./models/belts.js";
+import { textOption, thumbnailOption } from "./components/option.ts";
+import { beltBases, beltSizes } from "./models/belts.js";
+import Wizard from "./models/wizard/index.js";
 
 // See // See https://open-wc.org
 // See https://open-wc.org/guides/developing-components/code-examples
@@ -24,10 +25,7 @@ export class CustomBeltWizard extends LitElement {
     title: "What is your waist size?",
     subtitle: "We will add 3” to meet your perfect fit belt size",
     view: html`<div class="row wrap" style="gap: 28px;">
-      ${beltSizes.map(size => html`<span class="option text-only" @click=${this.submitStep}>
-        <input id="size-${size}" class="sr-only" type="radio" name="beltSize" value="${size}" />
-        <label for="size-${size}">${size}"</label>
-      </span>`)}
+      ${beltSizes.map(size => textOption(`size-${size}`, "beltSize", size, `${size}"`, this.submitStep))}
       <!-- TODO: Add a "perfect belt" sizing chart. -->
     </div>`,
     background: {
@@ -37,7 +35,9 @@ export class CustomBeltWizard extends LitElement {
   }, {
     id: "belt",
     title: "Select a Belt Base",
-    view: html``
+    view: html`<div class="row wrap" style="gap: 28px;">
+      ${beltBases.map(base => thumbnailOption(base.id, base.thumbnail, "beltBase", base.id, base.name || "", this.submitStep))}
+    </div>`
   }, {
     id: "belt-color",
     title: "Choose a Belt Color",

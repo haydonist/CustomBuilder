@@ -14,3 +14,17 @@ export enum BeltSize {
 }
 
 export const beltSizes = Object.values(BeltSize).filter(val => typeof val !== "string");
+
+export interface BeltBase {
+  id: string;
+  name?: string;
+  thumbnail: string;
+}
+export const beltBases: BeltBase[] = [
+  { id: "4218968x14", name: "Coarse", thumbnail: "/assets/belts/black-speckled.png" },
+  { id: "4218968x15", name: "Natural", thumbnail: "/assets/belts/tan-leather.png" },
+  { id: "4218968x16", name: "Woven", thumbnail: "/assets/belts/black-speckled.png" },
+  { id: "4218968x17", thumbnail: "/assets/belts/tan-leather.png" },
+  { id: "4218968x18", thumbnail: "/assets/belts/tan-leather.png" },
+  { id: "4218968x19", thumbnail: "/assets/belts/tan-leather.png" },
+];
