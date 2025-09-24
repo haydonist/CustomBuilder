@@ -183,10 +183,10 @@ span.option label {
   cursor: pointer;
 }
 
-span.option.text {
+span.option.text-only {
   display: inline-block;
 }
-span.option.text label {
+span.option.text-only label {
   display: inline-block;
   font-size: 24px;
   padding: 8px 3px;
