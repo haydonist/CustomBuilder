@@ -1,10 +1,29 @@
 import { assert } from "@std/assert";
 import { HTMLTemplateResult, LitElement } from "lit";
 
+type CssValue = number | string;
+/** A mobile-first responsive CSS value. */
+interface ResponsiveCssValue {
+  default: CssValue,
+  desktop?: CssValue
+}
+
+export interface Step {
+  id: string;
+  title: string;
+  subtitle?: string;
+  view: LitElement | HTMLTemplateResult;
+  background?: {
+    image: string,
+    position?: { x: CssValue, y?: CssValue } | { x?: CssValue, y: CssValue }
+    size: ResponsiveCssValue | CssValue
+  };
+}
+
 export default class Wizard {
   #step = 0;
 
-  constructor(public readonly steps: Step[] = []) {}
+  constructor(public readonly steps: Step[] = []) { }
 
   get stepIndex() {
     return this.#step;
@@ -55,11 +74,4 @@ export default class Wizard {
     assert(i >= 0, "Cannot go back past the first step!");
     this.#step = i;
   }
-}
-
-export interface Step {
-  id: string;
-  title: string;
-  subtitle?: string;
-  view: LitElement | HTMLTemplateResult;
 }

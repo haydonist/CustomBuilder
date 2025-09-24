@@ -20,11 +20,15 @@ export class CustomBeltWizard extends LitElement {
     title: "What is your waist size?",
     subtitle: "We will add 3” to meet your perfect fit belt size",
     view: html`<div class="row wrap" style="gap: 28px;">
-      ${ beltSizes.map(size => html`<span class="option text">
+      ${beltSizes.map(size => html`<span class="option text">
         <input id="size-${size}" class="sr-only" type="radio" name="beltSize" value="${size}" />
         <label for="size-${size}">${size}"</label>
-      </span>`) }
-    </div>`
+      </span>`)}
+    </div>`,
+    background: {
+      image: "url(/assets/belts/looped-belt.png)",
+      size: { default: "50vw", desktop: "33vw" }
+    }
   }, {
     id: "belt",
     title: "Select a Belt Base",
@@ -52,7 +56,12 @@ export class CustomBeltWizard extends LitElement {
     view: html``
   }]);
 
+  // TODO: Use the current step's `background` in the `belt-wizard`.
   static override styles = css`
+    belt-wizard {
+      /* TODO: See above for per-step backgrounds. */
+    }
+
     #stepper {
       position: sticky;
     }
