@@ -1,5 +1,7 @@
+import { delay } from "@std/async";
 import { css, html, LitElement } from "lit";
-import { customElement, state } from "lit/decorators.js";
+import { customElement, eventOptions, state } from "lit/decorators.js";
+import { createRef, ref, Ref } from "lit/directives/ref.js";
 
 import Wizard, { Step } from "./models/wizard/index.js";
 import { beltSizes } from "./models/belts.js";
@@ -14,13 +16,15 @@ export enum Theme {
 
 @customElement("belt-wizard")
 export class CustomBeltWizard extends LitElement {
+  form: Ref<HTMLFormElement> = createRef();
+
   @state()
   wizard = new Wizard([{
     id: "waist",
     title: "What is your waist size?",
     subtitle: "We will add 3” to meet your perfect fit belt size",
     view: html`<div class="row wrap" style="gap: 28px;">
-      ${beltSizes.map(size => html`<span class="option text-only">
+      ${beltSizes.map(size => html`<span class="option text-only" @click=${this.submitStep}>
         <input id="size-${size}" class="sr-only" type="radio" name="beltSize" value="${size}" />
         <label for="size-${size}">${size}"</label>
       </span>`)}
@@ -68,6 +72,13 @@ export class CustomBeltWizard extends LitElement {
     }
   `;
 
+  constructor() {
+    super();
+
+    // Update the view when the wizard's step changes
+    this.wizard.changed.subscribe(() => this.requestUpdate());
+  }
+
   /** Disable the shadow DOM for this root-level component. */
   // See https://stackoverflow.com/a/55213037/1363247
   override createRenderRoot() {
@@ -78,12 +89,6 @@ export class CustomBeltWizard extends LitElement {
     const currentStep = this.wizard.currentStep;
     return html`
       <section id="stepper">
-        ${this.wizard.hasPreviousStep ? html`
-            <a class="btn btn-secondary" href="#${this.wizard.previousStep.id}" @click=${(ev: Event) => {
-          ev.preventDefault();
-          this.wizard.previous();
-        }}>Back</a>
-          ` : null}
         ${this.wizard.steps.map((_, i) => html`
           <button class="step" ?disabled=${this.wizard.stepIndex === i} title=${`Step ${i + 1} of ${this.wizard.steps.length}: ${this.wizard.steps[i].title}`} @click=${() => this.wizard.goTo(i)}></button>
         `)}
@@ -95,8 +100,21 @@ export class CustomBeltWizard extends LitElement {
       <section id="preview" style="position: sticky">
         <img src="./assets/belts/belt-base.png" />
       </section>
-      <section>${this.wizard.currentView}</section>
+      <section>
+        <form ${ref(this.form)} @submit=${async (ev: Event) => {
+        ev.preventDefault();
+        await delay(500);
+        this.wizard.next();
+      }}>
+          ${this.wizard.currentView}
+        </form>
+      </section>
     `;
+  }
+
+  @eventOptions({ once: true })
+  private submitStep() {
+    this.form.value?.requestSubmit();
   }
 }
 

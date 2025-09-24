@@ -2,10 +2,12 @@
   "version": "5",
   "specifiers": {
     "jsr:@std/assert@^1.0.13": "1.0.13",
+    "jsr:@std/async@^1.0.14": "1.0.14",
     "jsr:@std/internal@^1.0.6": "1.0.9",
     "npm:@adobe/lit-mobx@^2.2.2": "2.2.2_lit@3.3.0_mobx@6.13.5",
     "npm:@custom-elements-manifest/analyzer@~0.10.3": "0.10.4",
     "npm:@jsr/std__assert@*": "1.0.13",
+    "npm:@jsr/std__async@^1.0.14": "1.0.14",
     "npm:@open-wc/create@*": "0.38.151",
     "npm:@open-wc/testing@4": "4.0.0",
     "npm:@storybook/addon-a11y@^7.6.20": "7.6.20",
@@ -20,6 +22,7 @@
     "npm:concurrently@^8.2.2": "8.2.2",
     "npm:lit@^3.1.4": "3.3.0",
     "npm:mobx@^6.13.7": "6.13.7",
+    "npm:rxjs@^7.8.2": "7.8.2",
     "npm:storybook@^7.6.20": "7.6.20",
     "npm:tslib@^2.6.3": "2.8.1",
     "npm:typescript@^5.5.3": "5.8.3"
@@ -30,6 +33,9 @@
       "dependencies": [
         "jsr:@std/internal"
       ]
+    },
+    "@std/async@1.0.14": {
+      "integrity": "62e954a418652c704d37563a3e54a37d4cf0268a9dcaeac1660cc652880b5326"
     },
     "@std/internal@1.0.9": {
       "integrity": "bdfb97f83e4db7a13e8faab26fb1958d1b80cc64366501af78a0aee151696eb8"
@@ -1278,6 +1284,10 @@
         "@jsr/std__internal"
       ],
       "tarball": "https://npm.jsr.io/~/11/@jsr/std__assert/1.0.13.tgz"
+    },
+    "@jsr/std__async@1.0.14": {
+      "integrity": "sha512-aIG8W3TOmW+lKdAJA5w56qASu9EiUmBXbhW6eAlSEUBid+KVESGqQygFFg+awt/c8K+qobVM6M/u3SbIy0NyUQ==",
+      "tarball": "https://npm.jsr.io/~/11/@jsr/std__async/1.0.14.tgz"
     },
     "@jsr/std__internal@1.0.9": {
       "integrity": "sha512-s+f4qrJzZgPAy7XuFOtgaSaxyPLnnEmAfXGLvRXGxPTL76URLVHkF+hOzqXz+bmk8/awybF6BRsasxtAQOV23Q==",
@@ -6904,13 +6914,15 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@std/assert@^1.0.13"
+      "jsr:@std/assert@^1.0.13",
+      "jsr:@std/async@^1.0.14"
     ],
     "packageJson": {
       "dependencies": [
         "npm:@adobe/lit-mobx@^2.2.2",
         "npm:@custom-elements-manifest/analyzer@~0.10.3",
         "npm:@jsr/std__assert@*",
+        "npm:@jsr/std__async@^1.0.14",
         "npm:@open-wc/testing@4",
         "npm:@storybook/addon-a11y@^7.6.20",
         "npm:@storybook/addon-essentials@^7.6.20",
@@ -6924,6 +6936,7 @@
         "npm:concurrently@^8.2.2",
         "npm:lit@^3.1.4",
         "npm:mobx@^6.13.7",
+        "npm:rxjs@^7.8.2",
         "npm:storybook@^7.6.20",
         "npm:tslib@^2.6.3",
         "npm:typescript@^5.5.3"

@@ -1,5 +1,6 @@
 import { assert } from "@std/assert";
 import { HTMLTemplateResult, LitElement } from "lit";
+import { BehaviorSubject } from "rxjs";
 
 type CssValue = number | string;
 /** A mobile-first responsive CSS value. */
@@ -22,6 +23,7 @@ export interface Step {
 
 export default class Wizard {
   #step = 0;
+  readonly changed = new BehaviorSubject(this.#step);
 
   constructor(public readonly steps: Step[] = []) { }
 
@@ -62,16 +64,19 @@ export default class Wizard {
   next() {
     assert(this.#step < this.steps.length - 1, "Cannot advance past the last step!");
     this.#step += 1;
+    this.changed.next(this.#step);
   }
 
   previous() {
     assert(this.#step > 0, "Cannot go back past the first step!");
     this.#step -= 1;
+    this.changed.next(this.#step);
   }
 
   goTo(i: number) {
     assert(i <= this.steps.length - 1, "Cannot advance past the last step!");
     assert(i >= 0, "Cannot go back past the first step!");
     this.#step = i;
+    this.changed.next(this.#step);
   }
 }

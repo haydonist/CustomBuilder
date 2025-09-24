@@ -4,7 +4,9 @@
   "license": "MIT",
   "private": true,
   "author": "Chance Snow <chance@snow.llc>",
-  "contributors": ["Hayden Anderson <hayden@jollywebconsulting.com>"],
+  "contributors": [
+    "Hayden Anderson <hayden@jollywebconsulting.com>"
+  ],
   "version": "0.0.0",
   "type": "module",
   "scripts": {
@@ -17,8 +19,10 @@
   },
   "dependencies": {
     "@adobe/lit-mobx": "^2.2.2",
+    "@std/async": "npm:@jsr/std__async@^1.0.14",
     "lit": "^3.1.4",
-    "mobx": "^6.13.7"
+    "mobx": "^6.13.7",
+    "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@custom-elements-manifest/analyzer": "^0.10.3",
