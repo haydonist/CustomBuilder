@@ -86,7 +86,6 @@ body > main {
 }
 
 /* Jumbotron */
-
 #jumbotron {
   display: flex;
   flex-direction: column;
@@ -94,7 +93,15 @@ body > main {
   flex-grow: 1;
   margin-inline: -8px;
   padding-inline-start: 24px;
-  background: radial-gradient(#433F3C, #2D2D2D);
+  text-shadow: 0 0 2px black, 1px 1px 3px black;
+  background: url(/assets/belts/jumbotron-belts.png), radial-gradient(#433F3C, #2D2D2D);
+  background-repeat: no-repeat, no-repeat;
+  background-size: 55vw, auto;
+  /* Fallback that's good enough. */
+  background-position-x: -25%, center;
+  background-position-y: center, center;
+  /* Future forward, see https://caniuse.com/mdn-css_properties_background-position-x_side-relative_values */
+  background-position-y: bottom 10%, center;
 }
 #jumbotron[hidden] {
   display: none;
@@ -103,6 +110,12 @@ body > main {
 @media screen and (min-width: 500px) {
   #jumbotron {
     padding-inline-start: 50vw;
+    background-size: 57vw, auto;
+    /* Fallback that's good enough. */
+    background-position-x: left, center;
+    background-position-y: 130%, center;
+    /* Future forward, see https://caniuse.com/mdn-css_properties_background-position-x_side-relative_values */
+    background-position-y: bottom 10%, center;
   }
 }
 
