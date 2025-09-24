@@ -119,6 +119,10 @@ h6, .heading-6 {
   width: 1px;
 }
 
+.container {
+  max-width: 960px;
+}
+
 .row {
   display: flex;
 }
