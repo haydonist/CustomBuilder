@@ -54,7 +54,9 @@ export class CustomBeltWizard extends LitElement {
     id: "loops",
     title: "Add Belt Loops",
     view: html`<div class="row wrap gap-medium">
-      ${beltLoops.map(loop => thumbnailOption(loop.id, loop.thumbnail, "beltLoop", loop.id, loop.name, this.submitStep))}
+      ${beltLoops.map(loop => thumbnailOption(loop.id, loop.thumbnail, "beltLoop", loop.id, loop.name, () => {
+        // TODO: Enter the accessible belt loop placement editor
+      }))}
     </div>`
   }, {
     id: "conchos",
@@ -62,7 +64,9 @@ export class CustomBeltWizard extends LitElement {
     subtitle: "Drag and drop conchos to style your belt",
     shortcut: html`<button class="btn primary" @click=${this.submitStep}>No Conchos</button>`,
     view: html`<div class="row wrap gap-medium">
-      ${beltConchos.map(concho => thumbnailOption(concho.id, concho.thumbnail, "beltConcho", concho.id, concho.name, this.submitStep))}
+      ${beltConchos.map(concho => thumbnailOption(concho.id, concho.thumbnail, "beltConcho", concho.id, concho.name, () => {
+        // TODO: Enter the accessible belt concho placement editor
+      }))}
     </div>`
   }, {
     id: "tip",
