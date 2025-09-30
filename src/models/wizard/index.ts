@@ -13,6 +13,7 @@ export interface Step {
   id: string;
   title: string;
   subtitle?: string;
+  shortcut?: LitElement | HTMLTemplateResult;
   view: LitElement | HTMLTemplateResult;
   background?: {
     image: string,

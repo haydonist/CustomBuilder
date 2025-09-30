@@ -206,11 +206,19 @@ belt-wizard {
 }
 
 /* Steps */
-#stepTitle h2 {
-  margin-block-end: 0;
+#stepHeading {
+  margin-block-start: 2em;
 }
-#stepTitle h2 ~ .subtitle {
+
+#stepHeading h2 {
+  margin-block: 0;
+}
+#stepHeading h2 ~ .subtitle {
   margin-block-start: 0;
+}
+
+#stepTitle {
+  flex-grow: 1;
 }
 
 body > footer {

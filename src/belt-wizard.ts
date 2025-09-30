@@ -97,9 +97,12 @@ export class CustomBeltWizard extends LitElement {
           <button class="step" ?disabled=${this.wizard.stepIndex === i} title=${`Step ${i + 1} of ${this.wizard.steps.length}: ${this.wizard.steps[i].title}`} @click=${() => this.wizard.goTo(i)}></button>
         `)}
       </section>
-      <section id="stepTitle">
-        <h2 class="heading-5">${currentStep.title}</h2>
-        ${currentStep.subtitle ? html`<p class="subtitle">${currentStep.subtitle}</p>` : null}
+      <section id="stepHeading" class="row">
+        <div id="stepTitle">
+          <h2 class="heading-5">${currentStep.title}</h2>
+          ${currentStep.subtitle ? html`<p class="subtitle">${currentStep.subtitle}</p>` : null}
+        </div>
+        ${currentStep.shortcut && html`<div id="stepShortcut">${currentStep.shortcut}</div>`}
       </section>
       <section id="preview" style="position: sticky">
         <img src="./assets/belts/belt-base.png" />
