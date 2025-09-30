@@ -4,7 +4,7 @@ import { customElement, eventOptions, state } from "lit/decorators.js";
 import { createRef, ref, Ref } from "lit/directives/ref.js";
 
 import { colorChipOption, textOption, thumbnailOption } from "./components/option.ts";
-import { beltBases, beltColors, beltSizes } from "./models/belts.js";
+import { beltBases, beltBuckles, beltColors, beltSizes } from "./models/belts.js";
 import Wizard from "./models/wizard/index.js";
 
 // See // See https://open-wc.org
@@ -24,7 +24,7 @@ export class CustomBeltWizard extends LitElement {
     id: "waist",
     title: "What is your waist size?",
     subtitle: "We will add 3” to meet your perfect fit belt size",
-    view: html`<div class="row wrap" style="gap: 28px;">
+    view: html`<div class="row wrap gap-medium">
       ${beltSizes.map(size => textOption(`size-${size}`, "beltSize", size, `${size}"`, this.submitStep))}
       <!-- TODO: Add a "perfect belt" sizing chart. -->
     </div>`,
@@ -35,19 +35,21 @@ export class CustomBeltWizard extends LitElement {
   }, {
     id: "belt",
     title: "Select a Belt Base",
-    view: html`<div class="row wrap" style="gap: 28px;">
+    view: html`<div class="row wrap gap-medium" style="">
       ${beltBases.map(base => thumbnailOption(base.id, base.thumbnail, "beltBase", base.id, base.name, this.submitStep))}
     </div>`
   }, {
     id: "belt-color",
     title: "Choose a Belt Color",
-    view: html`<div class="column" style="gap: 28px;">
-      ${beltColors.map(base => colorChipOption(base.id, base.color, "beltColor", base.id, base.name, this.submitStep))}
+    view: html`<div class="column gap-medium">
+      ${beltColors.map(c => colorChipOption(c.id, c.color, "beltColor", c.id, c.name, this.submitStep))}
     </div>`
   }, {
     id: "buckle",
     title: "Choose a Belt Buckle",
-    view: html``
+    view: html`<div class="row wrap gap-medium">
+      ${beltBuckles.map(buckle => thumbnailOption(buckle.id, buckle.thumbnail, "beltBuckle", buckle.id, buckle.name))}
+    </div>`
   }, {
     id: "loops",
     title: "Add Belt Loops",

@@ -135,6 +135,10 @@ h6, .heading-6 {
   flex-direction: column;
 }
 
+.gap-medium {
+  gap: 28px;
+}
+
 /* Components */
 
 /* Button */

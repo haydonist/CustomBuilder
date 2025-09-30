@@ -41,3 +41,17 @@ export const beltColors: BeltColor[] = [
   { id: "darkChocolate", name: "Dark Chocolate", color: "#2B170D" },
   { id: "chocolate", name: "Chocolate", color: "#3B1F11" },
 ];
+
+export interface BeltBuckle {
+  id: string;
+  name?: string;
+  thumbnail: string;
+}
+export const beltBuckles: BeltBuckle[] = [
+  { id: "2-in-brass", name: "2\" Brass", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
+  { id: "a", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
+  { id: "b", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
+  { id: "c", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
+  { id: "d", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
+  { id: "e", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
+];
