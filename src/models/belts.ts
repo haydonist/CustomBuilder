@@ -62,4 +62,10 @@ export const beltConchos: ThumbnailOption[] = [
   { id: "d", thumbnail: "assets/belts/conchos/studded-silver.png" },
 ];
 
-export const beltTips: ThumbnailOption[] = [];
+export const beltTips: ThumbnailOption[] = [
+  { id: "silver-tip", name: "Silver Tip", thumbnail: "assets/belts/silver-tip.png" },
+  { id: "a", thumbnail: "assets/belts/silver-tip.png" },
+  { id: "b", thumbnail: "assets/belts/silver-tip.png" },
+  { id: "c", thumbnail: "assets/belts/silver-tip.png" },
+  { id: "d", thumbnail: "assets/belts/silver-tip.png" },
+];

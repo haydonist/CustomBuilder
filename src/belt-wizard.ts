@@ -69,7 +69,7 @@ export class CustomBeltWizard extends LitElement {
     title: "Choose a Belt Tip",
     shortcut: html`<button class="btn primary" @click=${this.submitStep}>No Belt Tip</button>`,
     view: html`<div class="row wrap gap-medium">
-      ${beltTips.map(tip => thumbnailOption(tip.id, tip.thumbnail, "beltTip", tip.id, tip.name))}
+      ${beltTips.map(tip => thumbnailOption(tip.id, tip.thumbnail, "beltTip", tip.id, tip.name, this.submitStep))}
     </div>`
   }, {
     id: "summary",
