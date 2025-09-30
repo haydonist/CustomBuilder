@@ -4,7 +4,7 @@ import { customElement, eventOptions, state } from "lit/decorators.js";
 import { createRef, ref, Ref } from "lit/directives/ref.js";
 
 import { colorChipOption, textOption, thumbnailOption } from "./components/option.ts";
-import { beltBases, beltBuckles, beltColors, beltSizes } from "./models/belts.js";
+import { beltBases, beltBuckles, beltColors, beltConchos, beltLoops, beltSizes, beltTips } from "./models/belts.js";
 import Wizard from "./models/wizard/index.js";
 
 // See // See https://open-wc.org
@@ -48,21 +48,29 @@ export class CustomBeltWizard extends LitElement {
     id: "buckle",
     title: "Choose a Belt Buckle",
     view: html`<div class="row wrap gap-medium">
-      ${beltBuckles.map(buckle => thumbnailOption(buckle.id, buckle.thumbnail, "beltBuckle", buckle.id, buckle.name))}
+      ${beltBuckles.map(buckle => thumbnailOption(buckle.id, buckle.thumbnail, "beltBuckle", buckle.id, buckle.name, this.submitStep))}
     </div>`
   }, {
     id: "loops",
     title: "Add Belt Loops",
-    view: html``
+    view: html`<div class="row wrap gap-medium">
+      ${beltLoops.map(loop => thumbnailOption(loop.id, loop.thumbnail, "beltLoop", loop.id, loop.name, this.submitStep))}
+    </div>`
   }, {
     id: "conchos",
     title: "Add Conchos",
     subtitle: "Drag and drop conchos to style your belt",
-    view: html``
+    shortcut: html`<button class="btn primary" @click=${this.submitStep}>No Conchos</button>`,
+    view: html`<div class="row wrap gap-medium">
+      ${beltConchos.map(concho => thumbnailOption(concho.id, concho.thumbnail, "beltConcho", concho.id, concho.name, this.submitStep))}
+    </div>`
   }, {
     id: "tip",
     title: "Choose a Belt Tip",
-    view: html``
+    shortcut: html`<button class="btn primary" @click=${this.submitStep}>No Belt Tip</button>`,
+    view: html`<div class="row wrap gap-medium">
+      ${beltTips.map(tip => thumbnailOption(tip.id, tip.thumbnail, "beltTip", tip.id, tip.name))}
+    </div>`
   }]);
 
   // TODO: Use the current step's `background` in the `belt-wizard`.

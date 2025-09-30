@@ -42,3 +42,15 @@ export const beltBuckles: ThumbnailOption[] = [
   { id: "d", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
   { id: "e", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
 ];
+
+export const beltLoops: ThumbnailOption[] = [
+  { id: "slate", name: "Slate 1/4\" Loop", thumbnail: "/assets/belts/belt-loop.png" },
+  { id: "a", thumbnail: "/assets/belts/belt-loop.png" },
+  { id: "b", thumbnail: "/assets/belts/belt-loop.png" },
+  { id: "c", thumbnail: "/assets/belts/belt-loop.png" },
+  { id: "d", thumbnail: "/assets/belts/belt-loop.png" },
+];
+
+export const beltConchos: ThumbnailOption[] = [];
+
+export const beltTips: ThumbnailOption[] = [];
