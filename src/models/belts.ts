@@ -1,3 +1,5 @@
+import { ColorOption, ThumbnailOption } from "../models/options.js";
+
 export enum BeltSize {
   thirty = 30,
   thirtyTwo = 32,
@@ -15,12 +17,7 @@ export enum BeltSize {
 
 export const beltSizes = Object.values(BeltSize).filter(val => typeof val !== "string");
 
-export interface BeltBase {
-  id: string;
-  name?: string;
-  thumbnail: string;
-}
-export const beltBases: BeltBase[] = [
+export const beltBases: ThumbnailOption[] = [
   { id: "4218968x14", name: "Coarse", thumbnail: "/assets/belts/black-speckled.png" },
   { id: "4218968x15", name: "Natural", thumbnail: "/assets/belts/tan-leather.png" },
   { id: "4218968x16", name: "Woven", thumbnail: "/assets/belts/black-speckled.png" },
@@ -29,12 +26,7 @@ export const beltBases: BeltBase[] = [
   { id: "4218968x19", thumbnail: "/assets/belts/tan-leather.png" },
 ];
 
-export interface BeltColor {
-  id: string;
-  name: string;
-  color: string;
-}
-export const beltColors: BeltColor[] = [
+export const beltColors: ColorOption[] = [
   { id: "brown", name: "Brown", color: "#753921" },
   { id: "tan", name: "Tan", color: "#94390F" },
   { id: "black", name: "Black", color: "#281A19" },
@@ -42,12 +34,7 @@ export const beltColors: BeltColor[] = [
   { id: "chocolate", name: "Chocolate", color: "#3B1F11" },
 ];
 
-export interface BeltBuckle {
-  id: string;
-  name?: string;
-  thumbnail: string;
-}
-export const beltBuckles: BeltBuckle[] = [
+export const beltBuckles: ThumbnailOption[] = [
   { id: "2-in-brass", name: "2\" Brass", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
   { id: "a", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
   { id: "b", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
