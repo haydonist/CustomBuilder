@@ -51,6 +51,15 @@ export const beltLoops: ThumbnailOption[] = [
   { id: "d", thumbnail: "/assets/belts/belt-loop.png" },
 ];
 
-export const beltConchos: ThumbnailOption[] = [];
+export const beltConchos: ThumbnailOption[] = [
+  { id: "brass-axe", name: "Brass Axe", thumbnail: "assets/belts/conchos/brass-axe.png" },
+  { id: "brass-flower", name: "Brass Flower", thumbnail: "assets/belts/conchos/brass-flower.png" },
+  { id: "silver-brooch", name: "Silver Brooch", thumbnail: "assets/belts/conchos/silver-brooch.png" },
+  { id: "studded-silver", name: "Studded Silver", thumbnail: "assets/belts/conchos/studded-silver.png" },
+  { id: "a", thumbnail: "assets/belts/conchos/brass-axe.png" },
+  { id: "b", thumbnail: "assets/belts/conchos/brass-flower.png" },
+  { id: "c", thumbnail: "assets/belts/conchos/silver-brooch.png" },
+  { id: "d", thumbnail: "assets/belts/conchos/studded-silver.png" },
+];
 
 export const beltTips: ThumbnailOption[] = [];
