@@ -155,6 +155,9 @@ button.btn, a.btn {
 
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
+a.btn {
+  text-decoration: none;
+}
 
 button.btn.primary, a.btn.primary {
   color: var(--neutral-white);

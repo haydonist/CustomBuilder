@@ -71,6 +71,12 @@ export class CustomBeltWizard extends LitElement {
     view: html`<div class="row wrap gap-medium">
       ${beltTips.map(tip => thumbnailOption(tip.id, tip.thumbnail, "beltTip", tip.id, tip.name))}
     </div>`
+  }, {
+    id: "summary",
+    title: "Your Belt",
+    subtitle: "Here's your chosen belt.",
+    shortcut: html`<a class="btn primary" href="#">Checkout</a>`,
+    view: html``
   }]);
 
   // TODO: Use the current step's `background` in the `belt-wizard`.
