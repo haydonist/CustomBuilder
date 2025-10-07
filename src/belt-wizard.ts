@@ -3,6 +3,7 @@ import { css, html, LitElement } from "lit";
 import { customElement, eventOptions, state } from "lit/decorators.js";
 import { createRef, ref, Ref } from "lit/directives/ref.js";
 
+import BeltPreview from "./components/belt-preview.js";
 import { colorChipOption, textOption, thumbnailOption } from "./components/option.ts";
 import { beltBases, beltBuckles, beltColors, beltConchos, beltLoops, beltSizes, beltTips } from "./models/belts.js";
 import Wizard from "./models/wizard/index.js";
@@ -17,15 +18,17 @@ export enum Theme {
 
 @customElement("belt-wizard")
 export class CustomBeltWizard extends LitElement {
-  form: Ref<HTMLFormElement> = createRef();
+  private selection: FormData | null = null;
+  private form: Ref<HTMLFormElement> = createRef();
+  private preview: Ref<BeltPreview> = createRef();
 
   @state()
   wizard = new Wizard([{
-    id: "waist",
+    id: "size",
     title: "What is your waist size?",
     subtitle: "We will add 3” to meet your perfect fit belt size",
     view: html`<div class="row wrap gap-medium">
-      ${beltSizes.map(size => textOption(`size-${size}`, "beltSize", size, `${size}"`, this.submitStep))}
+      ${beltSizes.map(size => textOption(`size-${size}`, "size", size, `${size}"`, this.submitStep))}
       <!-- TODO: Add a "perfect belt" sizing chart. -->
     </div>`,
     background: {
@@ -33,30 +36,30 @@ export class CustomBeltWizard extends LitElement {
       size: { default: "50vw", desktop: "33vw" }
     }
   }, {
-    id: "belt",
+    id: "base",
     title: "Select a Belt Base",
     view: html`<div class="row wrap gap-medium" style="">
-      ${beltBases.map(base => thumbnailOption(base.id, base.thumbnail, "beltBase", base.id, base.name, this.submitStep))}
+      ${beltBases.map(base => thumbnailOption(base.id, base.thumbnail, "base", base.id, base.name, this.submitStep))}
     </div>`
   }, {
-    id: "belt-color",
+    id: "color",
     title: "Choose a Belt Color",
     view: html`<div class="column gap-medium">
-      ${beltColors.map(c => colorChipOption(c.id, c.color, "beltColor", c.id, c.name, this.submitStep))}
+      ${beltColors.map(c => colorChipOption(c.id, c.color, "color", c.id, c.name, this.submitStep))}
     </div>`
   }, {
     id: "buckle",
     title: "Choose a Belt Buckle",
     view: html`<div class="row wrap gap-medium">
-      ${beltBuckles.map(buckle => thumbnailOption(buckle.id, buckle.thumbnail, "beltBuckle", buckle.id, buckle.name, this.submitStep))}
+      ${beltBuckles.map(buckle => thumbnailOption(buckle.id, buckle.thumbnail, "buckle", buckle.id, buckle.name, this.submitStep))}
     </div>`
   }, {
-    id: "loops",
+    id: "loop",
     title: "Add Belt Loops",
     view: html`<div class="row wrap gap-medium">
-      ${beltLoops.map(loop => thumbnailOption(loop.id, loop.thumbnail, "beltLoop", loop.id, loop.name, () => {
-        // TODO: Enter the accessible belt loop placement editor
-      }))}
+      ${beltLoops.map(loop => thumbnailOption(loop.id, loop.thumbnail, "loop", loop.id, loop.name, () => {
+      // TODO: Enter the accessible belt loop placement editor
+    }))}
     </div>`
   }, {
     id: "conchos",
@@ -65,8 +68,8 @@ export class CustomBeltWizard extends LitElement {
     shortcut: html`<button class="btn primary" @click=${this.submitStep}>No Conchos</button>`,
     view: html`<div class="row wrap gap-medium">
       ${beltConchos.map(concho => thumbnailOption(concho.id, concho.thumbnail, "beltConcho", concho.id, concho.name, () => {
-        // TODO: Enter the accessible belt concho placement editor
-      }))}
+      // TODO: Enter the accessible belt concho placement editor
+    }))}
     </div>`
   }, {
     id: "tip",
@@ -123,11 +126,20 @@ export class CustomBeltWizard extends LitElement {
         ${currentStep.shortcut && html`<div id="stepShortcut">${currentStep.shortcut}</div>`}
       </section>
       <section id="preview" style="position: sticky">
-        <img src="./assets/belts/belt-base.png" />
+        <belt-preview ${ref(this.preview)}></belt-preview>
       </section>
       <section>
-        <form ${ref(this.form)} @submit=${async (ev: Event) => {
+        <form ${ref(this.form)} @submit=${(ev: Event) => {
         ev.preventDefault();
+        new FormData(this.form.value);
+      }} @formdata=${async ({ formData }: FormDataEvent) => {
+        // See https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/formdata_event
+
+        // Persist the step's selection
+        if (this.selection === null) this.selection = formData;
+        else formData.entries().forEach(entry => this.selection?.append(entry[0], entry[1]));
+        console.log(Array.from(this.selection!.entries()));
+
         await delay(500);
         this.wizard.next();
       }}>
