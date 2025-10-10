@@ -238,8 +238,17 @@ body > footer {
   align-items: center;
 }
 
-/* Checkout Summary */
+/* Belt Size */
+div:has(#sizingChart) {
+  margin-block-start: 18px;
+}
 
+#sizingChart {
+  width: 475px;
+  max-width: 80vw;
+}
+
+/* Checkout Summary */
 #checkoutTotal {
   margin-block: 28px 16px;
 }
