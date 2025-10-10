@@ -228,13 +228,13 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   cursor: pointer;
 }
 
-.option.thumbnail label span.label {
+.option.thumbnail:not(.summary) label span.label {
   font-size: 26px;
-  text-align: center;
 }
 
 .option:not(.text-only) label span.label {
   margin-block-start: 8px;
+  text-align: center;
 }
 
 .option.text-only label {
@@ -251,4 +251,9 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   margin: 0;
   border-width: 4px;
   background: #FFFFFF80;
+}
+
+.option .selection-indicator.summary {
+  width: 64px;
+  height: 64px;
 }

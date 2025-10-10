@@ -237,3 +237,9 @@ body > footer {
   align-self: center;
   align-items: center;
 }
+
+/* Checkout Summary */
+
+#checkoutTotal {
+  margin-block: 28px 16px;
+}

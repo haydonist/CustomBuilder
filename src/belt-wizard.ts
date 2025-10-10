@@ -28,7 +28,7 @@ export class CustomBeltWizard extends LitElement {
     title: "What is your waist size?",
     subtitle: "We will add 3” to meet your perfect fit belt size",
     view: html`<div class="row wrap gap-medium">
-      ${beltSizes.map(size => textOption(`size-${size}`, "size", size, `${size}"`, this.submitStep))}
+      ${beltSizes.map(size => textOption(`size-${size}`, "size", size, `${size}"`, { onClick: this.submitStep }))}
       <!-- TODO: Add a "perfect belt" sizing chart. -->
     </div>`,
     background: {
@@ -39,27 +39,27 @@ export class CustomBeltWizard extends LitElement {
     id: "base",
     title: "Select a Belt Base",
     view: html`<div class="row wrap gap-medium" style="">
-      ${beltBases.map(base => thumbnailOption(base.id, base.thumbnail, "base", base.id, base.name, this.submitStep))}
+      ${beltBases.map(base => thumbnailOption(base.id, base.thumbnail, "base", base.id, base.name, { onClick: this.submitStep }))}
     </div>`
   }, {
     id: "color",
     title: "Choose a Belt Color",
     view: html`<div class="column gap-medium">
-      ${beltColors.map(c => colorChipOption(c.id, c.color, "color", c.id, c.name, this.submitStep))}
+      ${beltColors.map(c => colorChipOption(c.id, c.color, "color", c.id, c.name, { onClick: this.submitStep }))}
     </div>`
   }, {
     id: "buckle",
     title: "Choose a Belt Buckle",
     view: html`<div class="row wrap gap-medium">
-      ${beltBuckles.map(buckle => thumbnailOption(buckle.id, buckle.thumbnail, "buckle", buckle.id, buckle.name, this.submitStep))}
+      ${beltBuckles.map(buckle => thumbnailOption(buckle.id, buckle.thumbnail, "buckle", buckle.id, buckle.name, { onClick: this.submitStep }))}
     </div>`
   }, {
     id: "loop",
     title: "Add Belt Loops",
     view: html`<div class="row wrap gap-medium">
-      ${beltLoops.map(loop => thumbnailOption(loop.id, loop.thumbnail, "loop", loop.id, loop.name, () => {
+      ${beltLoops.map(loop => thumbnailOption(loop.id, loop.thumbnail, "loop", loop.id, loop.name, { onClick: () => {
       // TODO: Enter the accessible belt loop placement editor
-    }))}
+    }}))}
     </div>`
   }, {
     id: "conchos",
@@ -67,23 +67,31 @@ export class CustomBeltWizard extends LitElement {
     subtitle: "Drag and drop conchos to style your belt",
     shortcut: html`<button class="btn primary" @click=${this.submitStep}>No Conchos</button>`,
     view: html`<div class="row wrap gap-medium">
-      ${beltConchos.map(concho => thumbnailOption(concho.id, concho.thumbnail, "beltConcho", concho.id, concho.name, () => {
+      ${beltConchos.map(concho => thumbnailOption(concho.id, concho.thumbnail, "beltConcho", concho.id, concho.name, { onClick: () => {
       // TODO: Enter the accessible belt concho placement editor
-    }))}
+    }}))}
     </div>`
   }, {
     id: "tip",
     title: "Choose a Belt Tip",
     shortcut: html`<button class="btn primary" @click=${this.submitStep}>No Belt Tip</button>`,
     view: html`<div class="row wrap gap-medium">
-      ${beltTips.map(tip => thumbnailOption(tip.id, tip.thumbnail, "beltTip", tip.id, tip.name, this.submitStep))}
+      ${beltTips.map(tip => thumbnailOption(tip.id, tip.thumbnail, "beltTip", tip.id, tip.name, { onClick: this.submitStep }))}
     </div>`
   }, {
     id: "summary",
     title: "Your Belt",
     subtitle: "Here's your chosen belt.",
     shortcut: html`<a class="btn primary" href="#">Checkout</a>`,
-    view: html``
+    view: html`<h2>Selections</h2><div class="row wrap gap-medium">
+      ${thumbnailOption(beltBases[0].id, beltBases[0].thumbnail, "base", beltBases[0].id, beltBases[0].name, { class: "summary" })}
+      ${colorChipOption(beltColors[0].id, beltColors[0].color, "beltColor", beltColors[0].id, beltColors[0].name, { class: "summary" })}
+      ${thumbnailOption(beltBuckles[0].id, beltBuckles[0].thumbnail, "buckle", beltBuckles[0].id, beltBuckles[0].name, { class: "summary" })}
+      ${thumbnailOption(beltLoops[0].id, beltLoops[0].thumbnail, "loop", beltLoops[0].id, beltLoops[0].name, { class: "summary" })}
+      ${thumbnailOption(beltConchos[0].id, beltConchos[0].thumbnail, "beltConcho", beltConchos[0].id, beltConchos[0].name, { class: "summary" })}
+      ${thumbnailOption(beltTips[0].id, beltTips[0].thumbnail, "beltTip", beltTips[0].id, beltTips[0].name, { class: "summary" })}
+    </div><div id="checkoutTotal">Total: <span class="price">$89.20</span></div>
+    <div><a class="btn primary" href="#">Checkout</a></div>`
   }]);
 
   // TODO: Use the current step's `background` in the `belt-wizard`.
@@ -128,7 +136,7 @@ export class CustomBeltWizard extends LitElement {
       <section id="preview" style="position: sticky">
         <belt-preview ${ref(this.preview)}></belt-preview>
       </section>
-      <section>
+      <section id=${currentStep.id}>
         <form ${ref(this.form)} @submit=${(ev: Event) => {
         ev.preventDefault();
         new FormData(this.form.value);
