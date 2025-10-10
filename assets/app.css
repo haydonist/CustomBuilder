@@ -2,7 +2,7 @@ html,
 body {
   margin: 0;
   padding: 0;
-  font-family: sans-serif;
+  font-family: "Work Sans", sans-serif;
   background-color: var(--belt-wizard-background-color);
 }
 
@@ -11,9 +11,9 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  max-width: 960px;
   min-height: 100vh;
   margin: 0 auto;
+  overflow-x: hidden;
 }
 
 a {
@@ -21,12 +21,215 @@ a {
 }
 
 body > header {
-  margin-inline: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-inline: 20px;
+  height: 75px;
+}
+
+@media screen and (min-width: 500px) {
+  body > header {
+    padding-inline: 64px;
+    justify-content: unset;
+  }
+}
+
+header#navbar {
+  color: var(--neutral-darkest);
+  background-color: var(--potters-clay-lightest);
+}
+
+header#navbar .logo {
+  height: 28px;
+}
+
+header#navbar nav {
+  display: none;
+}
+
+@media screen and (min-width: 500px) {
+  header#navbar nav {
+    display: unset;
+    flex-grow: 1;
+  }
+}
+
+header#navbar ul {
+  display: flex;
+  justify-content: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 32px;
+}
+
+header#navbar li {
+  padding: 0;
+}
+
+header#navbar li a {
+  color: var(--neutral-darkest);
+  font-weight: 400;
+  text-decoration: none;
+}
+
+header#navbar li a:hover {
+  text-decoration: underline;
 }
 
 body > main {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+/* Jumbotron */
+#jumbotron {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex-grow: 1;
+  margin-inline: -8px;
+  padding-inline-start: 24px;
+  text-shadow: 0 0 2px black, 1px 1px 3px black;
+  background: url(/assets/belts/jumbotron-belts.png), radial-gradient(#433F3C, #2D2D2D);
+  background-repeat: no-repeat, no-repeat;
+  background-size: 55vw, auto;
+  /* Fallback that's good enough. */
+  background-position-x: -25%, center;
+  background-position-y: center, center;
+  /* Future forward, see https://caniuse.com/mdn-css_properties_background-position-x_side-relative_values */
+  background-position-y: bottom 10%, center;
+}
+#jumbotron[hidden] {
+  display: none;
+}
+
+@media screen and (min-width: 500px) {
+  #jumbotron {
+    padding-inline-start: 50vw;
+    background-size: 57vw, auto;
+    /* Fallback that's good enough. */
+    background-position-x: left, center;
+    background-position-y: 130%, center;
+    /* Future forward, see https://caniuse.com/mdn-css_properties_background-position-x_side-relative_values */
+    background-position-y: bottom 10%, center;
+  }
+}
+
+@media screen and (max-width: 500px) {
+  #jumbotron {
+    background-size: 90vw, auto;
+    /* Fallback that's good enough. */
+    background-position-x: left, center;
+    background-position-y: 20%, center;
+    /* Future forward, see https://caniuse.com/mdn-css_properties_background-position-x_side-relative_values */
+    background-position-y: bottom 10%, center;
+  }
+}
+
+#jumbotron h1 {
+  font-family: "Founders Grotesque X Condensed Light";
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+#jumbotron h2 {
+  margin-block-start: 0;
+  margin-block-end: 0.5em;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 44px;
+}
+
+@media screen and (min-width: 500px) {
+  #jumbotron h2 {
+    font-size: 60px;
+  }
+}
+
+#jumbotron p {
+  margin-block-start: 0;
+  color: var(--potters-clay-light);
+}
+
+#jumbotron button.btn {
+  align-self: flex-start;
+}
+
+/* Belt Wizard */
+belt-wizard {
   flex-grow: 1;
   margin-inline: 8px;
+}
+
+/* Stepper */
+#stepper {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  margin-block-start: 10px;
+  margin-inline: 7px;
+}
+#stepper:before {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 1px;
+  background-color: var(--neutral-white);
+  top: 7px;
+  z-index: 0;
+}
+
+#stepper button.step {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  border: none;
+  background-color: #B6C6FD;
+  z-index: 1;
+  cursor: pointer;
+}
+#stepper button.step:not(:first-child):before {
+  content: "";
+  display: block;
+  position: absolute;
+  background-color: var(--belt-wizard-background-color);
+  width: 7px;
+  height: 1px;
+  left: -50%;
+}
+#stepper button.step:not(:last-child):after {
+  content: "";
+  display: block;
+  position: absolute;
+  background-color: var(--belt-wizard-background-color);
+  width: 7px;
+  height: 1px;
+  right: -50%;
+}
+
+#stepper button.step:disabled {
+  background-color: #476FFF;
+  cursor: not-allowed;
+}
+
+/* Steps */
+#stepHeading {
+  margin-block-start: 2em;
+}
+
+#stepHeading h2 {
+  margin-block: 0;
+}
+#stepHeading h2 ~ .subtitle {
+  margin-block-start: 0;
+}
+
+#stepTitle {
+  flex-grow: 1;
 }
 
 body > footer {

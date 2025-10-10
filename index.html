@@ -10,6 +10,12 @@
     <base href="/">
 
     <!-- Third-Party Styles -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
     <link
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined"
       rel="stylesheet"
@@ -21,25 +27,28 @@
   </head>
 
   <body>
-    <header>
-      <h1>
-        <span class="logo material-symbols-outlined" aria-label="BeltMaster logo">laundry</span>
-        <span class="wordmark">BeltMaster</span>
-      </h1>
+    <header id="navbar">
+      <img class="logo" srcset="./assets/logo.png 269w, ./assets/logo@2x.png 537w" sizes="(width <= 600px) 250px, 520px" src="./assets/logo@2x.png" alt="BeltMaster" />
+      <nav>
+        <ul>
+          <li><a href="#">Custom Belts</a></li>
+          <li><a href="#">Belt Builder</a></li>
+          <li><a href="#">Our Story</a></li>
+          <li><a href="#">Shop Now</a></li>
+        </ul>
+      </nav>
+      <button class="btn primary">Explore</button>
     </header>
     <main>
-      <belt-wizard></belt-wizard>
+      <div id="jumbotron">
+        <h1 class="heading-5 uppercase">BeltMaster</h1>
+        <h2>Build Your Own Custom Belt</h2>
+        <p>Craft your own belt with premium leather and the buckle of your choice.</p>
+        <button id="getStarted" class="btn primary">Get Started</button>
+      </div>
+      <belt-wizard hidden></belt-wizard>
     </main>
-    <footer class="app-footer">
-      <p>
-        Created by
-        <a
-          target="_blank"
-          rel="noopener noreferrer"
-          href="https://www.jollywebconsulting.com"
-        >Jollyweb Consulting</a>.
-      </p>
-    </footer>
-    <script type="module" src="./build/src/belt-wizard.js"></script>
+    
+    <script type="module" src="./src/belt-wizard.ts"></script>
   </body>
 </html>
