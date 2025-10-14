@@ -193,6 +193,12 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 
 .option.text-only {
   display: inline-block;
+  width: 45px;
+}
+
+.row.wrap:has(.option.text-only) {
+  display: grid;
+  grid-template-columns: auto auto auto;
 }
 
 .option.text-only:has(input:checked) {
