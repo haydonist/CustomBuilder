@@ -139,9 +139,10 @@ export class CustomBeltWizard extends LitElement {
         </div>
         ${currentStep.shortcut && html`<div id="stepShortcut">${currentStep.shortcut}</div>`}
       </section>
-      <section id="preview" style="position: sticky">
+      <!-- Don't render the belt preview on the belt size step -->
+      ${this.wizard.currentStep.id !== "size" ? html`<section id="preview" style="position: sticky">
         <belt-preview ${ref(this.preview)}></belt-preview>
-      </section>
+      </section>` : null}
       <section id=${currentStep.id}>
         <form ${ref(this.form)} @submit=${(ev: Event) => {
         ev.preventDefault();
