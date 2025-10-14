@@ -35,9 +35,8 @@ export class CustomBeltWizard extends LitElement {
     subtitle: "We will add 3” to meet your perfect fit belt size",
     view: html`<div class="row wrap gap-medium">
       ${beltSizes.map(size => textOption(`size-${size}`, "size", size, `${size}"`, { onClick: this.submitStep }))}
-    </div><div>
-      <img id="sizingChart" src="/assets/belts/sizing-chart.png" alt="Perfect belt sizing chart" />
-    </div>`,
+    </div>
+    <img id="sizingChart" src="/assets/belts/sizing-chart.png" alt="Perfect belt sizing chart" />`,
     background: {
       image: "url(/assets/belts/looped-belt.png)",
       size: { default: "50vw", desktop: "33vw" }
