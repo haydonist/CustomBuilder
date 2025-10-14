@@ -3,6 +3,12 @@ import { css, html, LitElement } from "lit";
 import { customElement, eventOptions, state } from "lit/decorators.js";
 import { createRef, ref, Ref } from "lit/directives/ref.js";
 
+// ===============
+// Custom Elements
+// ===============
+// NOTE: Do NOT remove these, otherwise custom element decorators are not executed and they will break!
+import "./components/belt-preview.js";
+
 import BeltPreview from "./components/belt-preview.js";
 import { colorChipOption, textOption, thumbnailOption } from "./components/option.ts";
 import { beltBases, beltBuckles, beltColors, beltConchos, beltLoops, beltSizes, beltTips } from "./models/belts.js";

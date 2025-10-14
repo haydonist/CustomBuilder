@@ -232,10 +232,9 @@ belt-wizard {
   flex-grow: 1;
 }
 
-body > footer {
-  font-size: calc(12px + 0.5vmin);
-  align-self: center;
-  align-items: center;
+#preview belt-preview {
+  position: relative;
+  left: -8px;
 }
 
 /* Belt Size */
