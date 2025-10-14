@@ -254,8 +254,16 @@ belt-wizard {
 }
 
 #sizingChart {
+  margin-block-start: 18px;
   width: 475px;
-  max-width: 80vw;
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+@media screen and (min-width: 500px) {
+  #sizingChart {
+    max-width: 80vw;
+  }
 }
 
 /* Checkout Summary */
