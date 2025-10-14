@@ -199,6 +199,8 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 .row.wrap:has(.option.text-only) {
   display: grid;
   grid-template-columns: auto auto auto;
+  margin: 0 auto;
+  width: min-content;
 }
 
 .option.text-only:has(input:checked) {
