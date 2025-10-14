@@ -238,8 +238,19 @@ belt-wizard {
 }
 
 /* Belt Size */
-div:has(#sizingChart) {
-  margin-block-start: 18px;
+#size {
+  background-image: url(/assets/belts/looped-belt.png);
+  background-position: right 30%;
+  background-size: 80vw auto;
+  background-repeat: no-repeat;
+}
+
+@media screen and (min-width: 500px) {
+  #size {
+    background-position-x: right;
+    background-position-y: 20%;
+    background-size: 450px auto;
+  }
 }
 
 #sizingChart {
