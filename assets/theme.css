@@ -221,6 +221,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 
 .option.color-chip .selection-indicator {
   display: inline-block;
+  min-width: 64px;
   width: 64px;
   height: 64px;
 }
@@ -260,6 +261,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 }
 
 .option .selection-indicator.summary {
+  min-width: 64px;
   width: 64px;
   height: 64px;
 }
