@@ -203,6 +203,12 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   width: min-content;
 }
 
+@media screen and (min-width: 500px) {
+  .row.wrap:has(.option.text-only) {
+    margin: initial;
+  }
+}
+
 .option.text-only:has(input:checked) {
   margin: 0;
   border-width: 4px;
