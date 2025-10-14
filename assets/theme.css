@@ -143,21 +143,16 @@ h6, .heading-6 {
 
 /* Button */
 button.btn, a.btn {
-
-    align-items: center;
-    justify-content: center;
-    padding: 12px 22px;
-    border-radius: 8px;
-    font-weight: 700;
-    text-decoration: none;
-
-  font-family: "Work Sans", sans-serif;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-
-  background: #B1875A;
   color: #fff;
+  font-family: "Work Sans", sans-serif;
+  font-weight: 700;
+  text-decoration: none;
+
+  padding: 12px 22px;
+  border: none;
+  border-radius: 8px;
+  background: #B1875A;
+  cursor: pointer;
 
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
