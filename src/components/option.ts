@@ -13,7 +13,7 @@ export function thumbnailOption(id: string, img: string, name: string, value: un
   return html`<span class="option thumbnail ${options?.class ?? ""}" @click=${options?.onClick}>
     <input id=${id} class="sr-only" type="radio" name=${name} value="${value}" />
     <label for=${id}>
-      <img class="thumbnail selection-indicator ${options?.class ?? ""}" src=${img} alt=${label} width="195" />
+      <img class="thumbnail selection-indicator ${options?.class ?? ""}" src=${img} alt=${label} width="160px" />
       <span class="label">${label}</span>
     </label>
   </span>`;
