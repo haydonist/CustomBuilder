@@ -11,7 +11,7 @@ export default class BeltPreview extends LitElement {
   @state() conchos: string[] = [];
 
   override render() {
-    return html`<img src=${this.base} aria-hidden="true" />`;
+    return html`<img src=${this.base} aria-hidden="true" style="max-height: 300px; max-width: 100%;" />`;
   }
 }
 
