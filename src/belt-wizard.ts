@@ -50,7 +50,7 @@ export class CustomBeltWizard extends LitElement {
   }, {
     id: "color",
     title: "Choose a Belt Color",
-    view: html`<div class="column gap-medium">
+    view: html`<div class="row gap-medium">
       ${beltColors.map(c => colorChipOption(c.id, c.color, "color", c.id, c.name, { onClick: this.submitStep }))}
     </div>`
   }, {
@@ -127,6 +127,7 @@ export class CustomBeltWizard extends LitElement {
   override render() {
     const currentStep = this.wizard.currentStep;
     return html`
+    <div style="max-width: 1260px; margin: 0 auto; display: flex; flex-direction: column; flex-grow: 1;" class="content-wrapper">
       <section id="stepper">
         ${this.wizard.steps.map((_, i) => html`
           <button class="step" ?disabled=${this.wizard.stepIndex === i} title=${`Step ${i + 1} of ${this.wizard.steps.length}: ${this.wizard.steps[i].title}`} @click=${() => this.wizard.goTo(i)}></button>
@@ -161,6 +162,7 @@ export class CustomBeltWizard extends LitElement {
           ${this.wizard.currentView}
         </form>
       </section>
+      </div>
     `;
   }
 
