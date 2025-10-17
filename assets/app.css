@@ -92,7 +92,6 @@ body > main {
   flex-grow: 1;
   margin-inline: -8px;
   padding-inline-start: 24px;
-  text-shadow: 0 0 2px black, 1px 1px 3px black;
   background: url(/assets/belts/jumbotron-belts.png), radial-gradient(#433F3C, #2D2D2D);
   background-repeat: no-repeat, no-repeat;
   background-size: 55vw, auto;

@@ -136,7 +136,7 @@ h6, .heading-6 {
 }
 
 .gap-medium {
-  gap: 28px;
+  gap: 3rem;
 }
 
 /* Components */
@@ -237,6 +237,8 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 
 .option label {
   cursor: pointer;
+  text-wrap: auto;
+  text-align: center;
 }
 
 .option.thumbnail:not(.summary) label span.label {
