@@ -27,11 +27,11 @@ export const beltBases: ThumbnailOption[] = [
 ];
 
 export const beltColors: ColorOption[] = [
-  { id: "brown", name: "Brown", color: "#753921" },
-  { id: "tan", name: "Tan", color: "#94390F" },
-  { id: "black", name: "Black", color: "#281A19" },
-  { id: "darkChocolate", name: "Dark Chocolate", color: "#2B170D" },
-  { id: "chocolate", name: "Chocolate", color: "#3B1F11" },
+  { id: "brown", name: "Brown", color: "#753921", css: "brightness(0.45)" },
+  { id: "tan", name: "Tan", color: "#94390F", css: "none" },
+  { id: "black", name: "Black", color: "#281A19", css: "brightness(0.2) saturate(0.5)" },
+  { id: "darkChocolate", name: "Dark Chocolate", color: "#2B170D", css: "brightness(0.15)" },
+  { id: "chocolate", name: "Chocolate", color: "#3B1F11", css: "brightness(0.35)" },
 ];
 
 export const beltBuckles: ThumbnailOption[] = [
