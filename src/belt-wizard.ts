@@ -129,6 +129,19 @@ export class CustomBeltWizard extends LitElement {
       ${products.map((buckle: {id: string, title: string}) => thumbnailOption(buckle.id, thumbnail, "buckle", buckle.id, buckle.title, { onClick: this.submitStep }))}
     </div>`;
     })
+
+    api.request(productQuery, {
+      variables: { query: "tag:concho" }
+    }).then((resp) => {
+      const products = resp.data.products.edges.map((x: any) => x.node);
+      // console.log(products);
+      const thumbnail = "assets/belts/conchos/brass-flower.png";
+
+      const buckleStep = this.wizard.steps.filter(step => step.id === "conchos")[0];
+      buckleStep.view = html`<div class="row wrap gap-medium">
+      ${products.map((concho: {id: string, title: string}) => thumbnailOption(concho.id, thumbnail, "buckle", concho.id, concho.title, { onClick: this.submitStep }))}
+    </div>`;
+    })
   }
 
   /** Disable the shadow DOM for this root-level component. */
