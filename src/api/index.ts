@@ -30,19 +30,3 @@ export const productQuery = `
     }
   }
 `;
-
-export const collectionQuery = `
-  query ProductsByCollection($collection: String!) {
-    collectionByIdentifier(identifier: {handle: $collection}) {
-      handle
-      products(first: 10) {
-        edges {
-          node {
-            id
-            title
-          }
-        }
-      }
-    }
-  }
-`

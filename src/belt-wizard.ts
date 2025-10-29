@@ -13,7 +13,7 @@ import BeltPreview from "./components/belt-preview.js";
 import { colorChipOption, textOption, thumbnailOption } from "./components/option.ts";
 import { beltBases, beltBuckles, beltColors, beltConchos, beltLoops, beltSizes, beltTips } from "./models/belts.js";
 import Wizard from "./models/wizard/index.js";
-import api, { collectionQuery, productQuery, shopQuery } from "./api/index.js";
+import api, { productQuery } from "./api/index.js";
 
 // See // See https://open-wc.org
 // See https://open-wc.org/guides/developing-components/code-examples
