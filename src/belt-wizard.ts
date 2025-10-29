@@ -205,16 +205,25 @@ export class CustomBeltWizard extends LitElement {
         <belt-preview ${ref(this.preview)}></belt-preview>
       </section>` : null}
       <section id=${currentStep.id}>
-        <form ${ref(this.form)} @submit=${(ev: Event) => {
+        <form ${ref(this.form)} @submit=${async (ev: Event) => {
         ev.preventDefault();
+        // Ensure the form data has its moment to change
+        await delay(0);
         new FormData(this.form.value);
       }} @formdata=${async ({ formData }: FormDataEvent) => {
         // See https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/formdata_event
 
         // Persist the step's selection
         if (this.selection === null) this.selection = formData;
-        else formData.entries().forEach(entry => this.selection?.append(entry[0], entry[1]));
+        else formData.entries().forEach(entry => {
+          if (this.selection?.has(entry[0])) this.selection.set(entry[0], entry[1]);
+          else this.selection?.append(entry[0], entry[1]);
+        });
         console.log(Array.from(this.selection!.entries()));
+
+        // Update belt preview color
+        if (formData.has("color"))
+          this.preview.value?.setAttribute("color", beltColors.find(c => c.id === formData.get("color"))?.css!);
 
         await delay(500);
         this.wizard.next();
