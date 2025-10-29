@@ -61,7 +61,7 @@ export class CustomBeltWizard extends LitElement {
       ${beltBuckles.map(buckle => thumbnailOption(buckle.id, buckle.thumbnail, "buckle", buckle.id, buckle.name, { onClick: this.submitStep }))}
     </div>`
   }, {
-    id: "loop",
+    id: "loops",
     title: "Add Belt Loops",
     view: html`<div class="row wrap gap-medium">
       ${beltLoops.map(loop => thumbnailOption(loop.id, loop.thumbnail, "loop", loop.id, loop.name, { onClick: () => {
@@ -119,6 +119,18 @@ export class CustomBeltWizard extends LitElement {
     this.wizard.changed.subscribe(() => this.requestUpdate());
 
     api.request(productQuery, {
+      variables: { query: "tag:base" }
+    }).then((resp) => {
+      const products = resp.data.products.edges.map((x: any) => x.node);
+      const thumbnail = "/assets/belts/tan-leather.png";
+
+      const baseStep = this.wizard.steps.filter(step => step.id === "base")[0];
+      baseStep.view = html`<div class="row wrap gap-medium" style="">
+        ${products.map((base: {id: string, title: string}) => thumbnailOption(base.id, thumbnail, "base", base.id, base.title, { onClick: this.submitStep }))}
+      </div>`;
+    })
+
+    api.request(productQuery, {
       variables: { query: "tag:buckle" }
     }).then((resp) => {
       const products = resp.data.products.edges.map((x: any) => x.node);
@@ -126,21 +138,32 @@ export class CustomBeltWizard extends LitElement {
 
       const buckleStep = this.wizard.steps.filter(step => step.id === "buckle")[0];
       buckleStep.view = html`<div class="row wrap gap-medium">
-      ${products.map((buckle: {id: string, title: string}) => thumbnailOption(buckle.id, thumbnail, "buckle", buckle.id, buckle.title, { onClick: this.submitStep }))}
-    </div>`;
+        ${products.map((buckle: {id: string, title: string}) => thumbnailOption(buckle.id, thumbnail, "buckle", buckle.id, buckle.title, { onClick: this.submitStep }))}
+      </div>`;
+    })
+
+    api.request(productQuery, {
+      variables: { query: "tag:loop" }
+    }).then((resp) => {
+      const products = resp.data.products.edges.map((x: any) => x.node);
+      const thumbnail = "/assets/belts/belt-loop.png";
+
+      const loopStep = this.wizard.steps.filter(step => step.id === "loops")[0];
+      loopStep.view = html`<div class="row wrap gap-medium" style="">
+        ${products.map((loop: {id: string, title: string}) => thumbnailOption(loop.id, thumbnail, "base", loop.id, loop.title, { onClick: this.submitStep }))}
+      </div>`;
     })
 
     api.request(productQuery, {
       variables: { query: "tag:concho" }
     }).then((resp) => {
       const products = resp.data.products.edges.map((x: any) => x.node);
-      // console.log(products);
       const thumbnail = "assets/belts/conchos/brass-flower.png";
 
-      const buckleStep = this.wizard.steps.filter(step => step.id === "conchos")[0];
-      buckleStep.view = html`<div class="row wrap gap-medium">
-      ${products.map((concho: {id: string, title: string}) => thumbnailOption(concho.id, thumbnail, "buckle", concho.id, concho.title, { onClick: this.submitStep }))}
-    </div>`;
+      const conchoStep = this.wizard.steps.filter(step => step.id === "conchos")[0];
+      conchoStep.view = html`<div class="row wrap gap-medium">
+        ${products.map((concho: {id: string, title: string}) => thumbnailOption(concho.id, thumbnail, "buckle", concho.id, concho.title, { onClick: this.submitStep }))}
+      </div>`;
     })
   }
 
