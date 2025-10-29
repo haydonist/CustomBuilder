@@ -150,7 +150,7 @@ export class CustomBeltWizard extends LitElement {
 
       const loopStep = this.wizard.steps.filter(step => step.id === "loops")[0];
       loopStep.view = html`<div class="row wrap gap-medium" style="">
-        ${products.map((loop: {id: string, title: string}) => thumbnailOption(loop.id, thumbnail, "base", loop.id, loop.title, { onClick: this.submitStep }))}
+        ${products.map((loop: {id: string, title: string}) => thumbnailOption(loop.id, thumbnail, "loop", loop.id, loop.title, { onClick: this.submitStep }))}
       </div>`;
     })
 
@@ -162,7 +162,19 @@ export class CustomBeltWizard extends LitElement {
 
       const conchoStep = this.wizard.steps.filter(step => step.id === "conchos")[0];
       conchoStep.view = html`<div class="row wrap gap-medium">
-        ${products.map((concho: {id: string, title: string}) => thumbnailOption(concho.id, thumbnail, "buckle", concho.id, concho.title, { onClick: this.submitStep }))}
+        ${products.map((concho: {id: string, title: string}) => thumbnailOption(concho.id, thumbnail, "concho", concho.id, concho.title, { onClick: this.submitStep }))}
+      </div>`;
+    })
+
+    api.request(productQuery, {
+      variables: { query: "tag:tip" }
+    }).then((resp) => {
+      const products = resp.data.products.edges.map((x: any) => x.node);
+      const thumbnail = "assets/belts/silver-tip.png";
+
+      const loopStep = this.wizard.steps.filter(step => step.id === "tip")[0];
+      loopStep.view = html`<div class="row wrap gap-medium" style="">
+        ${products.map((tip: {id: string, title: string}) => thumbnailOption(tip.id, thumbnail, "tip", tip.id, tip.title, { onClick: this.submitStep }))}
       </div>`;
     })
   }
