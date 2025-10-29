@@ -13,6 +13,7 @@ import BeltPreview from "./components/belt-preview.js";
 import { colorChipOption, textOption, thumbnailOption } from "./components/option.ts";
 import { beltBases, beltBuckles, beltColors, beltConchos, beltLoops, beltSizes, beltTips } from "./models/belts.js";
 import Wizard from "./models/wizard/index.js";
+import api, { collectionQuery, productQuery, shopQuery } from "./api/index.js";
 
 // See // See https://open-wc.org
 // See https://open-wc.org/guides/developing-components/code-examples
@@ -116,6 +117,18 @@ export class CustomBeltWizard extends LitElement {
 
     // Update the view when the wizard's step changes
     this.wizard.changed.subscribe(() => this.requestUpdate());
+
+    api.request(productQuery, {
+      variables: { query: "tag:buckle" }
+    }).then((resp) => {
+      const products = resp.data.products.edges.map((x: any) => x.node);
+      const thumbnail = "/assets/belts/2-in-brass-buckle.png";
+
+      const buckleStep = this.wizard.steps.filter(step => step.id === "buckle")[0];
+      buckleStep.view = html`<div class="row wrap gap-medium">
+      ${products.map((buckle: {id: string, title: string}) => thumbnailOption(buckle.id, thumbnail, "buckle", buckle.id, buckle.title, { onClick: this.submitStep }))}
+    </div>`;
+    })
   }
 
   /** Disable the shadow DOM for this root-level component. */
@@ -127,7 +140,6 @@ export class CustomBeltWizard extends LitElement {
   override render() {
     const currentStep = this.wizard.currentStep;
     return html`
-    <div style="max-width: 1260px; margin: 0 auto; display: flex; flex-direction: column; flex-grow: 1;" class="content-wrapper">
       <section id="stepper">
         ${this.wizard.steps.map((_, i) => html`
           <button class="step" ?disabled=${this.wizard.stepIndex === i} title=${`Step ${i + 1} of ${this.wizard.steps.length}: ${this.wizard.steps[i].title}`} @click=${() => this.wizard.goTo(i)}></button>
@@ -162,7 +174,6 @@ export class CustomBeltWizard extends LitElement {
           ${this.wizard.currentView}
         </form>
       </section>
-      </div>
     `;
   }
 
