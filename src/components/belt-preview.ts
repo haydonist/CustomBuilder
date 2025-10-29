@@ -1,4 +1,4 @@
-import { html, LitElement } from "lit";
+import { css, html, LitElement } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 
 @customElement("belt-preview")
@@ -10,11 +10,15 @@ export default class BeltPreview extends LitElement {
   @state() loops: string[] = [];
   @state() conchos: string[] = [];
 
+  static override styles = css`img {
+    max-width: 100%;
+    max-height: 300px;
+  }`;
+
   override render() {
-    return html`<img src=${this.base} aria-hidden="true" style="max-height: 300px; max-width: 100%;" />`;
+    return html`<img src=${this.base} aria-hidden="true" />`;
   }
 }
-
 declare global {
   interface HTMLElementTagNameMap {
     "belt-preview": BeltPreview;
