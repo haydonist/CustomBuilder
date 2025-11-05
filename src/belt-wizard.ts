@@ -10,12 +10,12 @@ import { createRef, ref, Ref } from "lit/directives/ref.js";
 import "./components/belt-preview.js";
 
 import BeltPreview from "./components/belt-preview.js";
-import { colorChipOption, textOption, thumbnailOption } from "./components/option.ts";
+import { colorChipOption, textOption, thumbnailOption } from "./components/option.js";
 import { beltBases, beltBuckles, beltColors, beltConchos, beltLoops, beltSizes, beltTips } from "./models/belts.js";
 import Wizard from "./models/wizard/index.js";
-import api, { productQuery } from "./api/index.js";
+import api, { queryProducts } from "./api/index.js";
 
-// See // See https://open-wc.org
+// See https://open-wc.org
 // See https://open-wc.org/guides/developing-components/code-examples
 
 export enum Theme {
@@ -118,65 +118,7 @@ export class CustomBeltWizard extends LitElement {
     // Update the view when the wizard's step changes
     this.wizard.changed.subscribe(() => this.requestUpdate());
 
-    api.request(productQuery, {
-      variables: { query: "tag:base" }
-    }).then((resp) => {
-      const products = resp.data.products.edges.map((x: any) => x.node);
-      const thumbnail = "/assets/belts/tan-leather.png";
-
-      const baseStep = this.wizard.steps.filter(step => step.id === "base")[0];
-      baseStep.view = html`<div class="row wrap gap-medium" style="">
-        ${products.map((base: {id: string, title: string}) => thumbnailOption(base.id, thumbnail, "base", base.id, base.title, { onClick: this.submitStep }))}
-      </div>`;
-    })
-
-    api.request(productQuery, {
-      variables: { query: "tag:buckle" }
-    }).then((resp) => {
-      const products = resp.data.products.edges.map((x: any) => x.node);
-      const thumbnail = "/assets/belts/2-in-brass-buckle.png";
-
-      const buckleStep = this.wizard.steps.filter(step => step.id === "buckle")[0];
-      buckleStep.view = html`<div class="row wrap gap-medium">
-        ${products.map((buckle: {id: string, title: string}) => thumbnailOption(buckle.id, thumbnail, "buckle", buckle.id, buckle.title, { onClick: this.submitStep }))}
-      </div>`;
-    })
-
-    api.request(productQuery, {
-      variables: { query: "tag:loop" }
-    }).then((resp) => {
-      const products = resp.data.products.edges.map((x: any) => x.node);
-      const thumbnail = "/assets/belts/belt-loop.png";
-
-      const loopStep = this.wizard.steps.filter(step => step.id === "loops")[0];
-      loopStep.view = html`<div class="row wrap gap-medium" style="">
-        ${products.map((loop: {id: string, title: string}) => thumbnailOption(loop.id, thumbnail, "loop", loop.id, loop.title, { onClick: this.submitStep }))}
-      </div>`;
-    })
-
-    api.request(productQuery, {
-      variables: { query: "tag:concho" }
-    }).then((resp) => {
-      const products = resp.data.products.edges.map((x: any) => x.node);
-      const thumbnail = "assets/belts/conchos/brass-flower.png";
-
-      const conchoStep = this.wizard.steps.filter(step => step.id === "conchos")[0];
-      conchoStep.view = html`<div class="row wrap gap-medium">
-        ${products.map((concho: {id: string, title: string}) => thumbnailOption(concho.id, thumbnail, "concho", concho.id, concho.title, { onClick: this.submitStep }))}
-      </div>`;
-    })
-
-    api.request(productQuery, {
-      variables: { query: "tag:tip" }
-    }).then((resp) => {
-      const products = resp.data.products.edges.map((x: any) => x.node);
-      const thumbnail = "assets/belts/silver-tip.png";
-
-      const loopStep = this.wizard.steps.filter(step => step.id === "tip")[0];
-      loopStep.view = html`<div class="row wrap gap-medium" style="">
-        ${products.map((tip: {id: string, title: string}) => thumbnailOption(tip.id, thumbnail, "tip", tip.id, tip.title, { onClick: this.submitStep }))}
-      </div>`;
-    })
+    this.updateProducts();
   }
 
   /** Disable the shadow DOM for this root-level component. */
@@ -237,6 +179,38 @@ export class CustomBeltWizard extends LitElement {
   @eventOptions({ once: true })
   private submitStep() {
     this.form.value?.requestSubmit();
+  }
+
+  private async updateProducts() {
+    const beltBases = await queryProducts("tag:base");
+    const baseStep = this.wizard.steps.filter(step => step.id === "base")[0];
+    baseStep.view = html`<div class="row wrap gap-medium" style="">
+      ${beltBases.map((base) => thumbnailOption(base.id, base.images[0].url, "base", base.id, base.title, { onClick: this.submitStep }))}
+    </div>`;
+
+    const beltBuckles = await queryProducts("tag:buckle");
+    const buckleStep = this.wizard.steps.filter(step => step.id === "buckle")[0];
+    buckleStep.view = html`<div class="row wrap gap-medium">
+      ${beltBuckles.map((buckle) => thumbnailOption(buckle.id, buckle.images[0].url, "buckle", buckle.id, buckle.title, { onClick: this.submitStep }))}
+    </div>`;
+
+    const beltLoops = await queryProducts("tag:loop");
+    const loopStep = this.wizard.steps.filter(step => step.id === "loops")[0];
+    loopStep.view = html`<div class="row wrap gap-medium" style="">
+      ${beltLoops.map((loop) => thumbnailOption(loop.id, loop.images[0].url, "loop", loop.id, loop.title, { onClick: this.submitStep }))}
+    </div>`;
+
+    const beltConchos = await queryProducts("tag:concho");
+    const conchoStep = this.wizard.steps.filter(step => step.id === "conchos")[0];
+    conchoStep.view = html`<div class="row wrap gap-medium">
+      ${beltConchos.map((concho) => thumbnailOption(concho.id, concho.images[0].url, "concho", concho.id, concho.title, { onClick: this.submitStep }))}
+    </div>`;
+
+    const beltTips = await queryProducts("tag:tip");
+    const tipStep = this.wizard.steps.filter(step => step.id === "tip")[0];
+    tipStep.view = html`<div class="row wrap gap-medium" style="">
+      ${beltTips.map((tip) => thumbnailOption(tip.id, tip.images[0].url, "tip", tip.id, tip.title, { onClick: this.submitStep }))}
+    </div>`;
   }
 }
 
