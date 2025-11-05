@@ -50,9 +50,28 @@ export interface Product {
   }[];
 }
 
-export async function queryProducts(query: string): Promise<Product[]> {
+export async function queryProducts(query: string, { prefetchImages }: { prefetchImages: boolean } = { prefetchImages: true }): Promise<Product[]> {
   const resp = await client.request(productQuery, { variables: { query } });
   if (resp.errors && resp.errors.length) throw new Error(resp.errors[0].message);
+
+  if (prefetchImages) {
+    const images = resp.data.products.edges.flatMap((x: any) => x.node.images.edges.map((img: any) => ({
+      id: img.node.id,
+      url: img.node.url,
+      altText: img.node.altText
+    })));
+
+    await Promise.all(images.map(async (image) => {
+      const img = new Image();
+      img.src = image.url;
+      try {
+        await img.decode();
+      } catch (error) {
+        // TODO: Log this to Sentry or other error tracking service
+        console.debug(error, image.url);
+      }
+    }));
+  }
 
   return resp.data.products.edges.map((x: any) => ({
     id: x.node.id,

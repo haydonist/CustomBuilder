@@ -80,4 +80,8 @@ export default class Wizard {
     this.#step = i;
     this.changed.next(this.#step);
   }
+
+  find(id: string) {
+    return this.steps.find(step => step.id === id);
+  }
 }

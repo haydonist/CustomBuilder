@@ -183,31 +183,31 @@ export class CustomBeltWizard extends LitElement {
 
   private async updateProducts() {
     const beltBases = await queryProducts("tag:base");
-    const baseStep = this.wizard.steps.filter(step => step.id === "base")[0];
+    const baseStep = this.wizard.find("base");
     baseStep.view = html`<div class="row wrap gap-medium" style="">
       ${beltBases.map((base) => thumbnailOption(base.id, base.images[0].url, "base", base.id, base.title, { onClick: this.submitStep }))}
     </div>`;
 
     const beltBuckles = await queryProducts("tag:buckle");
-    const buckleStep = this.wizard.steps.filter(step => step.id === "buckle")[0];
+    const buckleStep = this.wizard.find("buckle");
     buckleStep.view = html`<div class="row wrap gap-medium">
       ${beltBuckles.map((buckle) => thumbnailOption(buckle.id, buckle.images[0].url, "buckle", buckle.id, buckle.title, { onClick: this.submitStep }))}
     </div>`;
 
     const beltLoops = await queryProducts("tag:loop");
-    const loopStep = this.wizard.steps.filter(step => step.id === "loops")[0];
+    const loopStep = this.wizard.find("loops");
     loopStep.view = html`<div class="row wrap gap-medium" style="">
       ${beltLoops.map((loop) => thumbnailOption(loop.id, loop.images[0].url, "loop", loop.id, loop.title, { onClick: this.submitStep }))}
     </div>`;
 
     const beltConchos = await queryProducts("tag:concho");
-    const conchoStep = this.wizard.steps.filter(step => step.id === "conchos")[0];
+    const conchoStep = this.wizard.find("conchos");
     conchoStep.view = html`<div class="row wrap gap-medium">
       ${beltConchos.map((concho) => thumbnailOption(concho.id, concho.images[0].url, "concho", concho.id, concho.title, { onClick: this.submitStep }))}
     </div>`;
 
     const beltTips = await queryProducts("tag:tip");
-    const tipStep = this.wizard.steps.filter(step => step.id === "tip")[0];
+    const tipStep = this.wizard.find("tip");
     tipStep.view = html`<div class="row wrap gap-medium" style="">
       ${beltTips.map((tip) => thumbnailOption(tip.id, tip.images[0].url, "tip", tip.id, tip.title, { onClick: this.submitStep }))}
     </div>`;
