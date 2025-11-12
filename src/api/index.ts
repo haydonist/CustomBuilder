@@ -43,23 +43,25 @@ const productQuery = `
 export interface Product {
   id: string;
   title: string;
-  images: {
-    id: string;
-    url: string;
-    altText: string;
-  }[];
+  images: ProductImage[];
+}
+
+export interface ProductImage {
+  id: string;
+  url: string;
+  altText: string;
 }
 
 export async function queryProducts(query: string, { prefetchImages }: { prefetchImages: boolean } = { prefetchImages: true }): Promise<Product[]> {
   const resp = await client.request(productQuery, { variables: { query } });
-  if (resp.errors && resp.errors.length) throw new Error(resp.errors[0].message);
+  if (resp.errors) throw new Error(resp.errors.message);
 
   if (prefetchImages) {
     const images = resp.data.products.edges.flatMap((x: any) => x.node.images.edges.map((img: any) => ({
       id: img.node.id,
       url: img.node.url,
       altText: img.node.altText
-    })));
+    }))) as ProductImage[];
 
     await Promise.all(images.map(async (image) => {
       const img = new Image();
