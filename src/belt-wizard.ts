@@ -31,18 +31,6 @@ export class CustomBeltWizard extends LitElement {
 
   @state()
   wizard = new Wizard([{
-    id: "size",
-    title: "What is your waist size?",
-    subtitle: "We will add 3” to meet your perfect fit belt size",
-    view: html`<div class="row wrap gap-medium">
-      ${beltSizes.map(size => textOption(`size-${size}`, "size", size, `${size}"`, { onClick: this.submitStep }))}
-    </div>
-    <img id="sizingChart" src="/assets/belts/sizing-chart.png" alt="Perfect belt sizing chart" />`,
-    background: {
-      image: "url(/assets/belts/looped-belt.png)",
-      size: { default: "50vw", desktop: "33vw" }
-    }
-  }, {
     id: "base",
     title: "Select a Belt Base",
     view: html`<div class="row wrap gap-medium" style="">
@@ -54,6 +42,18 @@ export class CustomBeltWizard extends LitElement {
     view: html`<div class="row gap-medium">
       ${beltColors.map(c => colorChipOption(c.id, c.color, "color", c.id, c.name, { onClick: this.submitStep }))}
     </div>`
+  }, {
+    id: "size",
+    title: "What is your waist size?",
+    subtitle: "We will add 3” to meet your perfect fit belt size",
+    view: html`<div class="row wrap gap-medium">
+      ${beltSizes.map(size => textOption(`size-${size}`, "size", size, `${size}"`, { onClick: this.submitStep }))}
+    </div>
+    <img id="sizingChart" src="/assets/belts/sizing-chart.png" alt="Perfect belt sizing chart" />`,
+    background: {
+      image: "url(/assets/belts/looped-belt.png)",
+      size: { default: "50vw", desktop: "33vw" }
+    }
   }, {
     id: "buckle",
     title: "Choose a Belt Buckle",
@@ -153,22 +153,7 @@ export class CustomBeltWizard extends LitElement {
         await delay(0);
         new FormData(this.form.value);
       }} @formdata=${async ({ formData }: FormDataEvent) => {
-        // See https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/formdata_event
-
-        // Persist the step's selection
-        if (this.selection === null) this.selection = formData;
-        else formData.entries().forEach(entry => {
-          if (this.selection?.has(entry[0])) this.selection.set(entry[0], entry[1]);
-          else this.selection?.append(entry[0], entry[1]);
-        });
-        console.log(Array.from(this.selection!.entries()));
-
-        // Update belt preview color
-        if (formData.has("color"))
-          this.preview.value?.setAttribute("color", beltColors.find(c => c.id === formData.get("color"))?.css!);
-
-        await delay(500);
-        this.wizard.next();
+        return this.updateWizardSelection(formData);
       }}>
           ${this.wizard.currentView}
         </form>
@@ -214,6 +199,25 @@ export class CustomBeltWizard extends LitElement {
     tipStep.view = html`<div class="row wrap gap-medium" style="">
       ${beltTips.map((tip) => thumbnailOption(tip.id, tip.images[0].url, "tip", tip.id, tip.title, { onClick: this.submitStep }))}
     </div>`;
+  }
+
+  private async updateWizardSelection(formData: FormData) {
+    // See https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/formdata_event
+
+    // Persist the step's selection
+    if (this.selection === null) this.selection = formData;
+    else formData.entries().forEach(entry => {
+      if (this.selection?.has(entry[0])) this.selection.set(entry[0], entry[1]);
+      else this.selection?.append(entry[0], entry[1]);
+    });
+    console.log(Array.from(this.selection!.entries()));
+
+    // Update belt preview
+    if (formData.has("color"))
+      this.preview.value?.setAttribute("color", beltColors.find(c => c.id === formData.get("color"))?.css!);
+
+    await delay(500);
+    this.wizard.next();
   }
 }
 
