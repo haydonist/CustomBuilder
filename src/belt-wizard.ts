@@ -11,9 +11,9 @@ import "./components/belt-checkout.js";
 import "./components/belt-preview.js";
 
 import { colorChipOption, textOption, thumbnailOption } from "./components/option.js";
-import { beltBases, beltBuckles, beltColors, beltConchos, beltLoops, beltSizes, beltTips } from "./models/belts.js";
+import { beltColors, beltSizes } from "./models/belts.js";
 import Wizard from "./models/wizard/index.js";
-import api, { queryProducts } from "./api/index.js";
+import api, { Product, queryProducts } from "./api/index.js";
 
 // See https://open-wc.org
 // See https://open-wc.org/guides/developing-components/code-examples
@@ -36,9 +36,7 @@ export class CustomBeltWizard extends LitElement {
   wizard = new Wizard([{
     id: "base",
     title: "Select a Belt Base",
-    view: html`<div class="row wrap gap-medium" style="">
-      ${beltBases.map(base => thumbnailOption(base.id, base.thumbnail, "base", base.id, base.name, { onClick: this.submitStep }))}
-    </div>`
+    view: html`<div class="row wrap gap-medium"></div>`
   }, {
     id: "color",
     title: "Choose a Belt Color",
@@ -60,34 +58,22 @@ export class CustomBeltWizard extends LitElement {
   }, {
     id: "buckle",
     title: "Choose a Belt Buckle",
-    view: html`<div class="row wrap gap-medium">
-      ${beltBuckles.map(buckle => thumbnailOption(buckle.id, buckle.thumbnail, "buckle", buckle.id, buckle.name, { onClick: this.submitStep }))}
-    </div>`
+    view: html`<div class="row wrap gap-medium"></div>`
   }, {
     id: "loops",
     title: "Add Belt Loops",
-    view: html`<div class="row wrap gap-medium">
-      ${beltLoops.map(loop => thumbnailOption(loop.id, loop.thumbnail, "loop", loop.id, loop.name, { onClick: () => {
-      // TODO: Enter the accessible belt loop placement editor
-    }}))}
-    </div>`
+    view: html`<div class="row wrap gap-medium"></div>`
   }, {
     id: "conchos",
     title: "Add Conchos",
     subtitle: "Drag and drop conchos to style your belt",
     shortcut: html`<button class="btn primary" @click=${this.submitStep}>No Conchos</button>`,
-    view: html`<div class="row wrap gap-medium">
-      ${beltConchos.map(concho => thumbnailOption(concho.id, concho.thumbnail, "beltConcho", concho.id, concho.name, { onClick: () => {
-      // TODO: Enter the accessible belt concho placement editor
-    }}))}
-    </div>`
+    view: html`<div class="row wrap gap-medium"></div>`
   }, {
     id: "tip",
     title: "Choose a Belt Tip",
     shortcut: html`<button class="btn primary" @click=${this.submitStep}>No Belt Tip</button>`,
-    view: html`<div class="row wrap gap-medium">
-      ${beltTips.map(tip => thumbnailOption(tip.id, tip.thumbnail, "beltTip", tip.id, tip.name, { onClick: this.submitStep }))}
-    </div>`
+    view: html`<div class="row wrap gap-medium"></div>`
   }, {
     id: "summary",
     title: "Your Belt",
@@ -122,7 +108,10 @@ export class CustomBeltWizard extends LitElement {
   }
 
   override render() {
+    if (this.loading) return html`<div>Loading...</div>`;
+
     const currentStep = this.wizard.currentStep;
+
     return html`
       <section id="stepper">
         ${this.wizard.steps.map((_, i) => html`
@@ -160,8 +149,12 @@ export class CustomBeltWizard extends LitElement {
     this.form.value?.requestSubmit();
   }
 
+  private beltData: Product[][] = [];
+
   private async updateProducts() {
-    const [beltBases, beltBuckles, beltLoops, beltConchos, beltTips] = await Promise.all([
+    this.loading = true;
+
+    const [beltBases, beltBuckles, beltLoops, beltConchos, beltTips] = this.beltData = await Promise.all([
       queryProducts("tag:base"),
       queryProducts("tag:buckle"),
       queryProducts("tag:loop"),
@@ -181,18 +174,26 @@ export class CustomBeltWizard extends LitElement {
 
     const loopStep = this.wizard.find("loops")!;
     loopStep.view = html`<div class="row wrap gap-medium" style="">
-      ${beltLoops.map((loop) => thumbnailOption(loop.id, loop.images[0].url, "loop", loop.id, loop.title, { onClick: this.submitStep }))}
+      ${beltLoops.map((loop) => thumbnailOption(loop.id, loop.images[0].url, "loop", loop.id, loop.title, { onClick: () => {
+        // FIXME: Enter the accessible belt loop placement editor
+        this.submitStep();
+      } }))}
     </div>`;
 
     const conchoStep = this.wizard.find("conchos")!;
     conchoStep.view = html`<div class="row wrap gap-medium">
-      ${beltConchos.map((concho) => thumbnailOption(concho.id, concho.images[0].url, "concho", concho.id, concho.title, { onClick: this.submitStep }))}
+      ${beltConchos.map((concho) => thumbnailOption(concho.id, concho.images[0].url, "concho", concho.id, concho.title, { onClick: () => {
+        // FIXME: Enter the accessible belt concho placement editor
+        this.submitStep();
+      } }))}
     </div>`;
 
     const tipStep = this.wizard.find("tip")!;
     tipStep.view = html`<div class="row wrap gap-medium" style="">
       ${beltTips.map((tip) => thumbnailOption(tip.id, tip.images[0].url, "tip", tip.id, tip.title, { onClick: this.submitStep }))}
     </div>`;
+
+    this.loading = false;
   }
 
   private async updateWizardSelection(formData: FormData) {

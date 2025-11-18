@@ -17,55 +17,10 @@ export enum BeltSize {
 
 export const beltSizes = Object.values(BeltSize).filter(val => typeof val !== "string");
 
-export const beltBases: ThumbnailOption[] = [
-  { id: "4218968x14", name: "Coarse", thumbnail: "/assets/belts/black-speckled.png" },
-  { id: "4218968x15", name: "Natural", thumbnail: "/assets/belts/tan-leather.png" },
-  { id: "4218968x16", name: "Woven", thumbnail: "/assets/belts/black-speckled.png" },
-  { id: "4218968x17", name: "Natural 2", thumbnail: "/assets/belts/tan-leather.png" },
-  { id: "4218968x18", name: "Natural 3", thumbnail: "/assets/belts/tan-leather.png" },
-  { id: "4218968x19", name: "Natural 4", thumbnail: "/assets/belts/tan-leather.png" },
-];
-
 export const beltColors: ColorOption[] = [
   { id: "brown", name: "Brown", color: "#753921", css: "brightness(0.45)" },
   { id: "tan", name: "Tan", color: "#94390F", css: "none" },
   { id: "black", name: "Black", color: "#281A19", css: "brightness(0.2) saturate(0.5)" },
   { id: "darkChocolate", name: "Dark Chocolate", color: "#2B170D", css: "brightness(0.15)" },
   { id: "chocolate", name: "Chocolate", color: "#3B1F11", css: "brightness(0.35)" },
-];
-
-export const beltBuckles: ThumbnailOption[] = [
-  { id: "2-in-brass", name: "2\" Brass", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
-  { id: "a", name: "2\" Brass", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
-  { id: "b", name: "2\" Brass", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
-  { id: "c", name: "2\" Brass", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
-  { id: "d", name: "2\" Brass", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
-  { id: "e", name: "2\" Brass", thumbnail: "/assets/belts/2-in-brass-buckle.png" },
-];
-
-export const beltLoops: ThumbnailOption[] = [
-  { id: "slate", name: "Slate 1/4\" Loop", thumbnail: "/assets/belts/belt-loop.png" },
-  { id: "a", name: "Slate 1/4\" Loop", thumbnail: "/assets/belts/belt-loop.png" },
-  { id: "b", name: "Slate 1/4\" Loop", thumbnail: "/assets/belts/belt-loop.png" },
-  { id: "c", name: "Slate 1/4\" Loop", thumbnail: "/assets/belts/belt-loop.png" },
-  { id: "d", name: "Slate 1/4\" Loop", thumbnail: "/assets/belts/belt-loop.png" },
-];
-
-export const beltConchos: ThumbnailOption[] = [
-  { id: "brass-axe", name: "Brass Axe", thumbnail: "assets/belts/conchos/brass-axe.png" },
-  { id: "brass-flower", name: "Brass Flower", thumbnail: "assets/belts/conchos/brass-flower.png" },
-  { id: "silver-brooch", name: "Silver Brooch", thumbnail: "assets/belts/conchos/silver-brooch.png" },
-  { id: "studded-silver", name: "Studded Silver", thumbnail: "assets/belts/conchos/studded-silver.png" },
-  { id: "a", name: "Brass Axe", thumbnail: "assets/belts/conchos/brass-axe.png" },
-  { id: "b", name: "Brass Flower", thumbnail: "assets/belts/conchos/brass-flower.png" },
-  { id: "c", name: "Silver Brooch", thumbnail: "assets/belts/conchos/silver-brooch.png" },
-  { id: "d", name: "Studded Silver", thumbnail: "assets/belts/conchos/studded-silver.png" },
-];
-
-export const beltTips: ThumbnailOption[] = [
-  { id: "silver-tip", name: "Silver Tip", thumbnail: "assets/belts/silver-tip.png" },
-  { id: "a", name: "Silver Tip", thumbnail: "assets/belts/silver-tip.png" },
-  { id: "b", name: "Silver Tip", thumbnail: "assets/belts/silver-tip.png" },
-  { id: "c", name: "Silver Tip", thumbnail: "assets/belts/silver-tip.png" },
-  { id: "d", name: "Silver Tip", thumbnail: "assets/belts/silver-tip.png" },
 ];
