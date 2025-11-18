@@ -31,6 +31,8 @@ export class CustomBeltWizard extends LitElement {
   @state() private loading = false;
   @state() private beltBase: string | null = null;
   @state() private beltColor: string | null = null;
+  @state() private beltBuckle: string | null = null;
+  @state() private beltTip: string | null = null;
 
   @state()
   wizard = new Wizard([{
@@ -127,7 +129,7 @@ export class CustomBeltWizard extends LitElement {
       </section>
       <!-- Don't render the belt preview on the belt size step -->
       ${this.wizard.currentStep.id !== "size" ? html`<section id="preview" style="position: sticky">
-        <belt-preview base=${this.beltBase} color=${this.beltColor}></belt-preview>
+        <belt-preview base=${this.beltBase} color=${this.beltColor} buckle=${this.beltBuckle} tip=${this.beltTip}></belt-preview>
       </section>` : null}
       <section id=${currentStep.id}>
         <form ${ref(this.form)} @submit=${async (ev: Event) => {
@@ -210,9 +212,13 @@ export class CustomBeltWizard extends LitElement {
     // Update belt preview
     const [beltBases, beltBuckles, beltLoops, beltConchos, beltTips] = this.beltData
     if (formData.has("base"))
-      this.beltBase = beltBases.find(b => b.id === formData.get("base"))?.images[0].url!;
+      this.beltBase = beltBases.find(b => b.id === formData.get("base"))!.images[0].url;
     if (formData.has("color"))
-      this.beltColor = beltColors.find(c => c.id === formData.get("color"))?.css!;
+      this.beltColor = beltColors.find(c => c.id === formData.get("color"))!.css;
+    if (formData.has("buckle"))
+      this.beltBuckle = beltBuckles.find(b => b.id === formData.get("buckle"))!.images[0].url;
+    if (formData.has("tip"))
+      this.beltTip = beltTips.find(b => b.id === formData.get("tip"))!.images[0].url;
 
     await delay(500);
     this.wizard.next();

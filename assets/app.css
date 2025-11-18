@@ -241,8 +241,10 @@ belt-wizard {
 }
 
 #preview belt-preview {
+  display: block;
   position: relative;
   left: -8px;
+  min-height: 150px;
 }
 
 /* Belt Size */
