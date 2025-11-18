@@ -10,7 +10,6 @@ import { createRef, ref, Ref } from "lit/directives/ref.js";
 import "./components/belt-checkout.js";
 import "./components/belt-preview.js";
 
-import BeltPreview from "./components/belt-preview.js";
 import { colorChipOption, textOption, thumbnailOption } from "./components/option.js";
 import { beltBases, beltBuckles, beltColors, beltConchos, beltLoops, beltSizes, beltTips } from "./models/belts.js";
 import Wizard from "./models/wizard/index.js";
@@ -28,7 +27,10 @@ export enum Theme {
 export class CustomBeltWizard extends LitElement {
   private selection: FormData | null = null;
   private form: Ref<HTMLFormElement> = createRef();
-  private preview: Ref<BeltPreview> = createRef();
+
+  @state() private loading = false;
+  @state() private beltBase: string | null = null;
+  @state() private beltColor: string | null = null;
 
   @state()
   wizard = new Wizard([{
@@ -136,17 +138,17 @@ export class CustomBeltWizard extends LitElement {
       </section>
       <!-- Don't render the belt preview on the belt size step -->
       ${this.wizard.currentStep.id !== "size" ? html`<section id="preview" style="position: sticky">
-        <belt-preview ${ref(this.preview)}></belt-preview>
+        <belt-preview base=${this.beltBase} color=${this.beltColor}></belt-preview>
       </section>` : null}
       <section id=${currentStep.id}>
         <form ${ref(this.form)} @submit=${async (ev: Event) => {
-        ev.preventDefault();
-        // Ensure the form data has its moment to change
-        await delay(0);
-        new FormData(this.form.value);
-      }} @formdata=${async ({ formData }: FormDataEvent) => {
-        return this.updateWizardSelection(formData);
-      }}>
+          ev.preventDefault();
+          // Ensure the form data has its moment to change
+          await delay(0);
+          new FormData(this.form.value);
+        }} @formdata=${({ formData }: FormDataEvent) => {
+          return this.updateWizardSelection(formData);
+        }}>
           ${this.wizard.currentView}
         </form>
       </section>
@@ -205,8 +207,11 @@ export class CustomBeltWizard extends LitElement {
     console.log(Array.from(this.selection!.entries()));
 
     // Update belt preview
+    const [beltBases, beltBuckles, beltLoops, beltConchos, beltTips] = this.beltData
+    if (formData.has("base"))
+      this.beltBase = beltBases.find(b => b.id === formData.get("base"))?.images[0].url!;
     if (formData.has("color"))
-      this.preview.value?.setAttribute("color", beltColors.find(c => c.id === formData.get("color"))?.css!);
+      this.beltColor = beltColors.find(c => c.id === formData.get("color"))?.css!;
 
     await delay(500);
     this.wizard.next();
