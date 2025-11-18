@@ -7,6 +7,7 @@ import { createRef, ref, Ref } from "lit/directives/ref.js";
 // Custom Elements
 // ===============
 // NOTE: Do NOT remove these, otherwise custom element decorators are not executed and they will break!
+import "./components/belt-checkout.js";
 import "./components/belt-preview.js";
 
 import BeltPreview from "./components/belt-preview.js";
@@ -90,23 +91,14 @@ export class CustomBeltWizard extends LitElement {
     title: "Your Belt",
     subtitle: "Here's your chosen belt.",
     shortcut: html`<a class="btn primary" href="#">Checkout</a>`,
-    view: html`<h2>Selections</h2><div class="row wrap gap-medium">
-      ${thumbnailOption(beltBases[0].id, beltBases[0].thumbnail, "base", beltBases[0].id, beltBases[0].name, { class: "summary", onClick: () => this.wizard.goTo(1) })}
-      ${colorChipOption(beltColors[0].id, beltColors[0].color, "beltColor", beltColors[0].id, beltColors[0].name, { class: "summary", onClick: () => this.wizard.goTo(2) })}
-      ${thumbnailOption(beltBuckles[0].id, beltBuckles[0].thumbnail, "buckle", beltBuckles[0].id, beltBuckles[0].name, { class: "summary", onClick: () => this.wizard.goTo(3) })}
-      ${thumbnailOption(beltLoops[0].id, beltLoops[0].thumbnail, "loop", beltLoops[0].id, beltLoops[0].name, { class: "summary", onClick: () => this.wizard.goTo(4) })}
-      ${thumbnailOption(beltConchos[0].id, beltConchos[0].thumbnail, "beltConcho", beltConchos[0].id, beltConchos[0].name, { class: "summary", onClick: () => this.wizard.goTo(5) })}
-      ${thumbnailOption(beltTips[0].id, beltTips[0].thumbnail, "beltTip", beltTips[0].id, beltTips[0].name, { class: "summary", onClick: () => this.wizard.goTo(6) })}
-    </div><div id="checkoutTotal">Total: <span class="price">$89.20</span></div>
-    <div><a class="btn primary" href="#">Checkout</a></div>`
+    view: html`
+      <h2>Selections</h2>
+      <belt-checkout @step-change=${(step: number) => this.wizard.goTo(step)}></belt-checkout>
+    `
   }]);
 
   // TODO: Use the current step's `background` in the `belt-wizard`.
   static override styles = css`
-    belt-wizard {
-      /* TODO: See above for per-step backgrounds. */
-    }
-
     #stepper {
       position: sticky;
     }
