@@ -11,6 +11,7 @@ import "./components/belt-checkout.js";
 import "./components/belt-preview.js";
 
 import { colorChipOption, textOption, thumbnailOption } from "./components/option.js";
+import BeltCheckout from "./components/belt-checkout.ts";
 import { beltColors, beltSizes } from "./models/belts.js";
 import Wizard, { renderView } from "./models/wizard/index.js";
 import api, { Product, queryProducts } from "./api/index.js";
@@ -27,6 +28,7 @@ export enum Theme {
 export class CustomBeltWizard extends LitElement {
   private selection: FormData | null = null;
   private form: Ref<HTMLFormElement> = createRef();
+  private checkout: Ref<BeltCheckout> = createRef();
 
   @state() private loading = false;
   @state() private beltBase: string | null = null;
@@ -81,10 +83,10 @@ export class CustomBeltWizard extends LitElement {
     title: "Your Belt",
     subtitle: "Here's your chosen belt.",
     shortcut: html`<a class="btn primary" href="#">Checkout</a>`,
-    view: html`
+    view: () => html`
       <h2>Selections</h2>
-      <belt-checkout @step-change=${(step: number) => this.wizard.goTo(step)}></belt-checkout>
-    `
+      <belt-checkout ${ref(this.checkout)} @step-change=${(step: number) => this.wizard.goTo(step)}></belt-checkout>
+    `,
   }]);
 
   // TODO: Use the current step's `background` in the `belt-wizard`.
@@ -210,7 +212,7 @@ export class CustomBeltWizard extends LitElement {
     console.log(Array.from(this.selection!.entries()));
 
     // Update belt preview
-    const [beltBases, beltBuckles, beltLoops, beltConchos, beltTips] = this.beltData
+    const [beltBases, beltBuckles, beltLoops, beltConchos, beltTips] = this.beltData;
     if (formData.has("base"))
       this.beltBase = beltBases.find(b => b.id === formData.get("base"))!.images[0].url;
     if (formData.has("color"))
@@ -219,6 +221,8 @@ export class CustomBeltWizard extends LitElement {
       this.beltBuckle = beltBuckles.find(b => b.id === formData.get("buckle"))!.images[0].url;
     if (formData.has("tip"))
       this.beltTip = beltTips.find(b => b.id === formData.get("tip"))!.images[0].url;
+    // Update checkout data
+    if (this.checkout.value) this.checkout.value.beltData = this.beltData;
 
     await delay(500);
     this.wizard.next();
