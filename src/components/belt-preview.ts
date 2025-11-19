@@ -21,7 +21,7 @@ export default class BeltPreview extends LitElement {
 
     .center-vertically {
       top: 50%;
-      transform: translateY(-25%);
+      transform: translateY(-50%);
     }
 
     #base {
