@@ -13,7 +13,7 @@ import "./components/belt-preview.js";
 import { Product, queryProducts } from "./api/index.ts";
 import BeltCheckout from "./components/belt-checkout.ts";
 import BeltPreview from "./components/belt-preview.ts";
-import { colorChipOption, textOption, thumbnailOption } from "./components/option.ts";
+import { colorChipOption, OptionType, textOption, thumbnailOption } from "./components/option.ts";
 import { beltColors, beltSizes } from "./models/belts.ts";
 import Wizard, { renderView } from "./models/wizard/index.ts";
 
@@ -72,17 +72,18 @@ export class CustomBeltWizard extends LitElement {
   }, {
     id: "loops",
     title: "Add Belt Loops",
+    shortcut: () => this.renderMultiSelectShortcut("No Belt Loops", this.selection?.has("loop") || false),
     view: html`<div class="row wrap gap-medium"></div>`
   }, {
     id: "conchos",
     title: "Add Conchos",
     subtitle: "Drag and drop conchos to style your belt",
-    shortcut: html`<button class="btn primary" @click=${this.submitStep}>No Conchos</button>`,
+    shortcut: () => this.renderMultiSelectShortcut("No Conchos", this.selection?.has("concho") || false),
     view: html`<div class="row wrap gap-medium"></div>`
   }, {
     id: "tip",
     title: "Choose a Belt Tip",
-    shortcut: html`<button class="btn primary" @click=${this.submitStep}>No Belt Tip</button>`,
+    shortcut: () => this.renderMultiSelectShortcut("No Belt Tip", false),
     view: html`<div class="row wrap gap-medium"></div>`
   }, {
     id: "summary",
@@ -94,6 +95,10 @@ export class CustomBeltWizard extends LitElement {
       <belt-checkout ${ref(this.checkout)} @step-change=${({detail: step}: CustomEvent<number>) => this.wizard.goTo(step)}></belt-checkout>
     `,
   }]);
+
+  private renderMultiSelectShortcut(skipLabel: string, hasSelection: boolean) {
+    return html`<button class="btn primary" @click=${() => this.submitStep()}>${hasSelection ? "Continue" : skipLabel}</button>`;
+  }
 
   // TODO: Use the current step's `background` in the `belt-wizard`.
   static override styles = css`
@@ -150,8 +155,10 @@ export class CustomBeltWizard extends LitElement {
           // Ensure the form data has its moment to change
           await delay(0);
           new FormData(this.form.value);
-        }} @formdata=${({ formData }: FormDataEvent) => {
-          return this.updateWizardSelection(formData);
+        }} @formdata=${async ({ formData }: FormDataEvent) => {
+          this.updateWizardSelection(formData);
+          await delay(500);
+          this.wizard.next();
         }}>
           ${this.wizard.currentView}
         </form>
@@ -190,17 +197,21 @@ export class CustomBeltWizard extends LitElement {
 
     const loopStep = this.wizard.find("loops")!;
     loopStep.view = html`<div class="row wrap gap-medium" style="">
-      ${beltLoops.map((loop) => thumbnailOption(loop.id, loop.images[0].url, "loop", loop.id, loop.title, { onClick: () => {
-        // FIXME: Enter the accessible belt loop placement editor
-        this.submitStep();
+      ${beltLoops.map((loop) => thumbnailOption(loop.id, loop.images[0].url, "loop", loop.id, loop.title, { type: OptionType.checkbox, onClick: () => {
+        // TODO: Enter the accessible belt loop placement editor
+        this.selection?.append("loop", loop.images[0].url)
+        this.updateWizardSelection(this.selection!);
+        this.requestUpdate();
       } }))}
     </div>`;
 
     const conchoStep = this.wizard.find("conchos")!;
     conchoStep.view = html`<div class="row wrap gap-medium">
-      ${beltConchos.map((concho) => thumbnailOption(concho.id, concho.images[0].url, "concho", concho.id, concho.title, { onClick: () => {
-        // FIXME: Enter the accessible belt concho placement editor
-        this.submitStep();
+      ${beltConchos.map((concho) => thumbnailOption(concho.id, concho.images[0].url, "concho", concho.id, concho.title, { type: OptionType.checkbox, onClick: () => {
+        // TODO: Enter the accessible belt concho placement editor
+        this.selection?.append("concho", concho.images[0].url);
+        this.updateWizardSelection(this.selection!);
+        this.requestUpdate();
       } }))}
     </div>`;
 
@@ -213,7 +224,7 @@ export class CustomBeltWizard extends LitElement {
     this.loading = false;
   }
 
-  private async updateWizardSelection(formData: FormData) {
+  private updateWizardSelection(formData: FormData) {
     // See https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/formdata_event
 
     // Persist the step's selection
@@ -225,23 +236,20 @@ export class CustomBeltWizard extends LitElement {
 
     // Update belt preview
     const [beltBases, beltBuckles, beltLoops, beltConchos, beltTips] = this.beltData;
-    if (formData.has("base"))
-      this.beltBase = beltBases.find(b => b.id === formData.get("base"))!.images[0].url;
-    if (formData.has("color"))
-      this.beltColor = beltColors.find(c => c.id === formData.get("color"))!.css;
-    if (formData.has("buckle"))
-      this.beltBuckle = beltBuckles.find(b => b.id === formData.get("buckle"))!.images[0].url;
-    if (formData.has("loop")) {
-      this.beltLoops = [beltLoops.find(b => b.id === formData.get("loop"))!.images[0].url];
+    if (this.selection.has("base"))
+      this.beltBase = beltBases.find(b => b.id === this.selection!.get("base"))!.images[0].url;
+      if (this.selection.has("color"))
+      this.beltColor = beltColors.find(c => c.id === this.selection!.get("color"))!.css;
+      if (this.selection.has("buckle"))
+      this.beltBuckle = beltBuckles.find(b => b.id === this.selection!.get("buckle"))!.images[0].url;
+      if (this.selection.has("loop")) {
+        this.beltLoops = [beltLoops.find(b => b.id === this.selection!.get("loop"))!.images[0].url];
       if (this.preview.value) this.preview.value.loops = this.beltLoops;
-    } if (formData.has("concho")) {
-      this.beltConchos = [beltConchos.find(b => b.id === formData.get("concho"))!.images[0].url];
+      } if (this.selection.has("concho")) {
+        this.beltConchos = [beltConchos.find(b => b.id === this.selection!.get("concho"))!.images[0].url];
       if (this.preview.value) this.preview.value.conchos = this.beltConchos;
-    } if (formData.has("tip"))
-      this.beltTip = beltTips.find(b => b.id === formData.get("tip"))!.images[0].url;
-
-    await delay(500);
-    this.wizard.next();
+      } if (this.selection.has("tip"))
+      this.beltTip = beltTips.find(b => b.id === this.selection!.get("tip"))!.images[0].url;
   }
 }
 

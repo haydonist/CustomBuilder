@@ -9,14 +9,19 @@ export function textOption(id: string, name: string, value: unknown, label: stri
   </span>`;
 }
 
+export enum OptionType {
+  radio = "radio",
+  checkbox = "checkbox",
+}
+
 export enum Fit {
   contain = "contain",
   cover = "cover",
 }
 
-export function thumbnailOption(id: string, img: string, name: string, value: unknown, label?: string, options?: { onClick?: EventHandler, class?: string, fit?: Fit }) {
+export function thumbnailOption(id: string, img: string, name: string, value: unknown, label?: string, options?: { onClick?: EventHandler, class?: string, type?: OptionType, fit?: Fit }) {
   return html`<span class="option thumbnail ${options?.class ?? ""}" @click=${options?.onClick}>
-    <input id=${id} class="sr-only" type="radio" name=${name} value="${value}" />
+    <input id=${id} class="sr-only" type="${options?.type ?? OptionType.radio}" name=${name} value="${value}" />
     <label for=${id}>
       <div class="selection-indicator ${options?.class ?? ""}" style="max-width: calc(50vw - 28px - 16px); background-image: url(${img}); background-repeat: no-repeat; background-position: center; background-size: ${options?.fit ?? Fit.contain};"></div>
       <!--<img class="thumbnail selection-indicator ${options?.class ?? ""}" src=${img} alt=${label} width="160px" />-->
