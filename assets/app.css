@@ -1,3 +1,4 @@
+/* Application-specific styles. */
 html,
 body {
   margin: 0;
@@ -238,9 +239,16 @@ belt-wizard {
   flex-grow: 1;
 }
 
+belt-wizard section.step h2 {
+  margin-block-start: 0;
+  margin-block-end: 0.5em;
+}
+
 #preview belt-preview {
+  display: block;
   position: relative;
   left: -8px;
+  min-height: 150px;
 }
 
 /* Belt Size */

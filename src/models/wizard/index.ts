@@ -1,5 +1,5 @@
 import { assert } from "@std/assert";
-import { HTMLTemplateResult, LitElement } from "lit";
+import { html, HTMLTemplateResult, LitElement } from "lit";
 import { BehaviorSubject } from "rxjs";
 
 type CssValue = number | string;
@@ -9,17 +9,25 @@ interface ResponsiveCssValue {
   desktop?: CssValue
 }
 
+export type HTMLRenderFn = () => HTMLTemplateResult;
+
 export interface Step {
   id: string;
   title: string;
   subtitle?: string;
-  shortcut?: LitElement | HTMLTemplateResult;
-  view: LitElement | HTMLTemplateResult;
+  shortcut?: LitElement | HTMLTemplateResult | HTMLRenderFn;
+  view: LitElement | HTMLTemplateResult | HTMLRenderFn;
   background?: {
     image: string,
     position?: { x: CssValue, y?: CssValue } | { x?: CssValue, y: CssValue }
     size: ResponsiveCssValue | CssValue
   };
+}
+
+export function renderView(view: LitElement | HTMLTemplateResult | HTMLRenderFn) {
+  if (view instanceof LitElement) return html`${view}`;
+  else if (typeof view === 'function') return view();
+  else return view;
 }
 
 export default class Wizard {
@@ -59,7 +67,7 @@ export default class Wizard {
   }
 
   get currentView() {
-    return this.steps[this.#step].view;
+    return renderView(this.steps[this.#step].view);
   }
 
   next() {
@@ -79,5 +87,9 @@ export default class Wizard {
     assert(i >= 0, "Cannot go back past the first step!");
     this.#step = i;
     this.changed.next(this.#step);
+  }
+
+  find(id: string) {
+    return this.steps.find(step => step.id === id);
   }
 }

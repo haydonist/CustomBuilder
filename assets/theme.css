@@ -1,3 +1,4 @@
+/** BeltMaster theme styles for common elements and components. */
 @font-face {
   font-family: "Founders Grotesque X Condensed";
   font-weight: bold;
@@ -53,6 +54,8 @@
   --belt-wizard-background-color: var(--potters-clay-darkest);
 
   /* Sizes */
+  --gap-small: 1rem;
+  --gap-medium: 1rem;
   --radius-large: 16px;
   --radius-medium: 16px;
   --radius-large: 16px;
@@ -136,7 +139,7 @@ h6, .heading-6 {
 }
 
 .gap-medium {
-  gap: 3rem;
+  gap: var(--gap-medium);
 }
 
 /* Components */
@@ -153,10 +156,10 @@ button.btn, a.btn {
   border-radius: 8px;
   background: #8B5E3C;
   cursor: pointer;
-  box-shadow: 0px 1px 2px 0px rgba(12, 12, 12, 0.05), 
-    inset 0px -2px 1px 0px rgba(0, 0, 0, 0.20), 
-    inset 0px 0px 0px 1px rgba(12, 12, 12, 0.15), 
-    inset 0px 2px 1px 0px rgba(255, 255, 255, 0.25), 
+  box-shadow: 0px 1px 2px 0px rgba(12, 12, 12, 0.05),
+    inset 0px -2px 1px 0px rgba(0, 0, 0, 0.20),
+    inset 0px 0px 0px 1px rgba(12, 12, 12, 0.15),
+    inset 0px 2px 1px 0px rgba(255, 255, 255, 0.25),
     inset 0px 32px 24px 0px rgba(255, 255, 255, 0.05) !important;
 
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
@@ -194,14 +197,23 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 /* Options */
 .option {
   cursor: pointer;
-  backdrop-filter: blur(8px);
-  transition-duration: 200ms;
-  height: 160px;
-  width: 160px;
 }
 
-.option .selection-indicator, .option.option.text-only:hover{
-  background: #FFFFFF80;
+.option .selection-indicator {
+  min-width: 128px;
+  max-width: calc(50vw - 28px - 16px);
+  /* QUESTION: Should the chips size be dynamic or constant? */
+  width: 160px;
+  aspect-ratio: 1;
+  backdrop-filter: blur(8px);
+}
+
+.option.text-only, .option .selection-indicator {
+  margin: 3px;
+  border: 1px solid var(--neutral-white);
+  border-radius: 8px;
+  background: #FFFFFF33;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .option:not(.text-only):not(.color-chip) label {
@@ -212,7 +224,6 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 .option.text-only {
   display: inline-block;
   width: 45px;
-  height: 45px;
 }
 
 .row.wrap:has(.option.text-only) {
@@ -234,15 +245,6 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   background: #FFFFFF80;
 }
 
-.option.text-only, .option .selection-indicator {
-  margin: 3px;
-  border: 1px solid var(--neutral-white);
-  border-radius: 8px;
-  background: #FFFFFF33;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-  object-fit: contain;
-}
-
 .option.color-chip label {
   align-items: center;
 }
@@ -258,7 +260,6 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   cursor: pointer;
   text-wrap: auto;
   text-align: center;
-  max-width: 200px;
 }
 
 .option.thumbnail:not(.summary) label span.label {
@@ -284,14 +285,6 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   margin: 0;
   border-width: 4px;
   background: #FFFFFF80;
-}
-
-.option .selection-indicator {
-  min-width: 128px;
-  max-width: calc(50vw - 28px - 16px);
-  margin: 0 auto;
-  width: 160px;
-  height: 160px;
 }
 
 .option .selection-indicator.summary {
