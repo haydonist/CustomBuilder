@@ -40,7 +40,7 @@ export default class BeltPreview extends LitElement {
     }
     #loops {
       position: absolute;
-      left: 15%;
+      left: 5%;
       height: 100%;
       z-index: 1;
     }
