@@ -34,7 +34,7 @@ export default class BeltCheckout extends LitElement {
     }
 
     // TODO: Refactor this for better readability
-    const baseSelection = thumbnailOption(beltBases[0].id, beltBases[0].images[0].url, "base", beltBases[0].id, beltBases[0].title, { class: "summary", onClick: () => this.gotoStep(1) },)
+    const baseSelection = thumbnailOption(beltBases[0].id, beltBases[0].images[0].url, "base", beltBases[0].id, beltBases[0].title, { class: "summary", onClick: () => this.gotoStep(0) },)
     const buckleSelection = thumbnailOption(beltBuckles[0].id, beltBuckles[0].images[0].url, "buckle", beltBuckles[0].id, beltBuckles[0].title, { class: "summary", onClick: () => this.gotoStep(3) },)
     const loopSelection = thumbnailOption(beltLoops[0].id, beltLoops[0].images[0].url, "loop", beltLoops[0].id, beltLoops[0].title, { class: "summary", onClick: () => this.gotoStep(4) },)
     const conchoSelection = thumbnailOption(beltConchos[0].id, beltConchos[0].images[0].url, "beltConcho", beltConchos[0].id, beltConchos[0].title, { class: "summary", onClick: () => this.gotoStep(5) },)
