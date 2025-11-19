@@ -40,17 +40,19 @@ export class CustomBeltWizard extends LitElement {
   @state() private beltConchos: string[] = [];
   @state() private beltTip: string | null = null;
 
-  @state()
-  wizard = new Wizard([{
-    id: "base",
-    title: "Select a Belt Base",
-    view: html`<div class="row wrap gap-medium"></div>`
-  }, {
+  readonly colorStep = {
     id: "color",
     title: "Choose a Belt Color",
     view: html`<div class="row gap-medium">
       ${beltColors.map(c => colorChipOption(c.id, c.color, "color", c.id, c.name, { onClick: this.submitStep }))}
     </div>`
+  };
+
+  @state()
+  wizard = new Wizard([{
+    id: "base",
+    title: "Select a Belt Base",
+    view: html`<div class="row wrap gap-medium"></div>`
   }, {
     id: "size",
     title: "What is your waist size?",
