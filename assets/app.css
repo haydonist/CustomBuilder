@@ -84,7 +84,8 @@ body > main {
   flex-direction: column;
   flex-grow: 1;
   margin: 0rem auto;
-  max-width: 1260px;
+  min-width: 1260px;
+  max-width: min(1260px, 100%);
 }
 
 /* Jumbotron */
