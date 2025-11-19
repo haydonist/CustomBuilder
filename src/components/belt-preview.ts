@@ -40,7 +40,7 @@ export default class BeltPreview extends LitElement {
     }
     #loops {
       position: absolute;
-      right: 30%;
+      left: 30%;
       height: 100%;
       z-index: 1;
     }
@@ -49,7 +49,7 @@ export default class BeltPreview extends LitElement {
     }
     #conchos {
       position: absolute;
-      left: 30%;
+      right: 30%;
       height: 100%;
       z-index: 1;
     }
