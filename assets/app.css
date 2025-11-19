@@ -82,8 +82,7 @@ body > main {
   display: flex;
   flex-direction: column;
   flex-grow: 1;
-  margin: 1rem auto;
-  max-width: 1280px;
+  margin: 0rem auto;
   width: 100%;
 }
 

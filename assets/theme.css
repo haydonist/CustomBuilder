@@ -195,6 +195,13 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 .option {
   cursor: pointer;
   backdrop-filter: blur(8px);
+  transition-duration: 200ms;
+  height: 160px;
+  width: 160px;
+}
+
+.option .selection-indicator, .option.option.text-only:hover{
+  background: #FFFFFF80;
 }
 
 .option:not(.text-only):not(.color-chip) label {
@@ -205,6 +212,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 .option.text-only {
   display: inline-block;
   width: 45px;
+  height: 45px;
 }
 
 .row.wrap:has(.option.text-only) {
@@ -232,6 +240,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   border-radius: 8px;
   background: #FFFFFF33;
   transition: background-color 0.3s ease, border-color 0.3s ease;
+  object-fit: contain;
 }
 
 .option.color-chip label {
@@ -249,6 +258,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   cursor: pointer;
   text-wrap: auto;
   text-align: center;
+  max-width: 200px;
 }
 
 .option.thumbnail:not(.summary) label span.label {
@@ -279,6 +289,9 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 .option .selection-indicator {
   min-width: 128px;
   max-width: calc(50vw - 28px - 16px);
+  margin: 0 auto;
+  width: 160px;
+  height: 160px;
 }
 
 .option .selection-indicator.summary {
