@@ -11,6 +11,12 @@ export default class BeltCheckout extends LitElement {
 
   static override styles = css`
     ${styles.theme}
+    :host {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--gap-small);
+    }
     img {
       max-width: 100%;
       max-height: 300px;

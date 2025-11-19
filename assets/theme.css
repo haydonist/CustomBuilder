@@ -54,6 +54,8 @@
   --belt-wizard-background-color: var(--potters-clay-darkest);
 
   /* Sizes */
+  --gap-small: 1rem;
+  --gap-medium: 1rem;
   --radius-large: 16px;
   --radius-medium: 16px;
   --radius-large: 16px;
@@ -137,7 +139,7 @@ h6, .heading-6 {
 }
 
 .gap-medium {
-  gap: 3rem;
+  gap: var(--gap-medium);
 }
 
 /* Components */

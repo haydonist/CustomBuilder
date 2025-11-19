@@ -88,7 +88,7 @@ export class CustomBeltWizard extends LitElement {
     subtitle: "Here's your chosen belt.",
     shortcut: html`<a class="btn primary" href="#">Checkout</a>`,
     view: () => html`
-      <h2>Selections</h2>
+      <h2 class="heading-5">Selections</h2>
       <belt-checkout ${ref(this.checkout)} @step-change=${({detail: step}: CustomEvent<number>) => this.wizard.goTo(step)}></belt-checkout>
     `,
   }]);
@@ -133,7 +133,7 @@ export class CustomBeltWizard extends LitElement {
       </section>
       <section id="stepHeading" class="row">
         <div id="stepTitle">
-          <h2 class="heading-5">${currentStep.title}</h2>
+          <h2 class="heading-4">${currentStep.title}</h2>
           ${currentStep.subtitle ? html`<p class="subtitle">${currentStep.subtitle}</p>` : null}
         </div>
         ${currentStep.shortcut && html`<div id="stepShortcut">${renderView(currentStep.shortcut)}</div>`}
@@ -142,7 +142,7 @@ export class CustomBeltWizard extends LitElement {
       ${this.wizard.currentStep.id !== "size" && this.beltBase ? html`<section id="preview" style="position: sticky">
         <belt-preview ${ref(this.preview)} base=${this.beltBase} color=${this.beltColor} buckle=${this.beltBuckle} tip=${this.beltTip}></belt-preview>
       </section>` : null}
-      <section id=${currentStep.id}>
+      <section id=${currentStep.id} class="step">
         <form ${ref(this.form)} @submit=${async (ev: Event) => {
           ev.preventDefault();
           // Ensure the form data has its moment to change
