@@ -38,6 +38,24 @@ export default class BeltPreview extends LitElement {
       max-height: 100%;
       z-index: 1;
     }
+    #loops {
+      position: absolute;
+      right: 30%;
+      height: 100%;
+      z-index: 1;
+    }
+    .loop {
+      max-height: 100%;
+    }
+    #conchos {
+      position: absolute;
+      left: 30%;
+      height: 100%;
+      z-index: 1;
+    }
+    .concho {
+      max-height: 100%;
+    }
     #tip {
       position: absolute;
       right: 0;
@@ -50,6 +68,12 @@ export default class BeltPreview extends LitElement {
     return html`
       <img id="base" src=${this.base} aria-hidden="true" style="filter: ${this.color}" />
       <img id="buckle" class="center-vertically" src=${this.buckle} aria-hidden="true" />
+      <div id="loops" class="center-vertically">
+        ${this.loops.map(loop => html`<img class="loop" src=${loop} aria-hidden="true" />`)}
+      </div>
+      <div id="conchos" class="center-vertically">
+        ${this.conchos.map(concho => html`<img class="concho" src=${concho} aria-hidden="true" />`)}
+      </div>
       <img id="tip" class="center-vertically" src=${this.tip} aria-hidden="true" />
     `;
   }

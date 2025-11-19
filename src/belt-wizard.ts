@@ -10,11 +10,12 @@ import { createRef, ref, Ref } from "lit/directives/ref.js";
 import "./components/belt-checkout.js";
 import "./components/belt-preview.js";
 
-import { colorChipOption, textOption, thumbnailOption } from "./components/option.js";
+import { Product, queryProducts } from "./api/index.ts";
 import BeltCheckout from "./components/belt-checkout.ts";
-import { beltColors, beltSizes } from "./models/belts.js";
-import Wizard, { renderView } from "./models/wizard/index.js";
-import api, { Product, queryProducts } from "./api/index.js";
+import BeltPreview from "./components/belt-preview.ts";
+import { colorChipOption, textOption, thumbnailOption } from "./components/option.ts";
+import { beltColors, beltSizes } from "./models/belts.ts";
+import Wizard, { renderView } from "./models/wizard/index.ts";
 
 // See https://open-wc.org
 // See https://open-wc.org/guides/developing-components/code-examples
@@ -28,12 +29,15 @@ export enum Theme {
 export class CustomBeltWizard extends LitElement {
   private selection: FormData | null = null;
   private form: Ref<HTMLFormElement> = createRef();
+  private preview: Ref<BeltPreview> = createRef();
   private checkout: Ref<BeltCheckout> = createRef();
 
   @state() private loading = false;
   @state() private beltBase: string | null = null;
   @state() private beltColor: string | null = null;
   @state() private beltBuckle: string | null = null;
+  @state() private beltLoops: string[] = [];
+  @state() private beltConchos: string[] = [];
   @state() private beltTip: string | null = null;
 
   @state()
@@ -129,9 +133,9 @@ export class CustomBeltWizard extends LitElement {
         </div>
         ${currentStep.shortcut && html`<div id="stepShortcut">${renderView(currentStep.shortcut)}</div>`}
       </section>
-      <!-- Don't render the belt preview on the belt size step -->
-      ${this.wizard.currentStep.id !== "size" ? html`<section id="preview" style="position: sticky">
-        <belt-preview base=${this.beltBase} color=${this.beltColor} buckle=${this.beltBuckle} tip=${this.beltTip}></belt-preview>
+      <!-- Don't render the belt preview when there's no selection or on the belt size step -->
+      ${this.wizard.currentStep.id !== "size" && this.beltBase ? html`<section id="preview" style="position: sticky">
+        <belt-preview ${ref(this.preview)} base=${this.beltBase} color=${this.beltColor} buckle=${this.beltBuckle} tip=${this.beltTip}></belt-preview>
       </section>` : null}
       <section id=${currentStep.id}>
         <form ${ref(this.form)} @submit=${async (ev: Event) => {
@@ -219,7 +223,13 @@ export class CustomBeltWizard extends LitElement {
       this.beltColor = beltColors.find(c => c.id === formData.get("color"))!.css;
     if (formData.has("buckle"))
       this.beltBuckle = beltBuckles.find(b => b.id === formData.get("buckle"))!.images[0].url;
-    if (formData.has("tip"))
+    if (formData.has("loop")) {
+      this.beltLoops = [beltLoops.find(b => b.id === formData.get("loop"))!.images[0].url];
+      if (this.preview.value) this.preview.value.loops = this.beltLoops;
+    } if (formData.has("concho")) {
+      this.beltConchos = [beltConchos.find(b => b.id === formData.get("concho"))!.images[0].url];
+      if (this.preview.value) this.preview.value.conchos = this.beltConchos;
+    } if (formData.has("tip"))
       this.beltTip = beltTips.find(b => b.id === formData.get("tip"))!.images[0].url;
     // Update checkout data
     if (this.checkout.value) this.checkout.value.beltData = this.beltData;
