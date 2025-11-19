@@ -17,6 +17,9 @@ export default class BeltPreview extends LitElement {
     ${styles.theme}
     :root {
       min-height: 250px;
+      overflow-x: hidden;
+      width: 100%;
+      min-height: min-content;
     }
 
     .center-vertically {
@@ -25,10 +28,7 @@ export default class BeltPreview extends LitElement {
     }
 
     #base {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100vw;
+      width: auto;
       max-height: 300px;
       z-index: 0;
     }
