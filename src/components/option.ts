@@ -9,11 +9,17 @@ export function textOption(id: string, name: string, value: unknown, label: stri
   </span>`;
 }
 
-export function thumbnailOption(id: string, img: string, name: string, value: unknown, label?: string, options?: { onClick?: EventHandler, class?: string }) {
+export enum Fit {
+  contain = "contain",
+  cover = "cover",
+}
+
+export function thumbnailOption(id: string, img: string, name: string, value: unknown, label?: string, options?: { onClick?: EventHandler, class?: string, fit?: Fit }) {
   return html`<span class="option thumbnail ${options?.class ?? ""}" @click=${options?.onClick}>
     <input id=${id} class="sr-only" type="radio" name=${name} value="${value}" />
     <label for=${id}>
-      <img class="thumbnail selection-indicator ${options?.class ?? ""}" src=${img} alt=${label} width="160px" />
+      <div class="selection-indicator ${options?.class ?? ""}" style="max-width: calc(50vw - 28px - 16px); background-image: url(${img}); background-repeat: no-repeat; background-position: center; background-size: ${options?.fit ?? Fit.contain};"></div>
+      <!--<img class="thumbnail selection-indicator ${options?.class ?? ""}" src=${img} alt=${label} width="160px" />-->
       <span class="label">${label}</span>
     </label>
   </span>`;
