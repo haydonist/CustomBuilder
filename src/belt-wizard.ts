@@ -12,7 +12,7 @@ import "./components/belt-preview.js";
 
 import { colorChipOption, textOption, thumbnailOption } from "./components/option.js";
 import { beltColors, beltSizes } from "./models/belts.js";
-import Wizard from "./models/wizard/index.js";
+import Wizard, { renderView } from "./models/wizard/index.js";
 import api, { Product, queryProducts } from "./api/index.js";
 
 // See https://open-wc.org
@@ -125,7 +125,7 @@ export class CustomBeltWizard extends LitElement {
           <h2 class="heading-5">${currentStep.title}</h2>
           ${currentStep.subtitle ? html`<p class="subtitle">${currentStep.subtitle}</p>` : null}
         </div>
-        ${currentStep.shortcut && html`<div id="stepShortcut">${currentStep.shortcut}</div>`}
+        ${currentStep.shortcut && html`<div id="stepShortcut">${renderView(currentStep.shortcut)}</div>`}
       </section>
       <!-- Don't render the belt preview on the belt size step -->
       ${this.wizard.currentStep.id !== "size" ? html`<section id="preview" style="position: sticky">
