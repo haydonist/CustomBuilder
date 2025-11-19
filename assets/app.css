@@ -269,8 +269,7 @@ belt-wizard section.step h2 {
 
 #sizingChart {
   margin-block-start: 18px;
-  width: 475px;
-  max-width: 100%;
+  width: auto;
   border-radius: 8px;
 }
 
