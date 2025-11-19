@@ -1,5 +1,5 @@
 import { delay } from "@std/async";
-import { css, html, LitElement } from "lit";
+import { css, html, LitElement, PropertyValues } from "lit";
 import { customElement, eventOptions, state } from "lit/decorators.js";
 import { createRef, ref, Ref } from "lit/directives/ref.js";
 
@@ -89,7 +89,7 @@ export class CustomBeltWizard extends LitElement {
     shortcut: html`<a class="btn primary" href="#">Checkout</a>`,
     view: () => html`
       <h2>Selections</h2>
-      <belt-checkout ${ref(this.checkout)} @step-change=${(step: number) => this.wizard.goTo(step)}></belt-checkout>
+      <belt-checkout ${ref(this.checkout)} @step-change=${({detail: step}: CustomEvent<number>) => this.wizard.goTo(step)}></belt-checkout>
     `,
   }]);
 
@@ -111,8 +111,13 @@ export class CustomBeltWizard extends LitElement {
 
   /** Disable the shadow DOM for this root-level component. */
   // See https://stackoverflow.com/a/55213037/1363247
-  override createRenderRoot() {
+  protected override createRenderRoot() {
     return this;
+  }
+
+  protected override updated(_changedProperties: PropertyValues): void {
+    // Ensure the checkout component has the latest belt data
+    if (this.checkout.value) this.checkout.value.beltData = this.beltData;
   }
 
   override render() {
@@ -213,7 +218,6 @@ export class CustomBeltWizard extends LitElement {
       if (this.selection?.has(entry[0])) this.selection.set(entry[0], entry[1]);
       else this.selection?.append(entry[0], entry[1]);
     });
-    console.log(Array.from(this.selection!.entries()));
 
     // Update belt preview
     const [beltBases, beltBuckles, beltLoops, beltConchos, beltTips] = this.beltData;
@@ -231,8 +235,6 @@ export class CustomBeltWizard extends LitElement {
       if (this.preview.value) this.preview.value.conchos = this.beltConchos;
     } if (formData.has("tip"))
       this.beltTip = beltTips.find(b => b.id === formData.get("tip"))!.images[0].url;
-    // Update checkout data
-    if (this.checkout.value) this.checkout.value.beltData = this.beltData;
 
     await delay(500);
     this.wizard.next();

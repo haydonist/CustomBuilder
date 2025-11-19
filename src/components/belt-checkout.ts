@@ -22,7 +22,7 @@ export default class BeltCheckout extends LitElement {
     return html`
       <div class="row wrap gap-medium">
         ${Array.isArray(beltBases) && beltBases.length ? thumbnailOption(beltBases[0].id, beltBases[0].images[0].url, "base", beltBases[0].id, beltBases[0].title, { class: "summary", onClick: () => this.gotoStep(1) }) : null}
-        ${colorChipOption(this.color, this.color, "beltColor", this.color, this.color, { class: "summary", onClick: () => this.gotoStep(2) })}
+        <!-- FIXME: Use the correct color here and render a color chip option. -->
         ${Array.isArray(beltBuckles) && beltBuckles.length ? thumbnailOption(beltBuckles[0].id, beltBuckles[0].images[0].url, "buckle", beltBuckles[0].id, beltBuckles[0].title, { class: "summary", onClick: () => this.gotoStep(3) }) : null}
         ${Array.isArray(beltLoops) && beltLoops.length ? thumbnailOption(beltLoops[0].id, beltLoops[0].images[0].url, "loop", beltLoops[0].id, beltLoops[0].title, { class: "summary", onClick: () => this.gotoStep(4) }) : null}
         ${Array.isArray(beltConchos) && beltConchos.length ? thumbnailOption(beltConchos[0].id, beltConchos[0].images[0].url, "beltConcho", beltConchos[0].id, beltConchos[0].title, { class: "summary", onClick: () => this.gotoStep(5) }) : null}
