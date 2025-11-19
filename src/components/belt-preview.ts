@@ -58,7 +58,8 @@ export default class BeltPreview extends LitElement {
     }
     #tip {
       position: absolute;
-      right: 0;
+      /* FIXME: Don't use magic numbers for this. */
+      right: -220px;
       max-height: 100%;
       z-index: 1;
     }
