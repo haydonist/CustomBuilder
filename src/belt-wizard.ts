@@ -180,6 +180,7 @@ export class CustomBeltWizard extends LitElement {
       ${beltBases.map((base) => thumbnailOption(base.id, base.images[0].url, "base", base.id, base.title, { onClick: this.submitStep }))}
     </div>`;
 
+    // FIXME: Choose the proper buckle image from product sets
     const buckleStep = this.wizard.find("buckle")!;
     buckleStep.view = html`<div class="row wrap gap-medium">
       ${beltBuckles.map((buckle) => thumbnailOption(buckle.id, buckle.images[0].url, "buckle", buckle.id, buckle.title, { onClick: this.submitStep }))}
@@ -201,6 +202,7 @@ export class CustomBeltWizard extends LitElement {
       } }))}
     </div>`;
 
+    // FIXME: Choose the proper tip image from product sets
     const tipStep = this.wizard.find("tip")!;
     tipStep.view = html`<div class="row wrap gap-medium" style="">
       ${beltTips.map((tip) => thumbnailOption(tip.id, tip.images[0].url, "tip", tip.id, tip.title, { onClick: this.submitStep }))}
