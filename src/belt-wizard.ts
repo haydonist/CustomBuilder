@@ -72,18 +72,18 @@ export class CustomBeltWizard extends LitElement {
   }, {
     id: "loops",
     title: "Add Belt Loops",
-    shortcut: () => this.renderMultiSelectShortcut("No Belt Loops", this.selection?.has("loop") || false),
+    shortcut: () => this.multiSelectShortcut("No Belt Loops", this.selection?.has("loop") || false),
     view: html`<div class="row wrap gap-medium"></div>`
   }, {
     id: "conchos",
     title: "Add Conchos",
     subtitle: "Drag and drop conchos to style your belt",
-    shortcut: () => this.renderMultiSelectShortcut("No Conchos", this.selection?.has("concho") || false),
+    shortcut: () => this.multiSelectShortcut("No Conchos", this.selection?.has("concho") || false),
     view: html`<div class="row wrap gap-medium"></div>`
   }, {
     id: "tip",
     title: "Choose a Belt Tip",
-    shortcut: () => this.renderMultiSelectShortcut("No Belt Tip", false),
+    shortcut: () => this.multiSelectShortcut("No Belt Tip", false),
     view: html`<div class="row wrap gap-medium"></div>`
   }, {
     id: "summary",
@@ -96,7 +96,7 @@ export class CustomBeltWizard extends LitElement {
     `,
   }]);
 
-  private renderMultiSelectShortcut(skipLabel: string, hasSelection: boolean) {
+  private multiSelectShortcut(skipLabel: string, hasSelection: boolean) {
     return html`<button class="btn primary" @click=${() => this.submitStep()}>${hasSelection ? "Continue" : skipLabel}</button>`;
   }
 
