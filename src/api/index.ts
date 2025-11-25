@@ -49,19 +49,19 @@ export interface Product {
 export interface ProductImage {
   id: string;
   url: string;
-  altText: string;
+  altText: string | null;
 }
 
-export async function queryProducts(query: string, { prefetchImages }: { prefetchImages: boolean } = { prefetchImages: true }): Promise<Product[]> {
+export async function queryProducts(
+  query: string, { prefetchImages }: { prefetchImages: boolean } = { prefetchImages: true }
+): Promise<Product[]> {
   const resp = await client.request(productQuery, { variables: { query } });
   if (resp.errors) throw new Error(resp.errors.message);
 
   if (prefetchImages) {
-    const images = resp.data.products.edges.flatMap((x: any) => x.node.images.edges.map((img: any) => ({
-      id: img.node.id,
-      url: img.node.url,
-      altText: img.node.altText
-    }))) as ProductImage[];
+    const images: ProductImage[] = resp.data.products.edges.flatMap(
+      ({ node }: any) => node.images.edges.map(({ node: img }: any) => img)
+    );
 
     await Promise.all(images.map(async (image) => {
       const img = new Image();
@@ -75,13 +75,14 @@ export async function queryProducts(query: string, { prefetchImages }: { prefetc
     }));
   }
 
-  return resp.data.products.edges.map((x: any) => ({
-    id: x.node.id,
-    title: x.node.title,
-    images: x.node.images.edges.map((img: any) => ({
-      id: img.node.id,
-      url: img.node.url,
-      altText: img.node.altText
-    }))
+  return resp.data.products.edges.map(({ node: product }: any) => ({
+    id: product.id,
+    title: product.title,
+    images: product.images.edges.map(({ node: img }: any) => img),
   }));
+}
+
+export function firstImage(product: Product): string {
+  assert(product.images && product.images.length);
+  return product.images[0].url;
 }
