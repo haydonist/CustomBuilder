@@ -6,7 +6,6 @@ import * as styles from "../styles.ts";
 @customElement("belt-preview")
 export default class BeltPreview extends LitElement {
   @property({type: String}) base: string | null = null;
-  @property({type: String}) color = "none";
   @property({type: String}) buckle: string | null = null;
   @property({type: String}) tip: string | null = null;
 
@@ -67,7 +66,7 @@ export default class BeltPreview extends LitElement {
 
   override render() {
     return html`
-      <img id="base" src=${this.base} aria-hidden="true" style="filter: ${this.color}" />
+      <img id="base" src=${this.base} aria-hidden="true" />
       <img id="buckle" class="center-vertically" src=${this.buckle} aria-hidden="true" />
       <div id="loops" class="center-vertically">
         ${this.loops.map(loop => html`<img class="loop" src=${loop} aria-hidden="true" />`)}
