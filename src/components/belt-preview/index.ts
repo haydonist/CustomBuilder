@@ -65,6 +65,7 @@ export default class BeltPreview extends LitElement {
     `;
 
   override render() {
+    // TODO: Render the belt base, with transparent edges cropped out, to a canvas
     return html`
       <img id="base" src=${this.base} aria-hidden="true" />
       <img id="buckle" class="center-vertically" src=${this.buckle} aria-hidden="true" />
