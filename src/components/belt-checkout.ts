@@ -2,7 +2,7 @@ import { css, html, LitElement, TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 
 import { firstImage, Product } from "../api/index.ts";
-import { colorChipOption, thumbnailOption } from "./option.ts";
+import { thumbnailOption } from "./option.ts";
 import * as styles from "../styles.ts";
 
 @customElement('belt-checkout')
@@ -12,8 +12,8 @@ export default class BeltCheckout extends LitElement {
   @property({type: String}) tip?: string;
 
   @state() beltData: Product[][] = [];
-  @state() loops: string[] = [];
-  @state() conchos: string[] = [];
+  @state() loops: Product[] = [];
+  @state() conchos: Product[] = [];
 
   static override styles = css`
     ${styles.theme}
@@ -55,15 +55,13 @@ export default class BeltCheckout extends LitElement {
     const buckleSelection = thumbnailOption(this.buckle!, firstImage(buckle), "buckle", this.buckle, buckle.title, {
       class: "summary", onClick: () => this.gotoStep(2)
     });
-    const loopSelection = this.loops.map(id => {
-      const loop = beltLoops.find(l => l.id === id)!;
-      return thumbnailOption(id, firstImage(loop), "loop", id, loop.title, {
+    const loopSelection = this.loops.map(loop => {
+      return thumbnailOption(loop.id, firstImage(loop), "loop", loop.id, loop.title, {
         class: "summary", onClick: () => this.gotoStep(3)
       });
     });
-    const conchoSelection = this.conchos.map(id => {
-      const concho = beltConchos.find(l => l.id === id)!;
-      return thumbnailOption(id, firstImage(concho), "beltConcho", id, concho.title, {
+    const conchoSelection = this.conchos.map(concho => {
+      return thumbnailOption(concho.id, firstImage(concho), "beltConcho", concho.id, concho.title, {
         class: "summary", onClick: () => this.gotoStep(4)
       });
     });

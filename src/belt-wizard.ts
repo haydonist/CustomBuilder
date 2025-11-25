@@ -16,6 +16,7 @@ import BeltPreview from "./components/belt-preview.ts";
 import { colorChipOption, OptionType, textOption, thumbnailOption } from "./components/option.ts";
 import { beltColors, beltSizes } from "./models/belts.ts";
 import Wizard, { renderView } from "./models/wizard/index.ts";
+import { assert } from "@std/assert";
 
 // See https://open-wc.org
 // See https://open-wc.org/guides/developing-components/code-examples
@@ -130,7 +131,12 @@ export class CustomBeltWizard extends LitElement {
 
   protected override updated(_changedProperties: PropertyValues): void {
     // Ensure the checkout component has the latest belt data
-    if (this.checkout.value) this.checkout.value.beltData = this.beltData;
+    if (this.checkout.value) {
+      const checkout = this.checkout.value;
+      checkout.beltData = this.beltData;
+      checkout.loops = this.beltLoops;
+      checkout.conchos = this.beltConchos;
+    }
   }
 
   override render() {
@@ -197,18 +203,18 @@ export class CustomBeltWizard extends LitElement {
 
     const baseStep = this.wizard.find("base")!;
     baseStep.view = html`<div class="row wrap gap-medium">
-      ${beltBases.map((base) => thumbnailOption(base.id, base.images[0].url, "base", base.id, base.title, { onClick: this.submitStep }))}
+      ${beltBases.map((base) => thumbnailOption(base.id, firstImage(base), "base", base.id, base.title, { onClick: this.submitStep }))}
     </div>`;
 
     // FIXME: Choose the proper buckle image from product sets
     const buckleStep = this.wizard.find("buckle")!;
     buckleStep.view = html`<div class="row wrap gap-medium">
-      ${beltBuckles.map((buckle) => thumbnailOption(buckle.id, buckle.images[0].url, "buckle", buckle.id, buckle.title, { onClick: this.submitStep }))}
+      ${beltBuckles.map((buckle) => thumbnailOption(buckle.id, firstImage(buckle), "buckle", buckle.id, buckle.title, { onClick: this.submitStep }))}
     </div>`;
 
     const loopStep = this.wizard.find("loops")!;
     loopStep.view = html`<div class="row wrap gap-medium">
-      ${beltLoops.map((loop) => thumbnailOption(loop.id, loop.images[0].url, "loop", loop.id, loop.title, { type: OptionType.checkbox, onClick: () => {
+      ${beltLoops.map((loop) => thumbnailOption(loop.id, firstImage(loop), "loop", loop.id, loop.title, { type: OptionType.checkbox, onClick: () => {
         // TODO: Enter the accessible belt loop placement editor
         this.selection?.append("loop", loop.id);
         this.updateWizardSelection(this.selection!);
@@ -218,7 +224,7 @@ export class CustomBeltWizard extends LitElement {
 
     const conchoStep = this.wizard.find("conchos")!;
     conchoStep.view = html`<div class="row wrap gap-medium">
-      ${beltConchos.map((concho) => thumbnailOption(concho.id, concho.images[0].url, "concho", concho.id, concho.title, { type: OptionType.checkbox, onClick: () => {
+      ${beltConchos.map((concho) => thumbnailOption(concho.id, firstImage(concho), "concho", concho.id, concho.title, { type: OptionType.checkbox, onClick: () => {
         // TODO: Enter the accessible belt concho placement editor
         this.selection?.append("concho", concho.id);
         this.updateWizardSelection(this.selection!);
@@ -229,7 +235,7 @@ export class CustomBeltWizard extends LitElement {
     // FIXME: Choose the proper tip image from product sets
     const tipStep = this.wizard.find("tip")!;
     tipStep.view = html`<div class="row wrap gap-medium">
-      ${beltTips.map((tip) => thumbnailOption(tip.id, tip.images[0].url, "tip", tip.id, tip.title, { onClick: this.submitStep }))}
+      ${beltTips.map((tip) => thumbnailOption(tip.id, firstImage(tip), "tip", tip.id, tip.title, { onClick: this.submitStep }))}
     </div>`;
 
     this.loading = false;
@@ -253,13 +259,17 @@ export class CustomBeltWizard extends LitElement {
     if (this.selection.has("buckle"))
       this.beltBuckle = beltBuckles.find(b => b.id === this.selection!.get("buckle"))!;
     if (this.selection.has("loop")) {
-      this.beltLoops = [beltLoops.find(b => b.id === this.selection!.get("loop"))!];
+      // FIXME: Why are the checkboxes only giving ONE selection to the `FormData`?
+      const loops = this.selection!.getAll("loop");
+      assert(loops.every(x => typeof x === "string"));
+      this.beltLoops = loops.map(id => beltLoops.find(b => b.id === id)!);
       if (this.preview.value) this.preview.value.loops = this.beltLoops.map(firstImage);
-      if (this.checkout.value) this.checkout.value.loops = this.beltLoops.map(x => x.id);
     } if (this.selection.has("concho")) {
-      this.beltConchos = [beltConchos.find(b => b.id === this.selection!.get("concho"))!];
+      // FIXME: Why are the checkboxes only giving ONE selection to the `FormData`?
+      const conchos = this.selection!.getAll("concho");
+      assert(conchos.every(x => typeof x === "string"));
+      this.beltConchos = conchos.map(id => beltConchos.find(b => b.id === id)!);
       if (this.preview.value) this.preview.value.conchos = this.beltConchos.map(firstImage);
-      if (this.checkout.value) this.checkout.value.conchos = this.beltConchos.map(x => x.id);
     } if (this.selection.has("tip"))
       this.beltTip = beltTips.find(b => b.id === this.selection!.get("tip"))!;
   }
