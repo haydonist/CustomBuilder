@@ -1,13 +1,19 @@
 import { css, html, LitElement, TemplateResult } from "lit";
-import { customElement, state } from "lit/decorators.js";
+import { customElement, property, state } from "lit/decorators.js";
 
-import { Product } from "../api/index.ts";
+import { firstImage, Product } from "../api/index.ts";
 import { colorChipOption, thumbnailOption } from "./option.ts";
 import * as styles from "../styles.ts";
 
 @customElement('belt-checkout')
 export default class BeltCheckout extends LitElement {
+  @property({type: String}) base?: string;
+  @property({type: String}) buckle?: string;
+  @property({type: String}) tip?: string;
+
   @state() beltData: Product[][] = [];
+  @state() loops: string[] = [];
+  @state() conchos: string[] = [];
 
   static override styles = css`
     ${styles.theme}
@@ -23,6 +29,14 @@ export default class BeltCheckout extends LitElement {
     }`;
 
   override render() {
+    // Render nothing but this prompt when there's no belt selection
+    if (this.beltData.length === 0) return html`<p>
+      Please <a href="#" @click=${(e: Event) => {
+        e.preventDefault();
+        this.gotoStep(0);
+      }}>select a belt</a>.`;
+
+    // Otherwise, render chips for all of the user's product selections
     const [beltBases, beltBuckles, beltLoops, beltConchos, beltTips] = this.beltData;
 
     function hasData(products: Product[] | null | undefined) {
@@ -33,20 +47,38 @@ export default class BeltCheckout extends LitElement {
       return predicate(products) ? some : null;
     }
 
-    // TODO: Refactor this for better readability
-    const baseSelection = thumbnailOption(beltBases[0].id, beltBases[0].images[0].url, "base", beltBases[0].id, beltBases[0].title, { class: "summary", onClick: () => this.gotoStep(0) },)
-    const buckleSelection = thumbnailOption(beltBuckles[0].id, beltBuckles[0].images[0].url, "buckle", beltBuckles[0].id, beltBuckles[0].title, { class: "summary", onClick: () => this.gotoStep(2) },)
-    const loopSelection = thumbnailOption(beltLoops[0].id, beltLoops[0].images[0].url, "loop", beltLoops[0].id, beltLoops[0].title, { class: "summary", onClick: () => this.gotoStep(3) },)
-    const conchoSelection = thumbnailOption(beltConchos[0].id, beltConchos[0].images[0].url, "beltConcho", beltConchos[0].id, beltConchos[0].title, { class: "summary", onClick: () => this.gotoStep(4) },)
-    const tipSelection = thumbnailOption(beltTips[0].id, beltTips[0].images[0].url, "beltTip", beltTips[0].id, beltTips[0].title, { class: "summary", onClick: () => this.gotoStep(5) },)
+    const base = beltBases.find(x => x.id === this.base)!;
+    const baseSelection = thumbnailOption(this.base!, firstImage(base), "base", this.base, base.title, {
+      class: "summary", onClick: () => this.gotoStep(0)
+    });
+    const buckle = beltBuckles.find(x => x.id === this.buckle)!;
+    const buckleSelection = thumbnailOption(this.buckle!, firstImage(buckle), "buckle", this.buckle, buckle.title, {
+      class: "summary", onClick: () => this.gotoStep(2)
+    });
+    const loopSelection = this.loops.map(id => {
+      const loop = beltLoops.find(l => l.id === id)!;
+      return thumbnailOption(id, firstImage(loop), "loop", id, loop.title, {
+        class: "summary", onClick: () => this.gotoStep(3)
+      });
+    });
+    const conchoSelection = this.conchos.map(id => {
+      const concho = beltConchos.find(l => l.id === id)!;
+      return thumbnailOption(id, firstImage(concho), "beltConcho", id, concho.title, {
+        class: "summary", onClick: () => this.gotoStep(4)
+      });
+    });
+    const tip = beltTips.find(x => x.id === this.tip)!;
+    const tipSelection = thumbnailOption(this.tip!, firstImage(tip), "beltTip", this.tip, tip.title, {
+      class: "summary", onClick: () => this.gotoStep(5)
+    });
 
     return html`
       <div class="row wrap gap-medium">
         ${fallbackToNothing(beltBases, hasData, baseSelection)}
         <!-- FIXME: Use the correct color here and render a color chip option. -->
         ${fallbackToNothing(beltBuckles, hasData, buckleSelection)}
-        ${fallbackToNothing(beltLoops, hasData, loopSelection)}
-        ${fallbackToNothing(beltConchos, hasData, conchoSelection)}
+        ${fallbackToNothing(beltLoops, hasData, html`${loopSelection}`)}
+        ${fallbackToNothing(beltConchos, hasData, html`${conchoSelection}`)}
         ${fallbackToNothing(beltTips, hasData, tipSelection)}
       </div>
       <div id="checkoutTotal">Total: <span class="price">$89.20</span></div>
