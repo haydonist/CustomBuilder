@@ -30,7 +30,7 @@ export default class BeltCheckout extends LitElement {
 
   override render() {
     // Render nothing but this prompt when there's no belt selection
-    if (this.beltData.length === 0) return html`<p>
+    if (!this.base || !this.buckle || !this.tip) return html`<p>
       Please <a href="#" @click=${(e: Event) => {
         e.preventDefault();
         this.gotoStep(0);
@@ -43,7 +43,7 @@ export default class BeltCheckout extends LitElement {
       return Array.isArray(products) && products.length > 0;
     }
 
-    function fallbackToNothing(products: Product[] | null | undefined, predicate: (products: Product[] | null | undefined) => boolean, some: TemplateResult) {
+    function fallbackToNothing(products: Product[] | null | undefined, predicate: (products: Product[] | null | undefined) => boolean, some: TemplateResult | TemplateResult[]) {
       return predicate(products) ? some : null;
     }
 
@@ -77,8 +77,8 @@ export default class BeltCheckout extends LitElement {
         ${fallbackToNothing(beltBases, hasData, baseSelection)}
         <!-- FIXME: Use the correct color here and render a color chip option. -->
         ${fallbackToNothing(beltBuckles, hasData, buckleSelection)}
-        ${fallbackToNothing(beltLoops, hasData, html`${loopSelection}`)}
-        ${fallbackToNothing(beltConchos, hasData, html`${conchoSelection}`)}
+        ${fallbackToNothing(beltLoops, hasData, loopSelection)}
+        ${fallbackToNothing(beltConchos, hasData, conchoSelection)}
         ${fallbackToNothing(beltTips, hasData, tipSelection)}
       </div>
       <div id="checkoutTotal">Total: <span class="price">$89.20</span></div>
