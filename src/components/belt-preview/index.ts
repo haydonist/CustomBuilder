@@ -1,7 +1,7 @@
 import { css, html, LitElement } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 
-import * as styles from "../styles.ts";
+import * as styles from "../../styles.ts";
 
 @customElement("belt-preview")
 export default class BeltPreview extends LitElement {

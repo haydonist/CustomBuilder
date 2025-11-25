@@ -8,11 +8,11 @@ import { createRef, ref, Ref } from "lit/directives/ref.js";
 // ===============
 // NOTE: Do NOT remove these, otherwise custom element decorators are not executed and they will break!
 import "./components/belt-checkout.js";
-import "./components/belt-preview.js";
+import "./components/belt-preview/index.js";
 
 import { firstImage, Product, queryProducts } from "./api/index.ts";
 import BeltCheckout from "./components/belt-checkout.ts";
-import BeltPreview from "./components/belt-preview.ts";
+import BeltPreview from "./components/belt-preview/index.ts";
 import { colorChipOption, OptionType, textOption, thumbnailOption } from "./components/option.ts";
 import { beltColors, beltSizes } from "./models/belts.ts";
 import Wizard, { renderView } from "./models/wizard/index.ts";
