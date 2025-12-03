@@ -61,12 +61,12 @@
   --radius-large: 16px;
 
   /* Shadows */
-  --shadow-xxs: 0 1px 2px 0 #0000000D;
-  --shadow-xs: 0 1px 2px 0 #0000000F, 0 1px 3px 0 #0000001A;
-  --shadow-small: 0 4px 2px -2px #0000000D, 0 4px 8px -2px #0000001A;
+  --shadow-xxs: 0 1px 2px 0 #0000000d;
+  --shadow-xs: 0 1px 2px 0 #0000000f, 0 1px 3px 0 #0000001a;
+  --shadow-small: 0 4px 2px -2px #0000000d, 0 4px 8px -2px #0000001a;
   --shadow-medium: 0 4px 6px -2px #00000008, 0 12px 16px -4px #00000014;
   --shadow-large: 0 8px 8px -4px #00000008, 0 20px 24px -4px #00000014;
-  --shadow-xl: 0 24px 48px -12px #0000002E;
+  --shadow-xl: 0 24px 48px -12px #0000002e;
   --shadow-xxl: 0 32px 64px -12px #00000024;
 }
 
@@ -154,9 +154,10 @@ button.btn, a.btn {
   padding: 12px 22px;
   border: none;
   border-radius: 8px;
-  background: #8B5E3C;
+  background: #8b5e3c;
   cursor: pointer;
-  box-shadow: 0px 1px 2px 0px rgba(12, 12, 12, 0.05),
+  box-shadow:
+    0px 1px 2px 0px rgba(12, 12, 12, 0.05),
     inset 0px -2px 1px 0px rgba(0, 0, 0, 0.20),
     inset 0px 0px 0px 1px rgba(12, 12, 12, 0.15),
     inset 0px 2px 1px 0px rgba(255, 255, 255, 0.25),
@@ -170,18 +171,24 @@ a.btn {
 
 button.btn.primary, a.btn.primary {
   color: var(--neutral-white);
-  background-color: #8B5E3C;
+  background-color: #8b5e3c;
 }
 
 .btn.primary:hover {
-  background-color: #7A4F31;
-  box-shadow: 0 4px 6px 0 #0000000F, inset 0 -2px 1px 0 #00000033, inset 0 0 0 1px #00000026;
+  background-color: #7a4f31;
+  box-shadow:
+    0 4px 6px 0 #0000000f,
+    inset 0 -2px 1px 0 #00000033,
+    inset 0 0 0 1px #00000026;
 }
 
 button.btn.secondary, a.btn.secondary {
   color: var(--neutral-darkest);
-  background-color: #0C0C0C0D;
-  box-shadow: 0 1px 2px 0 #0C0C0C0D, inset 0 -2px 1px 0 #0C0C0C0D, inset 0 0 0 1px #0C0C0C0D;
+  background-color: #0c0c0c0d;
+  box-shadow:
+    0 1px 2px 0 #0c0c0c0d,
+    inset 0 -2px 1px 0 #0c0c0c0d,
+    inset 0 0 0 1px #0c0c0c0d;
 }
 
 button.btn.tertiary, a.btn.tertiary {
@@ -191,12 +198,16 @@ button.btn.tertiary, a.btn.tertiary {
 }
 
 button.btn.tertiary:hover, a.btn.tertiary:hover {
-  box-shadow: 0 1px 2px 0 #0C0C0C0D, inset 0 -2px 1px 0 #0C0C0C0D, inset 0 0 0 1px #0C0C0C0D;
+  box-shadow:
+    0 1px 2px 0 #0c0c0c0d,
+    inset 0 -2px 1px 0 #0c0c0c0d,
+    inset 0 0 0 1px #0c0c0c0d;
 }
 
 /* Options */
 .option {
   cursor: pointer;
+  max-width: 170px;
 }
 
 .option .selection-indicator {
@@ -212,7 +223,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   margin: 3px;
   border: 1px solid var(--neutral-white);
   border-radius: 8px;
-  background: #FFFFFF33;
+  background: #ffffff33;
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
@@ -243,7 +254,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 .option.text-only:has(input:checked) {
   margin: 0;
   border-width: 4px;
-  background: #FFFFFF80;
+  background: #ffffff80;
 }
 
 .option.color-chip label {
@@ -285,7 +296,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 .option:not(.text-only) input:checked + label .selection-indicator {
   margin: 0;
   border-width: 4px;
-  background: #FFFFFF80;
+  background: #ffffff80;
 }
 
 .option .selection-indicator.summary {
