@@ -251,6 +251,7 @@ belt-wizard section.step h2 {
   position: relative;
   left: -8px;
   min-height: 150px;
+  pointer-events: none;
   transition: transform 0.5s ease-in-out;
 }
 #preview belt-preview.step-2,
