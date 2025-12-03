@@ -18,7 +18,7 @@ export default async function cropToContents(
   assert(ctx, "Could not create a canvas context!");
 
   // Copy the source image to the canvas
-  ctx.drawImage(await createImageBitmap(image), 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(await createImageBitmap(image), 0, 0);
 
   // Find the visible bounds of the image
   const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height, { colorSpace: "srgb" });
@@ -41,10 +41,6 @@ export default async function cropToContents(
   // TODO: Refactor out this step. This logic pushes the cylomatic complexity of this function to at least 20.
   const width = bounds.right - bounds.left;
   const height = bounds.bottom - bounds.top;
-  assert(
-    options?.downscaleTo?.maxWidth ?? width <= width && options?.downscaleTo?.maxHeight ?? height <= height,
-    "You must only downscale an image to maintain pixel density."
-  );
 
   const shouldDownscale = options?.downscaleTo ? (
     (options.downscaleTo.maxWidth ?? width < width) ||
@@ -52,8 +48,8 @@ export default async function cropToContents(
   ) : false;
   return await createImageBitmap(canvas, bounds.left, bounds.top, width, height, shouldDownscale ? {
     // Maintain aspect ratio
-    resizeWidth: options!.downscaleTo!.maxWidth ?? height / options!.downscaleTo!.maxHeight! * width,
-    resizeHeight: options!.downscaleTo!.maxHeight ?? width / options!.downscaleTo!.maxWidth! * height,
+    resizeWidth: options!.downscaleTo!.maxWidth ?? (options!.downscaleTo!.maxHeight! / height * width),
+    resizeHeight: options!.downscaleTo!.maxHeight ?? (options!.downscaleTo!.maxWidth! / width * height),
     resizeQuality: "medium"
   } : undefined);
 }
