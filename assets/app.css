@@ -255,7 +255,7 @@ belt-wizard section.step h2 {
 }
 #preview belt-preview.step-2,
 #preview belt-preview.step-3 {
-  transform: scale(1.5);
+  transform: scale(1.5) translateX(300px);
   transform-origin: left;
 }
 #preview belt-preview.step-4 {
