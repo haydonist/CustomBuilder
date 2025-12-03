@@ -173,6 +173,10 @@ button.btn.primary, a.btn.primary {
   color: var(--neutral-white);
   background-color: #8b5e3c;
 }
+#stepShortcut {
+  position: relative;
+  z-index: 5;
+}
 
 .btn.primary:hover {
   background-color: #7a4f31;
