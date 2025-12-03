@@ -160,6 +160,7 @@ export class CustomBeltWizard extends LitElement {
       <!-- Don't render the belt preview when there's no selection or on the belt size step -->
       ${this.wizard.currentStep.id !== "size" && this.beltBase ? html`<section id="preview" style="position: sticky">
         <belt-preview
+          class="step-${this.wizard.stepIndex}"
           ${ref(this.preview)}
           base=${firstImage(this.beltBase)}
           buckle=${this.beltBuckle ? firstImage(this.beltBuckle) : undefined}
