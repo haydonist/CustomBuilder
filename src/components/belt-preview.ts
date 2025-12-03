@@ -28,7 +28,7 @@ export default class BeltPreview extends LitElement {
 
     #base {
       width: auto;
-      max-height: 300px;
+      max-height: 200px;
       z-index: 0;
     }
     #buckle {
@@ -39,7 +39,7 @@ export default class BeltPreview extends LitElement {
     }
     #loops {
       position: absolute;
-      left: 5%;
+      left: -2.5%;
       height: 100%;
       z-index: 1;
     }

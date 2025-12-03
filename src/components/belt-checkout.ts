@@ -25,7 +25,7 @@ export default class BeltCheckout extends LitElement {
     }
     img {
       max-width: 100%;
-      max-height: 300px;
+      max-height: 200px;
     }`;
 
   override render() {
