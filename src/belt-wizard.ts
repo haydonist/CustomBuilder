@@ -361,50 +361,70 @@ export class CustomBeltWizard extends LitElement {
     `;
 
     const loopStep = this.wizard.find("loops")!;
-    loopStep.view = html`
-      <div class="row wrap gap-medium">
-        ${beltLoops.map((loop) =>
-          thumbnailOption(
-            loop.id,
-            firstImage(loop),
-            "loop",
-            loop.id,
-            loop.title,
-            {
-              type: OptionType.checkbox,
-              onClick: (ev: Event) => {
-                ev.preventDefault(); // prevent native checkbox toggle
-                this.toggleLoop(loop.id);
-                this.requestUpdate();
+    loopStep.view = () =>
+      html`
+        <div class="row wrap gap-medium">
+          ${beltLoops.map((loop) => {
+            const currentLoops = this.selection?.getAll("loop") as
+              | string[]
+              | undefined;
+            const count = currentLoops
+              ? currentLoops.filter((id) => id === loop.id).length
+              : 0;
+            const selected = count > 0;
+
+            return thumbnailOption(
+              loop.id,
+              firstImage(loop),
+              "loop",
+              loop.id,
+              loop.title,
+              {
+                onClick: (ev: Event) => {
+                  ev.preventDefault(); // prevent native checkbox toggle
+                  this.toggleLoop(loop.id);
+                  this.requestUpdate();
+                },
+                selected,
+                count,
               },
-            },
-          )
-        )}
-      </div>
-    `;
+            );
+          })}
+        </div>
+      `;
 
     const conchoStep = this.wizard.find("conchos")!;
-    conchoStep.view = html`
-      <div class="row wrap gap-medium">
-        ${beltConchos.map((concho) =>
-          thumbnailOption(
-            concho.id,
-            firstImage(concho),
-            "concho",
-            concho.id,
-            concho.title,
-            {
-              type: OptionType.checkbox,
-              onClick: (ev: Event) => {
-                ev.preventDefault(); // prevent native checkbox toggle
-                this.toggleConcho(concho.id);
-                this.requestUpdate();
+    conchoStep.view = () =>
+      html`
+        <div class="row wrap gap-medium">
+          ${beltConchos.map((concho) => {
+            const currentConchos = this.selection?.getAll("concho") as
+              | string[]
+              | undefined;
+            const count = currentConchos
+              ? currentConchos.filter((id) => id === concho.id).length
+              : 0;
+            const selected = count > 0;
+
+            return thumbnailOption(
+              concho.id,
+              firstImage(concho),
+              "concho",
+              concho.id,
+              concho.title,
+              {
+                onClick: (ev: Event) => {
+                  ev.preventDefault(); // prevent native checkbox toggle
+                  this.toggleConcho(concho.id);
+                  this.requestUpdate();
+                },
+                selected,
+                count,
               },
-            },
-          )
-        )}
-      </div>
-    `;
+            );
+          })}
+        </div>
+      `;
 
     // FIXME: Choose the proper tip image from product sets
     const tipStep = this.wizard.find("tip")!;
