@@ -14,11 +14,11 @@ export default class BeltPreview extends LitElement {
 
   static override styles = css`
     ${styles.theme}
-    :root {
-      min-height: 250px;
-      overflow-x: hidden;
+    :host {
+      position: relative;
+      display: block;
       width: 100%;
-      min-height: min-content;
+      min-height: 250px;
     }
 
     .center-vertically {
@@ -45,21 +45,42 @@ export default class BeltPreview extends LitElement {
     }
     .loop {
       max-height: 100%;
+      margin-right: -40%;
     }
-    #conchos {
+     #conchosList {
       position: absolute;
-      right: 30%;
+      left: 10vw;           
+      width: 40vw;         
       height: 100%;
       z-index: 1;
+      display: flex;
+      justify-content: space-evenly;  
+      align-items: center;            /* keep conchos vertically centered on the belt */
+      pointer-events: none;           
     }
+
+    .concho-wrapper {
+      max-height: 200px;
+      max-width: 50px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;      
+    }
+
     .concho {
-      max-height: 100%;
+      display: block;
+      max-height: 200px;
+      margin: 0 auto;
+
+      /* Visually ignore ~30% padding on each side of the image */
+      clip-path: inset(0 30% 0 30%);
     }
     #tip {
       position: absolute;
-      /* FIXME: Don't use magic numbers for this. */
-      right: -220px;
       max-height: 100%;
+      right: -2%;
       z-index: 1;
     }
     `;
@@ -71,8 +92,8 @@ export default class BeltPreview extends LitElement {
       <div id="loops" class="center-vertically">
         ${this.loops.map(loop => html`<img class="loop" src=${loop} aria-hidden="true" />`)}
       </div>
-      <div id="conchos" class="center-vertically">
-        ${this.conchos.map(concho => html`<img class="concho" src=${concho} aria-hidden="true" />`)}
+      <div id="conchosList" class="center-vertically">
+        ${this.conchos.map(concho => html`<div class="concho-wrapper"><img class="concho" src=${concho} aria-hidden="true" /></div>`)}
       </div>
       <img id="tip" class="center-vertically" src=${this.tip} aria-hidden="true" />
     `;
