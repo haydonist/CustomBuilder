@@ -372,10 +372,9 @@ export class CustomBeltWizard extends LitElement {
             loop.title,
             {
               type: OptionType.checkbox,
-              onClick: () => {
-                if (!this.form.value) return;
-                const fd = new FormData(this.form.value);
-                this.updateWizardSelection(fd);
+              onClick: (ev: Event) => {
+                ev.preventDefault(); // prevent native checkbox toggle
+                this.toggleLoop(loop.id);
                 this.requestUpdate();
               },
             },
@@ -396,10 +395,9 @@ export class CustomBeltWizard extends LitElement {
             concho.title,
             {
               type: OptionType.checkbox,
-              onClick: () => {
-                if (!this.form.value) return;
-                const fd = new FormData(this.form.value);
-                this.updateWizardSelection(fd);
+              onClick: (ev: Event) => {
+                ev.preventDefault(); // prevent native checkbox toggle
+                this.toggleConcho(concho.id);
                 this.requestUpdate();
               },
             },
@@ -422,58 +420,32 @@ export class CustomBeltWizard extends LitElement {
 
     this.loading = false;
   }
-
-  private updateWizardSelection(formData: FormData) {
-    // See https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/formdata_event
-
-    // Persist the step's selection
+  private ensureSelection() {
     if (!this.selection) {
       this.selection = new FormData();
     }
+  }
 
-    // Keys that can have multiple values
-    const multiKeys = new Set(["loop", "concho"]);
-
-    // Snapshot the entries so we don't mutate while iterating
-    const entries = [...formData.entries()];
-
-    // For multi-value keys, clear them first for THIS step
-    for (const [key] of entries) {
-      if (multiKeys.has(key)) {
-        this.selection.delete(key);
-      }
-    }
-
-    // Merge: multi keys => append; others => set (overwrite)
-    for (const [key, value] of entries) {
-      if (multiKeys.has(key)) {
-        this.selection.append(key, value);
-      } else {
-        this.selection.set(key, value);
-      }
-    }
-    // Update belt preview
+  private applySelectionToPreview() {
     const [beltBases, beltBuckles, beltLoops, beltConchos, beltTips] =
       this.beltData;
 
-    if (this.selection.has("base")) {
+    if (this.selection?.has("base")) {
       this.beltBase = beltBases.find((b) =>
         b.id === this.selection!.get("base")
-      )!;
+      ) ?? null;
     }
 
-    if (this.selection.has("buckle")) {
+    if (this.selection?.has("buckle")) {
       this.beltBuckle = beltBuckles.find((b) =>
         b.id === this.selection!.get("buckle")
-      )!;
+      ) ?? null;
     }
 
-    if (this.selection.has("loop")) {
-      const loops = this.selection!.getAll("loop") as string[];
-
-      // de-dup and enforce max 2 loops
-      const uniqueLoops = [...new Set(loops)];
-      const limitedLoopIds = uniqueLoops.slice(0, 2); // max 2
+    // Loops: allow duplicates, max 2 total
+    if (this.selection?.has("loop")) {
+      const loopIds = this.selection!.getAll("loop") as string[];
+      const limitedLoopIds = loopIds.slice(0, 2);
 
       this.beltLoops = limitedLoopIds
         .map((id) => beltLoops.find((b) => b.id === id)!)
@@ -489,12 +461,10 @@ export class CustomBeltWizard extends LitElement {
       }
     }
 
-    if (this.selection.has("concho")) {
-      const conchos = this.selection!.getAll("concho") as string[];
-
-      // de-dup and enforce max 5 conchos
-      const uniqueConchos = [...new Set(conchos)];
-      const limitedConchoIds = uniqueConchos.slice(0, 5); // max 5
+    // Conchos: allow duplicates, max 5 total
+    if (this.selection?.has("concho")) {
+      const conchoIds = this.selection!.getAll("concho") as string[];
+      const limitedConchoIds = conchoIds.slice(0, 5);
 
       this.beltConchos = limitedConchoIds
         .map((id) => beltConchos.find((b) => b.id === id)!)
@@ -504,16 +474,88 @@ export class CustomBeltWizard extends LitElement {
         this.preview.value.conchos = this.beltConchos.map(firstImage);
       }
     } else {
-      // 0 conchos is allowed
       this.beltConchos = [];
       if (this.preview.value) {
         this.preview.value.conchos = [];
       }
     }
 
-    if (this.selection.has("tip")) {
-      this.beltTip = beltTips.find((b) => b.id === this.selection!.get("tip"))!;
+    if (this.selection?.has("tip")) {
+      this.beltTip = beltTips.find((b) =>
+        b.id === this.selection!.get("tip")
+      ) ?? null;
     }
+  }
+
+  private toggleLoop(loopId: string) {
+    this.ensureSelection();
+    const current = this.selection!.getAll("loop") as string[];
+
+    const totalCount = current.length;
+    const sameCount = current.filter((id) => id === loopId).length;
+
+    if (sameCount >= 2) {
+      const remaining = current.filter((id) => id !== loopId);
+      this.selection!.delete("loop");
+      remaining.forEach((id) => this.selection!.append("loop", id));
+    } else if (totalCount >= 2 && sameCount === 0) {
+      return;
+    } else {
+      this.selection!.append("loop", loopId);
+    }
+
+    this.applySelectionToPreview();
+  }
+
+  private toggleConcho(conchoId: string) {
+    this.ensureSelection();
+    const current = this.selection!.getAll("concho") as string[];
+
+    const totalCount = current.length;
+    const sameCount = current.filter((id) => id === conchoId).length;
+
+    if (sameCount >= 5) {
+      const remaining = current.filter((id) => id !== conchoId);
+      this.selection!.delete("concho");
+      remaining.forEach((id) => this.selection!.append("concho", id));
+    } else if (totalCount >= 5 && sameCount === 0) {
+      return;
+    } else {
+      this.selection!.append("concho", conchoId);
+    }
+
+    this.applySelectionToPreview();
+  }
+
+  private updateWizardSelection(formData: FormData) {
+    // See https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/formdata_event
+
+    this.ensureSelection();
+
+    // Keys that can have multiple values
+    const multiKeys = new Set(["loop", "concho"]);
+
+    // Snapshot the entries so we don't mutate while iterating
+    const entries = [...formData.entries()];
+
+    // For multi-value keys, clear them first for THIS step
+    for (const [key] of entries) {
+      if (multiKeys.has(key)) {
+        this.selection!.delete(key);
+      }
+    }
+
+    // Merge: multi keys => append; others => set (overwrite)
+    for (const [key, value] of entries) {
+      if (multiKeys.has(key)) {
+        this.selection!.append(key, value);
+      } else {
+        this.selection!.set(key, value);
+      }
+    }
+
+    // Recompute all preview state from current selection
+    this.applySelectionToPreview();
   }
 }
 
