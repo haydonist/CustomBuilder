@@ -263,7 +263,7 @@ belt-wizard section.step h2 {
   transform-origin: left;
 }
 #preview belt-preview.step-3 {
-  transform: scale(1.5) translateX(200px);
+  transform: scale(2.5) translateX(150px);
   transform-origin: left;
 }
 #preview belt-preview.step-4 {
