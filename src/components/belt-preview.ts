@@ -29,7 +29,7 @@ export default class BeltPreview extends LitElement {
     #base {
       width: auto;
       max-height: 200px;
-      z-index: 0;
+      margin-top: 4px;
     }
     #buckle {
       position: absolute;
