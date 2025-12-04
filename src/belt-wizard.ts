@@ -128,7 +128,11 @@ export class CustomBeltWizard extends LitElement {
   }, {
     id: "tip",
     title: "Choose a Belt Tip",
-    shortcut: () => this.multiSelectShortcut("No Belt Tip", false),
+    shortcut: () =>
+      this.multiSelectShortcut(
+        "No Belt Tip",
+        this.selection?.has("tip") || false,
+      ),
     view: html`
       <div class="row wrap gap-medium"></div>
     `,
@@ -157,15 +161,26 @@ export class CustomBeltWizard extends LitElement {
   private multiSelectShortcut(skipLabel: string, hasSelection: boolean) {
     const stepId = this.wizard.currentStep.id;
     const isLoopsStep = stepId === "loops";
+    const isConchosStep = stepId === "conchos";
+    const isTipStep = stepId === "tip";
 
-    const loopCount = this.selection?.getAll("loop").length ?? 0;
-    const canContinueOnLoops = loopCount >= 1;
+    let canContinue: boolean;
+    let label: string;
 
-    const canContinue = isLoopsStep ? canContinueOnLoops : hasSelection;
+    if (isLoopsStep) {
+      const loopCount = this.selection?.getAll("loop").length ?? 0;
+      const canContinueOnLoops = loopCount >= 1;
 
-    const label = isLoopsStep
-      ? (canContinue ? "Continue" : "1 loop required")
-      : (hasSelection ? "Continue" : skipLabel);
+      canContinue = canContinueOnLoops;
+      label = canContinue ? "Continue" : "1 loop required";
+    } else if (isConchosStep || isTipStep) {
+      canContinue = true;
+      label = hasSelection ? "Continue" : skipLabel;
+    } else {
+      // Default behavior for other steps
+      canContinue = hasSelection;
+      label = hasSelection ? "Continue" : skipLabel;
+    }
 
     return html`
       <button
@@ -411,7 +426,7 @@ export class CustomBeltWizard extends LitElement {
   private updateWizardSelection(formData: FormData) {
     // See https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/formdata_event
 
-    // Persist the step's selection across steps.
+    // Persist the step's selection
     if (!this.selection) {
       this.selection = new FormData();
     }
