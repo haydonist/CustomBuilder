@@ -1,11 +1,11 @@
 import { assert } from "@std/assert";
-import { createStorefrontApiClient } from '@shopify/storefront-api-client';
+import { createStorefrontApiClient } from "@shopify/storefront-api-client";
 
 const client = createStorefrontApiClient({
-  storeDomain: 'https://belt-master-belts.myshopify.com',
-  apiVersion: '2025-10',
-  publicAccessToken: '150be8d747708199c1f1b33ab7ab43bb',
-  retries: 2
+  storeDomain: "https://belt-master-belts.myshopify.com",
+  apiVersion: "2025-10",
+  publicAccessToken: "150be8d747708199c1f1b33ab7ab43bb",
+  retries: 2,
 });
 
 export default client;
@@ -26,6 +26,16 @@ const productQuery = `
         node {
           id
           title
+          priceRange {
+            minVariantPrice {
+              amount
+              currencyCode
+            }
+            maxVariantPrice {
+              amount
+              currencyCode
+            }
+          }
           images(first: 10) {
             edges {
               node {
@@ -41,10 +51,19 @@ const productQuery = `
   }
 `;
 
+export interface MoneyV2 {
+  amount: string;
+  currencyCode: string;
+}
+
 export interface Product {
   id: string;
   title: string;
   images: ProductImage[];
+  priceRange: {
+    minVariantPrice: MoneyV2;
+    maxVariantPrice: MoneyV2;
+  };
 }
 
 export interface ProductImage {
@@ -54,14 +73,15 @@ export interface ProductImage {
 }
 
 export async function queryProducts(
-  query: string, { prefetchImages }: { prefetchImages: boolean } = { prefetchImages: true }
+  query: string,
+  { prefetchImages }: { prefetchImages: boolean } = { prefetchImages: true },
 ): Promise<Product[]> {
   const resp = await client.request(productQuery, { variables: { query } });
   if (resp.errors) throw new Error(resp.errors.message);
 
   if (prefetchImages) {
     const images: ProductImage[] = resp.data.products.edges.flatMap(
-      ({ node }: any) => node.images.edges.map(({ node: img }: any) => img)
+      ({ node }: any) => node.images.edges.map(({ node: img }: any) => img),
     );
 
     await Promise.all(images.map(async (image) => {
@@ -80,6 +100,7 @@ export async function queryProducts(
     id: product.id,
     title: product.title,
     images: product.images.edges.map(({ node: img }: any) => img),
+    priceRange: product.priceRange,
   }));
 }
 

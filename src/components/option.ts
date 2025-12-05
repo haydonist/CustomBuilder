@@ -1,4 +1,6 @@
 import { html } from "lit";
+import { formatMoney } from "../utils.ts";
+import { MoneyV2 } from "../api/index.ts";
 
 export type EventHandler = (ev: Event) => void;
 
@@ -40,6 +42,7 @@ export function thumbnailOption(
   name: string,
   value: unknown,
   label?: string,
+  price?: MoneyV2,
   options?: {
     onClick?: EventHandler;
     class?: string;
@@ -75,6 +78,7 @@ export function thumbnailOption(
             height="160px"
           />
           <span class="label">${label}</span>
+          <span class="price">${formatMoney(price)}</span>
         </label>
       </span>
     `;
@@ -112,6 +116,7 @@ export function thumbnailOption(
           ${countBadge}
         </span>
         <span class="label">${label}</span>
+        <span class="price">${formatMoney(price)}</span>
       </label>
     </span>
   `;

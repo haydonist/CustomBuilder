@@ -71,6 +71,11 @@ export class CustomBeltWizard extends LitElement {
   wizard = new Wizard([{
     id: "base",
     title: "Select a Belt Base",
+    shortcut: () =>
+      this.multiSelectShortcut(
+        "Select a Belt Base",
+        this.selection?.has("base") || false,
+      ),
     view: html`
       <div class="row wrap gap-medium"></div>
     `,
@@ -328,20 +333,32 @@ export class CustomBeltWizard extends LitElement {
       ]);
 
     const baseStep = this.wizard.find("base")!;
-    baseStep.view = html`
-      <div class="row wrap gap-medium">
-        ${beltBases.map((base) =>
-          thumbnailOption(
-            base.id,
-            firstImage(base),
-            "base",
-            base.id,
-            base.title,
-            { onClick: this.submitStep },
-          )
-        )}
-      </div>
-    `;
+    baseStep.view = () =>
+      html`
+        <div class="row wrap gap-medium">
+          ${beltBases.map((base) => {
+            const selected = this.selection?.get("base") === base.id;
+
+            return thumbnailOption(
+              base.id,
+              firstImage(base),
+              "base",
+              base.id,
+              base.title,
+              base.priceRange.minVariantPrice,
+              {
+                onClick: () => {
+                  this.ensureSelection();
+                  this.selection!.set("base", base.id);
+                  this.applySelectionToPreview();
+                  this.requestUpdate();
+                },
+                selected,
+              },
+            );
+          })}
+        </div>
+      `;
 
     // FIXME: Choose the proper buckle image from product sets
     const buckleStep = this.wizard.find("buckle")!;
@@ -354,6 +371,7 @@ export class CustomBeltWizard extends LitElement {
             "buckle",
             buckle.id,
             buckle.title,
+            buckle.priceRange.minVariantPrice,
             { onClick: this.submitStep },
           )
         )}
@@ -379,6 +397,7 @@ export class CustomBeltWizard extends LitElement {
               "loop",
               loop.id,
               loop.title,
+              loop.priceRange.minVariantPrice,
               {
                 onClick: (ev: Event) => {
                   ev.preventDefault(); // prevent native checkbox toggle
@@ -412,6 +431,7 @@ export class CustomBeltWizard extends LitElement {
               "concho",
               concho.id,
               concho.title,
+              concho.priceRange.minVariantPrice,
               {
                 onClick: (ev: Event) => {
                   ev.preventDefault(); // prevent native checkbox toggle
@@ -431,9 +451,17 @@ export class CustomBeltWizard extends LitElement {
     tipStep.view = html`
       <div class="row wrap gap-medium">
         ${beltTips.map((tip) =>
-          thumbnailOption(tip.id, firstImage(tip), "tip", tip.id, tip.title, {
-            onClick: this.submitStep,
-          })
+          thumbnailOption(
+            tip.id,
+            firstImage(tip),
+            "tip",
+            tip.id,
+            tip.title,
+            tip.priceRange.minVariantPrice,
+            {
+              onClick: this.submitStep,
+            },
+          )
         )}
       </div>
     `;

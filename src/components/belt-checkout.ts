@@ -4,6 +4,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { firstImage, Product } from "../api/index.ts";
 import { thumbnailOption } from "./option.ts";
 import * as styles from "../styles.ts";
+import { formatMoney } from "../utils.ts";
 
 @customElement('belt-checkout')
 export default class BeltCheckout extends LitElement {
@@ -30,7 +31,7 @@ export default class BeltCheckout extends LitElement {
 
   override render() {
     // Render nothing but this prompt when there's no belt selection
-    if (!this.base || !this.buckle || !this.tip) return html`<p>
+    if (!this.base || !this.buckle) return html`<p>
       Please <a href="#" @click=${(e: Event) => {
         e.preventDefault();
         this.gotoStep(0);
@@ -48,11 +49,11 @@ export default class BeltCheckout extends LitElement {
     }
 
     const base = beltBases.find(x => x.id === this.base)!;
-    const baseSelection = thumbnailOption(this.base!, firstImage(base), "base", this.base, base.title, {
+    const baseSelection = thumbnailOption(this.base!, firstImage(base), "base", this.base, base.title, base.priceRange.minVariantPrice, {
       class: "summary", onClick: () => this.gotoStep(0)
     });
     const buckle = beltBuckles.find(x => x.id === this.buckle)!;
-    const buckleSelection = thumbnailOption(this.buckle!, firstImage(buckle), "buckle", this.buckle, buckle.title, {
+    const buckleSelection = thumbnailOption(this.buckle!, firstImage(buckle), "buckle", this.buckle, buckle.title, buckle.priceRange.minVariantPrice,   {
       class: "summary", onClick: () => this.gotoStep(2)
     });
     const loopCounts = new Map<string, { product: Product; count: number }>();
@@ -73,6 +74,7 @@ export default class BeltCheckout extends LitElement {
           "loop",
           product.id,
           product.title,
+          product.priceRange.minVariantPrice,
           {
             class: "summary",
             onClick: () => this.gotoStep(3),
@@ -101,6 +103,7 @@ export default class BeltCheckout extends LitElement {
           "beltConcho",
           product.id,
           product.title,
+          product.priceRange.minVariantPrice,
           {
             class: "summary",
             onClick: () => this.gotoStep(4),
@@ -109,10 +112,54 @@ export default class BeltCheckout extends LitElement {
           },
         ),
     );
-    const tip = beltTips.find(x => x.id === this.tip)!;
-    const tipSelection = thumbnailOption(this.tip!, firstImage(tip), "beltTip", this.tip, tip.title, {
-      class: "summary", onClick: () => this.gotoStep(5)
-    });
+
+        let tipSelection: TemplateResult | null = null;
+    let tipProduct: Product | null = null;
+
+    if (this.tip) {
+      const tip = beltTips.find(x => x.id === this.tip);
+      if (tip) {
+        tipProduct = tip;
+        tipSelection = thumbnailOption(
+          this.tip,
+          firstImage(tip),
+          "beltTip",
+          this.tip,
+          tip.title,
+          tip.priceRange.minVariantPrice,
+          {
+            class: "summary",
+            onClick: () => this.gotoStep(5),
+          },
+        );
+      }
+    }
+
+    // CALCULATE TOTAL
+    const currencyCode = base.priceRange.minVariantPrice.currencyCode;
+    let total = 0;
+
+    total += Number.parseFloat(base.priceRange.minVariantPrice.amount);
+    total += Number.parseFloat(buckle.priceRange.minVariantPrice.amount);
+
+    if (tipProduct) {
+      total += Number.parseFloat(tipProduct.priceRange.minVariantPrice.amount);
+    }
+
+    for (const { product, count } of loopCounts.values()) {
+      const unit = Number.parseFloat(product.priceRange.minVariantPrice.amount);
+      total += unit * count;
+    }
+
+    for (const { product, count } of conchoCounts.values()) {
+      const unit = Number.parseFloat(product.priceRange.minVariantPrice.amount);
+      total += unit * count;
+    }
+
+    const totalMoney = {
+      amount: total.toFixed(2),
+      currencyCode,
+    };
 
     return html`
       <div class="row wrap gap-medium">
@@ -121,10 +168,20 @@ export default class BeltCheckout extends LitElement {
         ${fallbackToNothing(beltBuckles, hasData, buckleSelection)}
         ${fallbackToNothing(beltLoops, hasData, loopSelection)}
         ${fallbackToNothing(beltConchos, hasData, conchoSelection)}
-        ${fallbackToNothing(beltTips, hasData, tipSelection)}
+        ${tipSelection}
       </div>
-      <div id="checkoutTotal">Total: <span class="price">$89.20</span></div>
-      <button class="btn primary" @click="() => this.dispatchEvent(new CustomEvent('checkout', { bubbles: false, composed: true }))">Checkout</button>
+      <div id="checkoutTotal">
+        Total: <span class="price">${formatMoney(totalMoney)}</span>
+      </div>
+      <button
+        class="btn primary"
+        @click=${() =>
+          this.dispatchEvent(
+            new CustomEvent("checkout", { bubbles: false, composed: true }),
+          )}
+      >
+        Checkout
+      </button>
     `;
   }
 
