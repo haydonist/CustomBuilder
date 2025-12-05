@@ -258,7 +258,8 @@ export class CustomBeltWizard extends LitElement {
         )}
       </section>
       <section id="stepHeading" class="row">
-        <div id="stepTitle">
+        <div id="stepTitle" class="step-title step-enter-${this.wizard
+          .stepIndex}">
           <h2 class="heading-4">${currentStep.title}</h2>
           ${currentStep.subtitle
             ? html`
@@ -270,6 +271,7 @@ export class CustomBeltWizard extends LitElement {
           <div id="stepShortcut">${renderView(currentStep.shortcut)}</div>
         `}
       </section>
+
       <!-- Don't render the belt preview when there's no selection or on the belt size step -->
       ${this.beltBase
         ? html`
@@ -296,27 +298,29 @@ export class CustomBeltWizard extends LitElement {
         id="${currentStep.id}"
         class="step ${this.firstBaseSelected ? "step-shifted" : ""}"
       >
-        <form ${ref(this.form)} @submit="${async (ev: Event) => {
-          ev.preventDefault();
-          // Ensure the form data has its moment to change
-          await delay(0);
-          new FormData(this.form.value);
-        }}" @formdata="${async ({ formData }: FormDataEvent) => {
-          this.updateWizardSelection(formData);
+        <div class="step-content step-enter-${this.wizard.stepIndex}">
+          <form ${ref(this.form)} @submit="${async (ev: Event) => {
+            ev.preventDefault();
+            // Ensure the form data has its moment to change
+            await delay(0);
+            new FormData(this.form.value);
+          }}" @formdata="${async ({ formData }: FormDataEvent) => {
+            this.updateWizardSelection(formData);
 
-          // If this submit wasn't triggered by submitStep(), do NOT auto-advance.
-          if (!this.shouldAdvance) {
-            return;
-          }
+            // If this submit wasn't triggered by submitStep(), do NOT auto-advance.
+            if (!this.shouldAdvance) {
+              return;
+            }
 
-          // Reset for future submits
-          this.shouldAdvance = false;
+            // Reset for future submits
+            this.shouldAdvance = false;
 
-          await delay(500);
-          this.wizard.next();
-        }}">
-          ${this.wizard.currentView}
-        </form>
+            await delay(500);
+            this.wizard.next();
+          }}">
+            ${this.wizard.currentView}
+          </form>
+        </div>
       </section>
     `;
   }
@@ -335,9 +339,9 @@ export class CustomBeltWizard extends LitElement {
 
     const [beltBases, beltBuckles, beltLoops, beltConchos, beltTips] = this
       .beltData = await Promise.all([
-        queryProducts("tag:base"),
+        queryProducts("tag:Belt Strap"),
         queryProducts("tag:buckle"),
-        queryProducts("tag:loop"),
+        queryProducts("tag:Loop"),
         queryProducts("tag:concho"),
         queryProducts("tag:tip"),
       ]);

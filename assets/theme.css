@@ -378,3 +378,130 @@ section.step.step-shifted {
     transform: translateY(0%);
   }
 }
+
+/* Step title + options grow/fade in on each step */
+
+.step-title,
+.step-content {
+  opacity: 0;
+  transform: scale(0.96) translateY(8px);
+}
+
+/* STEP 0 */
+.step-title.step-enter-0,
+.step-content.step-enter-0 {
+  animation: stepGrowIn-0 0.5s ease forwards;
+}
+
+/* STEP 1 */
+.step-title.step-enter-1,
+.step-content.step-enter-1 {
+  animation: stepGrowIn-1 0.5s ease forwards;
+}
+
+/* STEP 2 */
+.step-title.step-enter-2,
+.step-content.step-enter-2 {
+  animation: stepGrowIn-2 0.5s ease forwards;
+}
+
+/* STEP 3 */
+.step-title.step-enter-3,
+.step-content.step-enter-3 {
+  animation: stepGrowIn-3 0.5s ease forwards;
+}
+
+/* STEP 4 */
+.step-title.step-enter-4,
+.step-content.step-enter-4 {
+  animation: stepGrowIn-4 0.5s ease forwards;
+}
+
+/* STEP 5 */
+.step-title.step-enter-5,
+.step-content.step-enter-5 {
+  animation: stepGrowIn-5 0.5s ease forwards;
+}
+
+/* STEP 6 */
+.step-title.step-enter-6,
+.step-content.step-enter-6 {
+  animation: stepGrowIn-6 0.5s ease forwards;
+}
+
+@keyframes stepGrowIn-0 {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes stepGrowIn-1 {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes stepGrowIn-2 {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes stepGrowIn-3 {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes stepGrowIn-4 {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes stepGrowIn-5 {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes stepGrowIn-6 {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
