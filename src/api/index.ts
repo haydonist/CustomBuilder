@@ -21,7 +21,7 @@ export const shopQuery = `
 
 const productQuery = `
   query ProductQuery($query: String) {
-    products(first: 10, query: $query) {
+    products(first: 20, query: $query) {
       edges {
         node {
           id
@@ -36,7 +36,7 @@ const productQuery = `
               currencyCode
             }
           }
-          images(first: 10) {
+          images(first: 1) {
             edges {
               node {
                 id
