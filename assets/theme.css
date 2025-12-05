@@ -340,3 +340,41 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   width: 64px;
   height: 64px;
 }
+
+/* Preview starts off to the side and invisible */
+#preview {
+  opacity: 0;
+  transform: translateX(120px);
+}
+
+/* When first base is selected, ease in from the side over 0.5s */
+#preview.preview-enter {
+  animation: previewSlideIn 1s ease forwards;
+}
+
+/* Options section: slide down once when preview comes in */
+section.step.step-shifted {
+  animation: optionsSlideDown 1s ease forwards;
+}
+
+/* Preview animation */
+@keyframes previewSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(120px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Options slide-down animation */
+@keyframes optionsSlideDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0%);
+  }
+}

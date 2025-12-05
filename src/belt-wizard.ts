@@ -51,6 +51,8 @@ export class CustomBeltWizard extends LitElement {
   private beltConchos: Product[] = [];
   @state()
   private beltTip: Product | null = null;
+  @state()
+  private firstBaseSelected = false;
 
   // TODO: Integrate belt variants as a new step after belt size selection
   readonly colorStep = {
@@ -271,7 +273,11 @@ export class CustomBeltWizard extends LitElement {
       <!-- Don't render the belt preview when there's no selection or on the belt size step -->
       ${this.beltBase
         ? html`
-          <section id="preview" style="position: sticky">
+          <section
+            id="preview"
+            class="${this.firstBaseSelected ? "preview-enter" : ""}"
+            style="position: sticky"
+          >
             <belt-preview
               class="step-${this.wizard.stepIndex}"
               ${ref(this.preview)}
@@ -285,7 +291,11 @@ export class CustomBeltWizard extends LitElement {
           </section>
         `
         : null}
-      <section id="${currentStep.id}" class="step">
+
+      <section
+        id="${currentStep.id}"
+        class="step ${this.firstBaseSelected ? "step-shifted" : ""}"
+      >
         <form ${ref(this.form)} @submit="${async (ev: Event) => {
           ev.preventDefault();
           // Ensure the form data has its moment to change
@@ -478,16 +488,27 @@ export class CustomBeltWizard extends LitElement {
     const [beltBases, beltBuckles, beltLoops, beltConchos, beltTips] =
       this.beltData;
 
+    const hadBaseBefore = !!this.beltBase;
+
     if (this.selection?.has("base")) {
       this.beltBase = beltBases.find((b) =>
         b.id === this.selection!.get("base")
       ) ?? null;
+    } else {
+      this.beltBase = null;
+    }
+
+    const hasBaseNow = !!this.beltBase;
+    if (!hadBaseBefore && hasBaseNow) {
+      this.firstBaseSelected = true;
     }
 
     if (this.selection?.has("buckle")) {
       this.beltBuckle = beltBuckles.find((b) =>
         b.id === this.selection!.get("buckle")
       ) ?? null;
+    } else {
+      this.beltBuckle = null;
     }
 
     // Loops: allow duplicates, max 2 total
