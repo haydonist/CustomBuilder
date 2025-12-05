@@ -284,8 +284,10 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   text-align: center;
 }
 
-.option.thumbnail:not(.summary) label span.label {
+.option.thumbnail label span.label {
   font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
 }
 
 .option:not(.text-only) label span.label {
