@@ -55,16 +55,60 @@ export default class BeltCheckout extends LitElement {
     const buckleSelection = thumbnailOption(this.buckle!, firstImage(buckle), "buckle", this.buckle, buckle.title, {
       class: "summary", onClick: () => this.gotoStep(2)
     });
-    const loopSelection = this.loops.map(loop => {
-      return thumbnailOption(loop.id, firstImage(loop), "loop", loop.id, loop.title, {
-        class: "summary", onClick: () => this.gotoStep(3)
-      });
-    });
-    const conchoSelection = this.conchos.map(concho => {
-      return thumbnailOption(concho.id, firstImage(concho), "beltConcho", concho.id, concho.title, {
-        class: "summary", onClick: () => this.gotoStep(4)
-      });
-    });
+    const loopCounts = new Map<string, { product: Product; count: number }>();
+    for (const loop of this.loops) {
+      const existing = loopCounts.get(loop.id);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        loopCounts.set(loop.id, { product: loop, count: 1 });
+      }
+    }
+
+    const loopSelection = Array.from(loopCounts.values()).map(
+      ({ product, count }) =>
+        thumbnailOption(
+          product.id,
+          firstImage(product),
+          "loop",
+          product.id,
+          product.title,
+          {
+            class: "summary",
+            onClick: () => this.gotoStep(3),
+            selected: true,
+            count,
+          },
+        ),
+    );
+
+    // Group conchos by id and count occurrences
+    const conchoCounts = new Map<string, { product: Product; count: number }>();
+    for (const concho of this.conchos) {
+      const existing = conchoCounts.get(concho.id);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        conchoCounts.set(concho.id, { product: concho, count: 1 });
+      }
+    }
+
+    const conchoSelection = Array.from(conchoCounts.values()).map(
+      ({ product, count }) =>
+        thumbnailOption(
+          product.id,
+          firstImage(product),
+          "beltConcho",
+          product.id,
+          product.title,
+          {
+            class: "summary",
+            onClick: () => this.gotoStep(4),
+            selected: true,
+            count,
+          },
+        ),
+    );
     const tip = beltTips.find(x => x.id === this.tip)!;
     const tipSelection = thumbnailOption(this.tip!, firstImage(tip), "beltTip", this.tip, tip.title, {
       class: "summary", onClick: () => this.gotoStep(5)
