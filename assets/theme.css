@@ -306,7 +306,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 }
 
 .option:not(.text-only) input:checked + label .selection-indicator,
-.option.thumbnail.is-selected .selection-indicator {
+.option.thumbnail.selected .selection-indicator {
   margin: 0;
   border-width: 4px;
   background: #ffffff80;
