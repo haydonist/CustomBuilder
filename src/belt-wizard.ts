@@ -13,15 +13,9 @@ import "./components/belt-preview.js";
 import { firstImage, Product, queryProducts } from "./api/index.ts";
 import BeltCheckout from "./components/belt-checkout.ts";
 import BeltPreview from "./components/belt-preview.ts";
-import {
-  colorChipOption,
-  OptionType,
-  textOption,
-  thumbnailOption,
-} from "./components/option.ts";
+import { colorChipOption, textOption, thumbnailOption } from "./components/option.ts";
 import { beltColors, beltSizes } from "./models/belts.ts";
 import Wizard, { renderView } from "./models/wizard/index.ts";
-import { assert } from "@std/assert";
 
 // See https://open-wc.org
 // See https://open-wc.org/guides/developing-components/code-examples
@@ -76,7 +70,7 @@ export class CustomBeltWizard extends LitElement {
     shortcut: () =>
       this.multiSelectShortcut(
         "Select a Belt Base",
-        this.selection?.has("base") || false,
+        this.selection?.has("base") ?? false,
       ),
     view: html`
       <div class="row wrap gap-medium"></div>

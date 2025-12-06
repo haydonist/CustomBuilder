@@ -51,50 +51,14 @@ export function thumbnailOption(
     count?: number;
   },
 ) {
-  // Only use the "fancy" version when we actually care about selected/count
-  const hasMultiState = !!options?.selected ||
-    !!(options?.count && options.count > 0);
+  if (options === undefined) options = {};
+  if ((options?.selected ?? false) === true) options.class = `${options.class} selected`;
 
-  // Markup for base, buckle, tip, etc.
-  if (!hasMultiState) {
-    return html`
-      <span
-        class="option thumbnail ${options?.class ?? ""}"
-        @click="${options?.onClick}"
-      >
-        <input
-          id="${id}"
-          class="sr-only"
-          type="radio"
-          name="${name}"
-          value="${value}"
-        />
-        <label for="${id}">
-          <img
-            class="thumbnail selection-indicator ${options?.class ?? ""}"
-            src="${img}"
-            alt="${label}"
-            width="160px"
-            height="160px"
-          />
-          <span class="label">${label}</span>
-          <span class="price">${formatMoney(price)}</span>
-        </label>
-      </span>
-    `;
-  }
-
-  // Extended version for loops / conchos with count badge and selected state
-  const selectedClass = options?.selected ? "is-selected" : "";
-  const countBadge = options?.count && options.count > 0
-    ? html`
-      <span class="option-count">x${options.count}</span>
-    `
-    : null;
+  const countShown = options.count && options.count > 0;
 
   return html`
     <span
-      class="option thumbnail ${options?.class ?? ""} ${selectedClass}"
+      class="option thumbnail ${options.class ?? ""}"
       @click="${options?.onClick}"
     >
       <input
@@ -105,18 +69,16 @@ export function thumbnailOption(
         value="${value}"
       />
       <label for="${id}">
-        <span class="selection-indicator-wrapper">
-          <img
-            class="thumbnail selection-indicator ${options?.class ?? ""}"
-            src="${img}"
-            alt="${label}"
-            width="160px"
-            height="160px"
-          />
-          ${countBadge}
-        </span>
+        <img
+          class="thumbnail selection-indicator ${options?.class ?? ""}"
+          src="${img}"
+          alt="${label}"
+          width="160px"
+          height="160px"
+        />
+        ${countShown ? html`<span class="option-count">x${options.count}</span>` : null}
         <span class="label">${label}</span>
-        <span class="price">${formatMoney(price)}</span>
+        ${price ? html`<span class="price">${formatMoney(price)}</span>` : null}
       </label>
     </span>
   `;
