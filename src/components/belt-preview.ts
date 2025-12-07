@@ -49,7 +49,7 @@ export default class BeltPreview extends LitElement {
     }
      #conchosList {
       position: absolute;
-      left: 10vw;           
+      left: 15vw;           
       width: 40vw;         
       height: 100%;
       z-index: 1;
