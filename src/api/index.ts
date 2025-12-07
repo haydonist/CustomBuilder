@@ -64,6 +64,8 @@ const productQuery = `
                   amount
                   currencyCode
                 }
+                availableForSale
+                quantityAvailable
                 selectedOptions {
                   name
                   value
@@ -96,6 +98,8 @@ export interface ProductVariant {
   price: MoneyV2;
   compareAtPrice?: MoneyV2 | null;
   selectedOptions: { name: string; value: string }[];
+  availableForSale: boolean;
+  quantityAvailable: number | null;
 }
 
 export interface Product {
@@ -147,8 +151,19 @@ export async function queryProducts(
       price: v.price,
       compareAtPrice: v.compareAtPrice,
       selectedOptions: v.selectedOptions,
+      availableForSale: v.availableForSale,
+      quantityAvailable: v.quantityAvailable,
     })),
   }));
+}
+
+export function totalProductQuantity(product: Product): number | null {
+  const quantities = product.variants
+    .map((v) => v.quantityAvailable)
+    .filter((q): q is number => q != null);
+
+  if (!quantities.length) return null; // no tracking / no data
+  return quantities.reduce((sum, q) => sum + q, 0);
 }
 
 export function firstImage(product: Product): string {
