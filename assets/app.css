@@ -175,9 +175,8 @@ belt-wizard {
   display: flex;
   flex-grow: 1;
   justify-content: space-between;
-  margin-block-start: 10px;
   margin: 0 auto;
-  margin-block-start: 8px;
+  margin-block-start: 1rem;
   max-width: 1260px;
 }
 #stepper:before {
