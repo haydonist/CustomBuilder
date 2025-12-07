@@ -372,7 +372,7 @@ section.step.step-shifted {
 /* Options slide-down animation */
 @keyframes optionsSlideDown {
   from {
-    transform: translateY(-100%);
+    transform: translateY(-60%);
   }
   to {
     transform: translateY(0%);
