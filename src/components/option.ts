@@ -9,20 +9,23 @@ export function textOption(
   name: string,
   value: unknown,
   label: string,
+  price?: MoneyV2,
   options?: { onClick?: EventHandler; class?: string },
 ) {
   return html`
-    <span class="option text-only ${options?.class ?? ""}" @click="${options
-      ?.onClick}">
-      <input
-        id="${id}"
-        class="sr-only"
-        type="radio"
-        name="${name}"
-        value="${value}"
-      />
-      <label for="${id}">${label}</label>
-    </span>
+    <div>
+      <div class="option text-only ${options?.class ?? ""}" @click="${options
+        ?.onClick}">
+        <input
+          id="${id}"
+          class="sr-only"
+          type="radio"
+          name="${name}"
+          value="${value}"
+        />
+        <label for="${id}">${label}</label>
+      </div>
+    </div>
   `;
 }
 
@@ -52,7 +55,9 @@ export function thumbnailOption(
   },
 ) {
   if (options === undefined) options = {};
-  if ((options?.selected ?? false) === true) options.class = `${options.class} selected`;
+  if ((options?.selected ?? false) === true) {
+    options.class = `${options.class} selected`;
+  }
 
   const countShown = options.count && options.count > 0;
 
@@ -76,9 +81,17 @@ export function thumbnailOption(
           width="160px"
           height="160px"
         />
-        ${countShown ? html`<span class="option-count">x${options.count}</span>` : null}
+        ${countShown
+          ? html`
+            <span class="option-count">x${options.count}</span>
+          `
+          : null}
         <span class="label">${label}</span>
-        ${price ? html`<span class="price">${formatMoney(price)}</span>` : null}
+        ${price
+          ? html`
+            <span class="price">${formatMoney(price)}</span>
+          `
+          : null}
       </label>
     </span>
   `;

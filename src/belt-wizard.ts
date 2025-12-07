@@ -13,8 +13,12 @@ import "./components/belt-preview.js";
 import { firstImage, Product, queryProducts } from "./api/index.ts";
 import BeltCheckout from "./components/belt-checkout.ts";
 import BeltPreview from "./components/belt-preview.ts";
-import { colorChipOption, textOption, thumbnailOption } from "./components/option.ts";
-import { beltColors, beltSizes } from "./models/belts.ts";
+import {
+  colorChipOption,
+  textOption,
+  thumbnailOption,
+} from "./components/option.ts";
+import { beltColors } from "./models/belts.ts";
 import Wizard, { renderView } from "./models/wizard/index.ts";
 
 // See https://open-wc.org
@@ -80,13 +84,7 @@ export class CustomBeltWizard extends LitElement {
     title: "What is your waist size?",
     subtitle: "We will add 3” to meet your perfect fit belt size",
     view: html`
-      <div class="row wrap gap-medium">
-        ${beltSizes.map((size) =>
-          textOption(`size-${size}`, "size", size, `${size}"`, {
-            onClick: this.submitStep,
-          })
-        )}
-      </div>
+      <div class="row wrap gap-medium"></div>
       <img
         id="sizingChart"
         src="/assets/belts/sizing-chart.png"
@@ -331,13 +329,21 @@ export class CustomBeltWizard extends LitElement {
   private async updateProducts() {
     this.loading = true;
 
-    const [beltBases, beltBuckles, beltLoops, beltConchos, beltTips] = this
+    const [
+      beltBases,
+      beltBuckles,
+      beltLoops,
+      beltConchos,
+      beltTips,
+      beltSizes,
+    ] = this
       .beltData = await Promise.all([
         queryProducts("tag:Belt Strap"),
         queryProducts("tag:buckle"),
         queryProducts("tag:Loop"),
         queryProducts("tag:concho"),
         queryProducts("tag:tip"),
+        queryProducts("tag:size"),
       ]);
 
     const baseStep = this.wizard.find("base")!;
@@ -454,7 +460,7 @@ export class CustomBeltWizard extends LitElement {
         </div>
       `;
 
-    // FIXME: Choose the proper tip image from product sets
+    // ----- TIP STEP -----
     const tipStep = this.wizard.find("tip")!;
     tipStep.view = html`
       <div class="row wrap gap-medium">
@@ -474,6 +480,45 @@ export class CustomBeltWizard extends LitElement {
       </div>
     `;
 
+    const sizeStep = this.wizard.find("size")!;
+    const sizeProduct = beltSizes[0] ?? null;
+
+    console.log("Size product:", sizeProduct);
+    const sizeVariants = sizeProduct?.variants ?? [];
+
+    sizeStep.view = () =>
+      html`
+        <div class="row wrap gap-medium">
+          ${sizeVariants.length === 0
+            ? html`
+              <p>No sizes found. Check the "Size" product variants.</p>
+            `
+            : sizeVariants.map((variant) => {
+              const title = variant.title.trim();
+
+              const priceAmount = variant.price ?? null;
+
+              const label = `${title}"`;
+
+              return textOption(
+                `size-${variant.id}`,
+                "size",
+                variant.id,
+                label,
+                priceAmount,
+                {
+                  onClick: this.submitStep,
+                },
+              );
+            })}
+        </div>
+        <img
+          id="sizingChart"
+          src="/assets/belts/sizing-chart.png"
+          alt="Perfect belt sizing chart"
+        />
+      `;
+
     this.loading = false;
   }
   private ensureSelection() {
@@ -483,8 +528,13 @@ export class CustomBeltWizard extends LitElement {
   }
 
   private applySelectionToPreview() {
-    const [beltBases, beltBuckles, beltLoops, beltConchos, beltTips] =
-      this.beltData;
+    const [
+      beltBases,
+      beltBuckles,
+      beltLoops,
+      beltConchos,
+      beltTips,
+    ] = this.beltData;
 
     const hadBaseBefore = !!this.beltBase;
 

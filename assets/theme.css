@@ -241,6 +241,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
 }
 
 .option.text-only {
@@ -250,7 +251,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 
 .row.wrap:has(.option.text-only) {
   display: grid;
-  grid-template-columns: auto auto auto;
+  grid-template-columns: auto auto auto auto;
   margin: 0 auto;
   width: min-content;
 }

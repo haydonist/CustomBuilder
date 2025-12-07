@@ -45,6 +45,32 @@ const productQuery = `
               }
             }
           }
+          variants(first: 50) {
+            edges {
+              node {
+                id
+                title
+                sku
+                image {
+                  id
+                  url
+                  altText
+                }
+                price {
+                  amount
+                  currencyCode
+                }
+                compareAtPrice {
+                  amount
+                  currencyCode
+                }
+                selectedOptions {
+                  name
+                  value
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -56,6 +82,22 @@ export interface MoneyV2 {
   currencyCode: string;
 }
 
+export interface ProductImage {
+  id: string;
+  url: string;
+  altText: string | null;
+}
+
+export interface ProductVariant {
+  id: string;
+  title: string;
+  sku?: string | null;
+  image: ProductImage | null;
+  price: MoneyV2;
+  compareAtPrice?: MoneyV2 | null;
+  selectedOptions: { name: string; value: string }[];
+}
+
 export interface Product {
   id: string;
   title: string;
@@ -64,12 +106,7 @@ export interface Product {
     minVariantPrice: MoneyV2;
     maxVariantPrice: MoneyV2;
   };
-}
-
-export interface ProductImage {
-  id: string;
-  url: string;
-  altText: string | null;
+  variants: ProductVariant[];
 }
 
 export async function queryProducts(
@@ -77,23 +114,24 @@ export async function queryProducts(
   { prefetchImages }: { prefetchImages: boolean } = { prefetchImages: true },
 ): Promise<Product[]> {
   const resp = await client.request(productQuery, { variables: { query } });
-  if (resp.errors) throw new Error(resp.errors.message);
+  if (resp.errors) throw new Error(JSON.stringify(resp.errors));
 
   if (prefetchImages) {
     const images: ProductImage[] = resp.data.products.edges.flatMap(
       ({ node }: any) => node.images.edges.map(({ node: img }: any) => img),
     );
 
-    await Promise.all(images.map(async (image) => {
-      const img = new Image();
-      img.src = image.url;
-      try {
-        await img.decode();
-      } catch (error) {
-        // TODO: Log this to Sentry or other error tracking service
-        console.debug(error, image.url);
-      }
-    }));
+    await Promise.all(
+      images.map(async (image) => {
+        const img = new Image();
+        img.src = image.url;
+        try {
+          await img.decode();
+        } catch (error) {
+          console.debug(error, image.url);
+        }
+      }),
+    );
   }
 
   return resp.data.products.edges.map(({ node: product }: any) => ({
@@ -101,6 +139,15 @@ export async function queryProducts(
     title: product.title,
     images: product.images.edges.map(({ node: img }: any) => img),
     priceRange: product.priceRange,
+    variants: product.variants.edges.map(({ node: v }: any) => ({
+      id: v.id,
+      title: v.title,
+      sku: v.sku,
+      image: v.image,
+      price: v.price,
+      compareAtPrice: v.compareAtPrice,
+      selectedOptions: v.selectedOptions,
+    })),
   }));
 }
 
