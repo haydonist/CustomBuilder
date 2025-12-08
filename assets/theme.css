@@ -141,6 +141,9 @@ h6, .heading-6 {
 .gap-medium {
   gap: var(--gap-medium);
 }
+.gap-small {
+  gap: var(--gap-small);
+}
 
 /* Components */
 
@@ -213,6 +216,38 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
     inset 0 0 0 1px #0c0c0c0d;
 }
 
+.buckle-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.buckle-variants {
+  margin-top: 8px;
+}
+
+.buckle-variant-swatch {
+  border: none;
+  padding: 0;
+  margin: 3px;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.buckle-variant-swatch img {
+  display: block;
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+}
+
+.buckle-variant-swatch.is-selected {
+  outline: 2px solid var(--old-gold);
+  outline-offset: 2px;
+}
+
 /* Options */
 .option {
   cursor: pointer;
@@ -222,7 +257,6 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 .option .selection-indicator {
   min-width: 128px;
   max-width: calc(50vw - 28px - 16px);
-  /* QUESTION: Should the chips size be dynamic or constant? */
   width: 160px;
   aspect-ratio: 1;
   backdrop-filter: blur(8px);
@@ -336,10 +370,58 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   right: -12px;
 }
 
-.option .selection-indicator.summary {
-  min-width: 64px;
-  width: 64px;
-  height: 64px;
+.option.thumbnail .variant-swatch .option-count {
+  font-size: 6px;
+}
+
+.option.thumbnail {
+  position: relative;
+}
+
+/* Overlay container for the buckle variant chooser */
+.variant-popup {
+  position: absolute;
+  scale: 2;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 8px;
+  z-index: 10;
+  height: 50%;
+}
+
+.variant-popup-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  background: #ffffff95;
+  border-radius: 0.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.variant-swatch {
+  border: none;
+  padding: 0;
+  margin: 2px;
+  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #ffffff;
+  position: relative;
+}
+
+.variant-swatch img {
+  display: block;
+  width: 40px;
+  height: 40px;
+  scale: 2.5;
+  object-fit: cover;
+}
+
+.variant-swatch.is-selected {
+  outline: 2px solid var(--old-gold);
 }
 
 /* Preview starts off to the side and invisible */

@@ -52,40 +52,44 @@ export function thumbnailOption(
     type?: unknown;
     selected?: boolean;
     count?: number;
+    popup?: ReturnType<typeof html> | null;
   },
 ) {
-  if (options === undefined) options = {};
-  if ((options?.selected ?? false) === true) {
-    options.class = `${options.class} selected`;
-  }
+  if (!options) options = {};
 
-  const countShown = options.count && options.count > 0;
+  const baseClass = options.class ?? "";
+  const selectedClass = options.selected ? " selected" : "";
+  options.class = `${baseClass} ${selectedClass}`.trim();
+
+  const countShown = !!options.count && options.count > 0;
 
   return html`
     <span
       class="option thumbnail ${options.class ?? ""}"
-      @click="${options?.onClick}"
+      @click="${options.onClick}"
     >
       <input
         id="${id}"
         class="sr-only"
-        type="radio"
+        type="${options.type ?? "radio"}"
         name="${name}"
         value="${value}"
       />
       <label for="${id}">
-        <img
-          class="thumbnail selection-indicator ${options?.class ?? ""}"
-          src="${img}"
-          alt="${label}"
-          width="160px"
-          height="160px"
-        />
-        ${countShown
-          ? html`
-            <span class="option-count">x${options.count}</span>
-          `
-          : null}
+        <div class="selection-indicator-wrapper">
+          <img
+            class="thumbnail selection-indicator ${options.class ?? ""}"
+            src="${img}"
+            alt="${label}"
+            width="160"
+            height="160"
+          />
+          ${countShown
+            ? html`
+              <span class="option-count">x${options.count}</span>
+            `
+            : null}
+        </div>
         <span class="label">${label}</span>
         ${price
           ? html`
@@ -93,6 +97,8 @@ export function thumbnailOption(
           `
           : null}
       </label>
+
+      ${options.popup ?? null}
     </span>
   `;
 }
