@@ -26,6 +26,7 @@ const productQuery = `
         node {
           id
           title
+          tags
           priceRange {
             minVariantPrice {
               amount
@@ -105,6 +106,7 @@ export interface ProductVariant {
 export interface Product {
   id: string;
   title: string;
+  tags: string[];
   images: ProductImage[];
   priceRange: {
     minVariantPrice: MoneyV2;
@@ -141,6 +143,7 @@ export async function queryProducts(
   return resp.data.products.edges.map(({ node: product }: any) => ({
     id: product.id,
     title: product.title,
+    tags: product.tags,
     images: product.images.edges.map(({ node: img }: any) => img),
     priceRange: product.priceRange,
     variants: product.variants.edges.map(({ node: v }: any) => ({

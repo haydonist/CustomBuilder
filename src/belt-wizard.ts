@@ -362,7 +362,7 @@ export class CustomBeltWizard extends LitElement {
         queryProducts("tag:size"),
       ]);
 
-    const baseStep = this.wizard.find("base")!;
+    const baseStep = this.wizard.find("base")!;   
     baseStep.view = () =>
       html`
         <div class="row wrap gap-medium">
@@ -405,7 +405,7 @@ export class CustomBeltWizard extends LitElement {
     buckleStep.view = () =>
       html`
         <div class="row wrap gap-medium">
-          ${beltBuckles.map((buckle: any) => {
+          ${beltBuckles.compatible(this.beltBase).map((buckle: any) => {
             const hasVariants = Array.isArray(buckle.variants) &&
               buckle.variants.length > 1;
             const popup = this.renderVariantPopup("buckle", buckle);
@@ -442,7 +442,7 @@ export class CustomBeltWizard extends LitElement {
     loopStep.view = () =>
       html`
         <div class="row wrap gap-medium">
-          ${beltLoops.map((loop: any) => {
+          ${beltLoops.compatible(this.beltBase).map((loop: any) => {
             const currentLoops = this.selection?.getAll("loop") as
               | string[]
               | undefined;
@@ -528,7 +528,7 @@ export class CustomBeltWizard extends LitElement {
     tipStep.view = () =>
       html`
         <div class="row wrap gap-medium">
-          ${beltTips.map((tip: any) => {
+          ${beltTips.compatible(this.beltBase).map((tip: any) => {
             const hasVariants = Array.isArray(tip.variants) &&
               tip.variants.length > 1;
             const popup = this.renderVariantPopup("tip", tip);
