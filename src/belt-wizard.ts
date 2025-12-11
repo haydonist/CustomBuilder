@@ -334,13 +334,123 @@ export class CustomBeltWizard extends LitElement {
   }
 
   @eventOptions({ once: true })
-  private submitStep() {
+  private async submitStep() {
     // This is only called when we actually want to move to the next step
     this.shouldAdvance = true;
     this.form.value?.requestSubmit();
+
+    if(this.wizard.currentStep.id === "base") {
+      // requery the appropriate buckles, loops and tips based on base selection width
+      const baseWidth = this.beltBase?.tags?.find((t) => t.endsWith("mm"));
+
+      const [
+        beltBuckles,
+        beltLoops,
+        beltTips,
+      ] = await Promise.all([
+          queryProducts(`tag:buckle${baseWidth ? " AND tag:" + baseWidth : ""}`),
+          queryProducts(`tag:Loop${baseWidth ? " AND tag:" + baseWidth : ""}`),
+          queryProducts(`tag:tip${baseWidth ? " AND tag:" + baseWidth : ""}`),
+        ]);
+      this.beltData[1] = beltBuckles;
+      this.beltData[2] = beltLoops;
+      this.beltData[4] = beltTips;
+
+      console.debug("Rebuilt buckle, loop, and tip steps based on base width:", baseWidth);
+      
+      this.buildSingleSelectStep("buckle", beltBuckles);
+      this.buildMultiSelectStep("loop", beltLoops, 2);
+      this.buildSingleSelectStep("tip", beltTips);
+    }
   }
 
+
+
   private beltData: Product[][] = [];
+
+  private buildSingleSelectStep(variantKind: VariantKind, products: Product[]) {
+    const buildStep = this.wizard.find(variantKind.toString())!;
+    buildStep.view = () =>
+      html`
+        <div class="row wrap gap-medium">
+          ${products.map((p: any) => {
+            const hasVariants = Array.isArray(p.variants) &&
+              p.variants.length > 1;
+            const popup = this.renderVariantPopup(variantKind, p);
+            const selected = this.selection?.get(variantKind) === p.id;
+
+            return thumbnailOption(
+              p.id,
+              firstImage(p),
+              variantKind,
+              p.id,
+              p.title,
+              p.priceRange.minVariantPrice,
+              {
+                onClick: this.handleCardClick(
+                  variantKind,
+                  p,
+                  hasVariants,
+                  () => {
+                    this.ensureSelection();
+                    this.selection!.set(variantKind, p.id);
+                    this.applySelectionToPreview();
+                    this.submitStep();
+                  },
+                ),
+                selected,
+                popup,
+              },
+            );
+          })}
+        </div>
+      `;
+  }
+
+  private buildMultiSelectStep(variantKind: VariantKind, products: Product[], maxCount: number) {
+    const step = this.wizard.find(variantKind+"s")!;
+    step.view = () =>
+      html`
+        <div class="row wrap gap-medium">
+          ${products.map((p: any) => {
+            const currentProducts = this.selection?.getAll(variantKind) as
+              | string[]
+              | undefined;
+            const count = currentProducts
+              ? currentProducts.filter((id) => id === p.id).length
+              : 0;
+            const selected = count > 0;
+            const hasVariants = Array.isArray(p.variants) &&
+              p.variants.length > 1;
+            const popup = this.renderVariantPopup(variantKind, p);
+
+            return thumbnailOption(
+              p.id,
+              firstImage(p),
+              variantKind,
+              p.id,
+              p.title,
+              p.priceRange.minVariantPrice,
+              {
+                onClick: this.handleCardClick(
+                  variantKind,
+                  p,
+                  hasVariants,
+                  (ev: Event) => {
+                    ev.preventDefault();
+                    this.toggleSelection(variantKind, p.id, maxCount);
+                    this.requestUpdate();
+                  },
+                ),
+                selected,
+                count,
+                popup,
+              },
+            );
+          })}
+        </div>
+      `;
+  }
 
   private async updateProducts() {
     this.loading = true;
@@ -355,218 +465,23 @@ export class CustomBeltWizard extends LitElement {
     ] = this
       .beltData = await Promise.all([
         queryProducts("tag:Belt Strap"),
-        queryProducts("tag:buckle"),
-        queryProducts("tag:Loop"),
+        queryProducts(`tag:buckle`),
+        queryProducts(`tag:Loop`),
         queryProducts("tag:concho"),
-        queryProducts("tag:tip"),
+        queryProducts(`tag:tip`),
         queryProducts("tag:size"),
       ]);
 
-    const baseStep = this.wizard.find("base")!;   
-    baseStep.view = () =>
-      html`
-        <div class="row wrap gap-medium">
-          ${beltBases.map((base: any) => {
-            const hasVariants = Array.isArray(base.variants) &&
-              base.variants.length > 1;
-
-            const popup = this.renderVariantPopup("base", base);
-
-            const selected = this.selection?.get("base") === base.id;
-
-            return thumbnailOption(
-              base.id,
-              firstImage(base),
-              "base",
-              base.id,
-              base.title,
-              base.priceRange.minVariantPrice,
-              {
-                onClick: this.handleCardClick(
-                  "base",
-                  base,
-                  hasVariants,
-                  () => {
-                    this.ensureSelection();
-                    this.selection!.set("base", base.id);
-                    this.applySelectionToPreview();
-                    this.requestUpdate();
-                  },
-                ),
-                selected,
-                popup,
-              },
-            );
-          })}
-        </div>
-      `;
-
-    const buckleStep = this.wizard.find("buckle")!;
-    buckleStep.view = () =>
-      html`
-        <div class="row wrap gap-medium">
-          ${beltBuckles.compatible(this.beltBase).map((buckle: any) => {
-            const hasVariants = Array.isArray(buckle.variants) &&
-              buckle.variants.length > 1;
-            const popup = this.renderVariantPopup("buckle", buckle);
-            const selected = this.selection?.get("buckle") === buckle.id;
-
-            return thumbnailOption(
-              buckle.id,
-              firstImage(buckle),
-              "buckle",
-              buckle.id,
-              buckle.title,
-              buckle.priceRange.minVariantPrice,
-              {
-                onClick: this.handleCardClick(
-                  "buckle",
-                  buckle,
-                  hasVariants,
-                  () => {
-                    this.ensureSelection();
-                    this.selection!.set("buckle", buckle.id);
-                    this.applySelectionToPreview();
-                    this.submitStep();
-                  },
-                ),
-                selected,
-                popup,
-              },
-            );
-          })}
-        </div>
-      `;
-
-    const loopStep = this.wizard.find("loops")!;
-    loopStep.view = () =>
-      html`
-        <div class="row wrap gap-medium">
-          ${beltLoops.compatible(this.beltBase).map((loop: any) => {
-            const currentLoops = this.selection?.getAll("loop") as
-              | string[]
-              | undefined;
-            const count = currentLoops
-              ? currentLoops.filter((id) => id === loop.id).length
-              : 0;
-            const selected = count > 0;
-            const hasVariants = Array.isArray(loop.variants) &&
-              loop.variants.length > 1;
-            const popup = this.renderVariantPopup("loop", loop);
-
-            return thumbnailOption(
-              loop.id,
-              firstImage(loop),
-              "loop",
-              loop.id,
-              loop.title,
-              loop.priceRange.minVariantPrice,
-              {
-                onClick: this.handleCardClick(
-                  "loop",
-                  loop,
-                  hasVariants,
-                  (ev: Event) => {
-                    ev.preventDefault();
-                    this.toggleLoop(loop.id);
-                    this.requestUpdate();
-                  },
-                ),
-                selected,
-                count,
-                popup,
-              },
-            );
-          })}
-        </div>
-      `;
-
-    const conchoStep = this.wizard.find("conchos")!;
-    conchoStep.view = () =>
-      html`
-        <div class="row wrap gap-medium">
-          ${beltConchos.map((concho: any) => {
-            const currentConchos = this.selection?.getAll("concho") as
-              | string[]
-              | undefined;
-            const count = currentConchos
-              ? currentConchos.filter((id) => id === concho.id).length
-              : 0;
-            const selected = count > 0;
-            const hasVariants = Array.isArray(concho.variants) &&
-              concho.variants.length > 1;
-            const popup = this.renderVariantPopup("concho", concho);
-
-            return thumbnailOption(
-              concho.id,
-              firstImage(concho),
-              "concho",
-              concho.id,
-              concho.title,
-              concho.priceRange.minVariantPrice,
-              {
-                onClick: this.handleCardClick(
-                  "concho",
-                  concho,
-                  hasVariants,
-                  (ev: Event) => {
-                    ev.preventDefault();
-                    this.toggleConcho(concho.id);
-                    this.requestUpdate();
-                  },
-                ),
-                selected,
-                count,
-                popup,
-              },
-            );
-          })}
-        </div>
-      `;
-
-    const tipStep = this.wizard.find("tip")!;
-    tipStep.view = () =>
-      html`
-        <div class="row wrap gap-medium">
-          ${beltTips.compatible(this.beltBase).map((tip: any) => {
-            const hasVariants = Array.isArray(tip.variants) &&
-              tip.variants.length > 1;
-            const popup = this.renderVariantPopup("tip", tip);
-
-            const selected = this.selection?.get("tip") === tip.id;
-
-            return thumbnailOption(
-              tip.id,
-              firstImage(tip),
-              "tip",
-              tip.id,
-              tip.title,
-              tip.priceRange.minVariantPrice,
-              {
-                onClick: this.handleCardClick(
-                  "tip",
-                  tip,
-                  hasVariants,
-                  () => {
-                    this.ensureSelection();
-                    this.selection!.set("tip", tip.id);
-                    this.applySelectionToPreview();
-                    this.submitStep();
-                  },
-                ),
-                selected,
-                popup,
-              },
-            );
-          })}
-        </div>
-      `;
+    this.buildSingleSelectStep("base", beltBases);
+    this.buildSingleSelectStep("buckle", beltBuckles);
+    this.buildMultiSelectStep("loop", beltLoops, 2);
+    this.buildMultiSelectStep("concho", beltConchos, 5);
+    this.buildSingleSelectStep("tip", beltTips);
 
     const sizeStep = this.wizard.find("size")!;
     const sizeProduct = beltSizes[0] ?? null;
 
     const sizeVariants = sizeProduct?.variants ?? [];
-
     sizeStep.view = () =>
       html`
         <div class="row wrap gap-medium">
@@ -944,41 +859,21 @@ export class CustomBeltWizard extends LitElement {
     return counts;
   }
 
-  private toggleLoop(loopId: string) {
+  private toggleSelection(variantKind: VariantKind, selectionId: string, maxCount: number) {
     this.ensureSelection();
-    const current = this.selection!.getAll("loop") as string[];
+    const current = this.selection!.getAll(variantKind) as string[];
 
     const totalCount = current.length;
-    const sameCount = current.filter((id) => id === loopId).length;
+    const sameCount = current.filter((id) => id === selectionId).length;
 
-    if (sameCount >= 2) {
-      const remaining = current.filter((id) => id !== loopId);
-      this.selection!.delete("loop");
-      remaining.forEach((id) => this.selection!.append("loop", id));
-    } else if (totalCount >= 2 && sameCount === 0) {
+    if (sameCount >= maxCount) {
+      const remaining = current.filter((id) => id !== selectionId);
+      this.selection!.delete(variantKind);
+      remaining.forEach((id) => this.selection!.append(variantKind, id));
+    } else if (totalCount >= maxCount && sameCount === 0) {
       return;
     } else {
-      this.selection!.append("loop", loopId);
-    }
-
-    this.applySelectionToPreview();
-  }
-
-  private toggleConcho(conchoId: string) {
-    this.ensureSelection();
-    const current = this.selection!.getAll("concho") as string[];
-
-    const totalCount = current.length;
-    const sameCount = current.filter((id) => id === conchoId).length;
-
-    if (sameCount >= 5) {
-      const remaining = current.filter((id) => id !== conchoId);
-      this.selection!.delete("concho");
-      remaining.forEach((id) => this.selection!.append("concho", id));
-    } else if (totalCount >= 5 && sameCount === 0) {
-      return;
-    } else {
-      this.selection!.append("concho", conchoId);
+      this.selection!.append(variantKind, selectionId);
     }
 
     this.applySelectionToPreview();
