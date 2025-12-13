@@ -55,16 +55,14 @@ export default class BeltPreview extends LitElement {
     left: -2.5%;
     height: 100%;
     z-index: 10;
-    display: flex;
-    align-items: center;
     pointer-events: auto !important;
     cursor: grab;
+    display: flex;
   }
 
   .loop-item {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    height: 100%;
+    margin-right: -40%;
     cursor: grab;
     pointer-events: auto !important;
   }
