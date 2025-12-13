@@ -98,6 +98,13 @@ export class CustomBeltWizard extends LitElement {
     }
   }
 
+  private goToStep(id: string) {
+    const index = this.wizard.steps.findIndex((s) => s.id === id);
+    if (index >= 0) {
+      this.wizard.goTo(index);
+    }
+  }
+
   // TODO: Integrate belt variants as a new step after belt size selection
   readonly colorStep = {
     id: "color",
@@ -188,9 +195,54 @@ export class CustomBeltWizard extends LitElement {
     shortcut: html`
       <a class="btn primary" href="#">Checkout</a>
     `,
-    view: () =>
-      html`
-        <h2 class="heading-5">Selections</h2>
+    view: () => {
+      const missingParts: { label: string; stepId: string }[] = [];
+
+      if (!this.beltBase) {
+        missingParts.push({ label: "Belt base", stepId: "base" });
+      }
+      if (!this.beltBuckle) {
+        missingParts.push({ label: "Buckle", stepId: "buckle" });
+      }
+      if (this.beltLoops.length === 0) {
+        missingParts.push({ label: "Belt loop", stepId: "loops" });
+      }
+
+      const hasMissing = missingParts.length > 0;
+
+      return html`
+        <div class="summary-header">
+          <h2 class="heading-5">Selections</h2>
+
+          ${hasMissing
+            ? html`
+              <div class="summary-warning">
+                <p>Your belt is missing:</p>
+                <ul>
+                  ${missingParts.map(
+                    (part) =>
+                      html`
+                        <li>
+                          <button
+                            type="button"
+                            class="summary-missing-link"
+                            @click="${() => this.goToStep(part.stepId)}"
+                          >
+                            Add ${part.label}
+                          </button>
+                        </li>
+                      `,
+                  )}
+                </ul>
+              </div>
+            `
+            : html`
+              <p class="summary-complete">
+                Your belt has all required pieces and is ready for checkout.
+              </p>
+            `}
+        </div>
+
         <belt-checkout
           ${ref(this.checkout)}
           base="${this.beltBase?.id}"
@@ -200,7 +252,8 @@ export class CustomBeltWizard extends LitElement {
             this.wizard.goTo(step)}"
         >
         </belt-checkout>
-      `,
+      `;
+    },
   }]);
 
   private multiSelectShortcut(skipLabel: string, hasSelection: boolean) {
@@ -237,13 +290,6 @@ export class CustomBeltWizard extends LitElement {
       </button>
     `;
   }
-
-  // TODO: Use the current step's `background` in the `belt-wizard`.
-  static override styles = css`
-    #stepper {
-      position: sticky;
-    }
-  `;
 
   constructor() {
     super();

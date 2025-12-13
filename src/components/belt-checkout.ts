@@ -32,12 +32,6 @@ export default class BeltCheckout extends LitElement {
     }`;
 
   override render() {
-    // Render nothing but this prompt when there's no belt selection
-    if (!this.base || !this.buckle) return html`<p>
-      Please <a href="#" @click=${(e: Event) => {
-        e.preventDefault();
-        this.gotoStep(0);
-      }}>select a belt</a>.`;
 
     // Otherwise, render chips for all of the user's product selections
     const [beltBases, beltBuckles, _beltLoops, _beltConchos, beltTips] = this.beltData;

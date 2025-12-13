@@ -588,3 +588,54 @@ section.step.step-shifted {
     transform: scale(1) translateY(0);
   }
 }
+
+belt-wizard #summary .summary-header {
+  margin-bottom: 1.5rem;
+}
+
+belt-wizard #summary .summary-warning {
+  border: 1px solid #d97757;
+  padding: 1rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}
+
+belt-wizard #summary .summary-warning p {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+belt-wizard #summary .summary-warning ul {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+belt-wizard #summary .summary-warning li {
+  margin: 0;
+}
+
+belt-wizard #summary .summary-missing-link {
+  border: 1px dashed #d97757;
+  color: white;
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+belt-wizard #summary .summary-missing-link:hover {
+  background: #fed7aa;
+}
+
+belt-wizard #summary .summary-complete {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: #15803d;
+  font-weight: 500;
+}
