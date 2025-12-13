@@ -98,13 +98,6 @@ export class CustomBeltWizard extends LitElement {
     }
   }
 
-  private goToStep(id: string) {
-    const index = this.wizard.steps.findIndex((s) => s.id === id);
-    if (index >= 0) {
-      this.wizard.goTo(index);
-    }
-  }
-
   // TODO: Integrate belt variants as a new step after belt size selection
   readonly colorStep = {
     id: "color",
@@ -196,16 +189,16 @@ export class CustomBeltWizard extends LitElement {
       <a class="btn primary" href="#">Checkout</a>
     `,
     view: () => {
-      const missingParts: { label: string; stepId: string }[] = [];
+      const missingParts: { label: string; stepId: number }[] = [];
 
       if (!this.beltBase) {
-        missingParts.push({ label: "Belt base", stepId: "base" });
+        missingParts.push({ label: "Belt base", stepId: 0 });
       }
       if (!this.beltBuckle) {
-        missingParts.push({ label: "Buckle", stepId: "buckle" });
+        missingParts.push({ label: "Buckle", stepId: 2 });
       }
-      if (this.beltLoops.length === 0) {
-        missingParts.push({ label: "Belt loop", stepId: "loops" });
+      if (this.beltLoops.length === 0 && !this.hasSetSelected()) {
+        missingParts.push({ label: "Belt loop", stepId: 3 });
       }
 
       const hasMissing = missingParts.length > 0;
@@ -226,7 +219,7 @@ export class CustomBeltWizard extends LitElement {
                           <button
                             type="button"
                             class="summary-missing-link"
-                            @click="${() => this.goToStep(part.stepId)}"
+                            @click="${() => this.wizard.goTo(part.stepId)}"
                           >
                             Add ${part.label}
                           </button>
@@ -236,11 +229,7 @@ export class CustomBeltWizard extends LitElement {
                 </ul>
               </div>
             `
-            : html`
-              <p class="summary-complete">
-                Your belt has all required pieces and is ready for checkout.
-              </p>
-            `}
+            : ""}
         </div>
 
         <belt-checkout
