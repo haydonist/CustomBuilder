@@ -74,12 +74,12 @@ export default class BeltPreview extends LitElement {
   override render() {
     // TODO: Render the belt base, with transparent edges cropped out, to a canvas
     return html`
-      <canvas id="base" width="auto" height="300px" aria-hidden="true" ${ref((el?: Element) => {
+      <canvas id="base" width="auto" height="150px" aria-hidden="true" ${ref((el?: Element) => {
         if (!el) return;
         assertInstanceOf(el, HTMLCanvasElement);
         const canvas = el;
         canvas.width = el.parentElement?.clientWidth ?? self.visualViewport?.width ?? 1280;
-        canvas.height = 300;
+        canvas.height = 150;
         this.renderBeltBase(canvas);
       })}></canvas>
       <img id="buckle" class="center-vertically" src=${this.buckle} aria-hidden="true" />
@@ -97,10 +97,12 @@ export default class BeltPreview extends LitElement {
     if (!this.base) return;
 
     const img = await cachedImages[this.base];
+    const croppedImg = await cropToContents(img, img.naturalWidth, img.naturalHeight);
+    canvas.width = canvas.height / 2 / croppedImg.height * croppedImg.width;
+
     const ctx = canvas.getContext('2d');
     assert(ctx);
-    const croppedImg = await cropToContents(img, img.naturalWidth, img.naturalHeight);
-    ctx.drawImage(croppedImg, 0, 0, canvas.width, canvas.width / croppedImg.width * croppedImg.height);
+    ctx.drawImage(croppedImg, 0, 0, croppedImg.width, croppedImg.height, 0, 0, canvas.width, canvas.height / 2);
   }
 }
 
@@ -112,7 +114,7 @@ declare global {
 
 const cachedImages: Record<string, Promise<HTMLImageElement>> = {};
 
-async function cacheImage(url: string) {
+async function cacheImage(url: string): Promise<HTMLImageElement> {
   if (Object.keys(cachedImages).includes(url)) return await cachedImages[url];
   return cachedImages[url] = new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
