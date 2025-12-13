@@ -1,18 +1,7 @@
 import { assert } from "@std/assert";
 
-/**
- * Crop the given `image` such that its transparent edges are cropped.
- *
- * Optionally, also downscales the image to a smaller size.
- */
-export default async function cropToContents(
-  image: ImageBitmapSource, w: number, h: number, options?: { downscaleTo?: { maxWidth?: number, maxHeight?: number } }
-): Promise<ImageBitmap> {
-  assert(options?.downscaleTo ? (
-    (options.downscaleTo?.maxWidth !== undefined && options.downscaleTo?.maxHeight === undefined) ||
-    (options.downscaleTo?.maxWidth === undefined && options.downscaleTo?.maxHeight !== undefined)
-  ) : true, "Provide only one downscale dimension to preserve the resulting image's aspect ratio.")
-
+/** Crop the given `image` such that its transparent edges are removed. */
+export default async function cropToContents(image: ImageBitmapSource, w: number, h: number): Promise<ImageBitmap> {
   const canvas = new OffscreenCanvas(w, h);
   const ctx = canvas.getContext("2d");
   assert(ctx, "Could not create a canvas context!");
@@ -37,19 +26,8 @@ export default async function cropToContents(
     }
   }
 
-  // Extract a cropped bitmap from the canvas, downscaled to the desired size
-  // TODO: Refactor out this step. This logic pushes the cylomatic complexity of this function to at least 20.
+  // Extract a cropped bitmap from the canvas
   const width = bounds.right - bounds.left;
   const height = bounds.bottom - bounds.top;
-
-  const shouldDownscale = options?.downscaleTo ? (
-    (options.downscaleTo.maxWidth ?? width < width) ||
-    (options.downscaleTo.maxHeight ?? height < height)
-  ) : false;
-  return await createImageBitmap(canvas, bounds.left, bounds.top, width, height, shouldDownscale ? {
-    // Maintain aspect ratio
-    resizeWidth: options!.downscaleTo!.maxWidth ?? (options!.downscaleTo!.maxHeight! / height * width),
-    resizeHeight: options!.downscaleTo!.maxHeight ?? (options!.downscaleTo!.maxWidth! / width * height),
-    resizeQuality: "medium"
-  } : undefined);
+  return await createImageBitmap(canvas, bounds.left, bounds.top, width, height);
 }
