@@ -175,9 +175,8 @@ belt-wizard {
   display: flex;
   flex-grow: 1;
   justify-content: space-between;
-  margin-block-start: 10px;
   margin: 0 auto;
-  margin-block-start: 8px;
+  margin-block-start: 1rem;
   max-width: 1260px;
 }
 #stepper:before {
@@ -245,19 +244,43 @@ belt-wizard section.step h2 {
   margin-block-end: 0.5em;
 }
 
+/* Belt Preview Animation */
 #preview belt-preview {
   display: block;
   position: relative;
   left: -8px;
   min-height: 150px;
+  pointer-events: none;
+  transition: transform 0.5s ease-in-out;
+}
+#preview belt-preview.step-1 {
+  transform: scale(1.5) translateX(1600px);
+  transform-origin: left;
+}
+#preview belt-preview.step-2 {
+  transform: scale(1.5) translateX(300px);
+  transform-origin: left;
+}
+#preview belt-preview.step-3 {
+  transform: scale(2.5) translateX(150px);
+  transform-origin: left;
+}
+#preview belt-preview.step-4 {
+  transform: scale(2) translateX(89px);
+}
+#preview belt-preview.step-5 {
+  transform: scale(1.5) translateX(-300px);
+  transform-origin: right;
 }
 
 /* Belt Size */
 #size {
-  background-image: url(/assets/belts/looped-belt.png);
   background-position: right 30%;
   background-size: 80vw auto;
   background-repeat: no-repeat;
+  position: relative;
+  margin-top: -200px;
+  z-index: 5;
 }
 
 @media screen and (min-width: 500px) {

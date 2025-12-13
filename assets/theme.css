@@ -61,12 +61,12 @@
   --radius-large: 16px;
 
   /* Shadows */
-  --shadow-xxs: 0 1px 2px 0 #0000000D;
-  --shadow-xs: 0 1px 2px 0 #0000000F, 0 1px 3px 0 #0000001A;
-  --shadow-small: 0 4px 2px -2px #0000000D, 0 4px 8px -2px #0000001A;
+  --shadow-xxs: 0 1px 2px 0 #0000000d;
+  --shadow-xs: 0 1px 2px 0 #0000000f, 0 1px 3px 0 #0000001a;
+  --shadow-small: 0 4px 2px -2px #0000000d, 0 4px 8px -2px #0000001a;
   --shadow-medium: 0 4px 6px -2px #00000008, 0 12px 16px -4px #00000014;
   --shadow-large: 0 8px 8px -4px #00000008, 0 20px 24px -4px #00000014;
-  --shadow-xl: 0 24px 48px -12px #0000002E;
+  --shadow-xl: 0 24px 48px -12px #0000002e;
   --shadow-xxl: 0 32px 64px -12px #00000024;
 }
 
@@ -141,6 +141,9 @@ h6, .heading-6 {
 .gap-medium {
   gap: var(--gap-medium);
 }
+.gap-small {
+  gap: var(--gap-small);
+}
 
 /* Components */
 
@@ -154,9 +157,10 @@ button.btn, a.btn {
   padding: 12px 22px;
   border: none;
   border-radius: 8px;
-  background: #8B5E3C;
+  background: #8b5e3c;
   cursor: pointer;
-  box-shadow: 0px 1px 2px 0px rgba(12, 12, 12, 0.05),
+  box-shadow:
+    0px 1px 2px 0px rgba(12, 12, 12, 0.05),
     inset 0px -2px 1px 0px rgba(0, 0, 0, 0.20),
     inset 0px 0px 0px 1px rgba(12, 12, 12, 0.15),
     inset 0px 2px 1px 0px rgba(255, 255, 255, 0.25),
@@ -170,18 +174,33 @@ a.btn {
 
 button.btn.primary, a.btn.primary {
   color: var(--neutral-white);
-  background-color: #8B5E3C;
+  background-color: #8b5e3c;
+}
+#stepShortcut {
+  position: relative;
+  z-index: 5;
 }
 
 .btn.primary:hover {
-  background-color: #7A4F31;
-  box-shadow: 0 4px 6px 0 #0000000F, inset 0 -2px 1px 0 #00000033, inset 0 0 0 1px #00000026;
+  background-color: #7a4f31;
+  box-shadow:
+    0 4px 6px 0 #0000000f,
+    inset 0 -2px 1px 0 #00000033,
+    inset 0 0 0 1px #00000026;
+}
+.btn.primary[disabled],
+.btn.primary[disabled]:hover {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
 }
 
 button.btn.secondary, a.btn.secondary {
   color: var(--neutral-darkest);
-  background-color: #0C0C0C0D;
-  box-shadow: 0 1px 2px 0 #0C0C0C0D, inset 0 -2px 1px 0 #0C0C0C0D, inset 0 0 0 1px #0C0C0C0D;
+  background-color: #0c0c0c0d;
+  box-shadow:
+    0 1px 2px 0 #0c0c0c0d,
+    inset 0 -2px 1px 0 #0c0c0c0d,
+    inset 0 0 0 1px #0c0c0c0d;
 }
 
 button.btn.tertiary, a.btn.tertiary {
@@ -191,28 +210,64 @@ button.btn.tertiary, a.btn.tertiary {
 }
 
 button.btn.tertiary:hover, a.btn.tertiary:hover {
-  box-shadow: 0 1px 2px 0 #0C0C0C0D, inset 0 -2px 1px 0 #0C0C0C0D, inset 0 0 0 1px #0C0C0C0D;
+  box-shadow:
+    0 1px 2px 0 #0c0c0c0d,
+    inset 0 -2px 1px 0 #0c0c0c0d,
+    inset 0 0 0 1px #0c0c0c0d;
+}
+
+.buckle-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.buckle-variants {
+  margin-top: 8px;
+}
+
+.buckle-variant-swatch {
+  border: none;
+  padding: 0;
+  margin: 3px;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.buckle-variant-swatch img {
+  display: block;
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+}
+
+.buckle-variant-swatch.is-selected {
+  outline: 2px solid var(--old-gold);
+  outline-offset: 2px;
 }
 
 /* Options */
 .option {
   cursor: pointer;
+  max-width: 170px;
 }
 
 .option .selection-indicator {
   min-width: 128px;
   max-width: calc(50vw - 28px - 16px);
-  /* QUESTION: Should the chips size be dynamic or constant? */
   width: 160px;
   aspect-ratio: 1;
   backdrop-filter: blur(8px);
 }
 
 .option.text-only, .option .selection-indicator {
+  object-fit: contain;
   margin: 3px;
   border: 1px solid var(--neutral-white);
   border-radius: 8px;
-  background: #FFFFFF33;
+  background: #ffffff33;
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
@@ -220,6 +275,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
 }
 
 .option.text-only {
@@ -229,7 +285,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 
 .row.wrap:has(.option.text-only) {
   display: grid;
-  grid-template-columns: auto auto auto;
+  grid-template-columns: auto auto auto auto;
   margin: 0 auto;
   width: min-content;
 }
@@ -243,7 +299,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 .option.text-only:has(input:checked) {
   margin: 0;
   border-width: 4px;
-  background: #FFFFFF80;
+  background: #ffffff80;
 }
 
 .option.color-chip label {
@@ -263,8 +319,10 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   text-align: center;
 }
 
-.option.thumbnail:not(.summary) label span.label {
+.option.thumbnail label span.label {
   font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
 }
 
 .option:not(.text-only) label span.label {
@@ -282,14 +340,302 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   padding: 0;
 }
 
-.option:not(.text-only) input:checked + label .selection-indicator {
+.option:not(.text-only) input:checked + label .selection-indicator,
+.option.thumbnail.selected .selection-indicator {
   margin: 0;
   border-width: 4px;
-  background: #FFFFFF80;
+  background: #ffffff80;
 }
 
-.option .selection-indicator.summary {
-  min-width: 64px;
-  width: 64px;
-  height: 64px;
+.option.thumbnail .selection-indicator-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.option.thumbnail .option-count {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(12, 12, 12, 0.85);
+  color: var(--neutral-white);
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+}
+/* In summary view, float the count badge just outside the top-right corner */
+.option.thumbnail.summary .option-count {
+  top: -5px;
+  right: -12px;
+}
+
+.option.thumbnail .variant-swatch .option-count {
+  font-size: 6px;
+}
+
+.option.thumbnail {
+  position: relative;
+}
+
+/* Overlay container for the buckle variant chooser */
+.variant-popup {
+  position: absolute;
+  scale: 2;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 8px;
+  z-index: 10;
+  height: 50%;
+}
+
+.variant-popup-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  background: #ffffff95;
+  border-radius: 0.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.variant-swatch {
+  border: none;
+  padding: 0;
+  margin: 2px;
+  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #ffffff;
+  position: relative;
+}
+
+.variant-swatch img {
+  display: block;
+  width: 40px;
+  height: 40px;
+  scale: 2.5;
+  object-fit: cover;
+}
+
+.variant-swatch.is-selected {
+  outline: 2px solid var(--old-gold);
+}
+
+/* Preview starts off to the side and invisible */
+#preview {
+  opacity: 0;
+  transform: translateX(120px);
+}
+
+/* When first base is selected, ease in from the side over 0.5s */
+#preview.preview-enter {
+  animation: previewSlideIn 1s ease forwards;
+}
+
+/* Options section: slide down once when preview comes in */
+section.step.step-shifted {
+  animation: optionsSlideDown 1s ease forwards;
+}
+
+/* Preview animation */
+@keyframes previewSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(120px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Options slide-down animation */
+@keyframes optionsSlideDown {
+  from {
+    transform: translateY(-60%);
+  }
+  to {
+    transform: translateY(0%);
+  }
+}
+
+/* Step title + options grow/fade in on each step */
+
+.step-title,
+.step-content {
+  opacity: 0;
+  transform: scale(0.96) translateY(8px);
+}
+
+/* STEP 0 */
+.step-title.step-enter-0,
+.step-content.step-enter-0 {
+  animation: stepGrowIn-0 0.5s ease forwards;
+}
+
+/* STEP 1 */
+.step-title.step-enter-1,
+.step-content.step-enter-1 {
+  animation: stepGrowIn-1 0.5s ease forwards;
+}
+
+/* STEP 2 */
+.step-title.step-enter-2,
+.step-content.step-enter-2 {
+  animation: stepGrowIn-2 0.5s ease forwards;
+}
+
+/* STEP 3 */
+.step-title.step-enter-3,
+.step-content.step-enter-3 {
+  animation: stepGrowIn-3 0.5s ease forwards;
+}
+
+/* STEP 4 */
+.step-title.step-enter-4,
+.step-content.step-enter-4 {
+  animation: stepGrowIn-4 0.5s ease forwards;
+}
+
+/* STEP 5 */
+.step-title.step-enter-5,
+.step-content.step-enter-5 {
+  animation: stepGrowIn-5 0.5s ease forwards;
+}
+
+/* STEP 6 */
+.step-title.step-enter-6,
+.step-content.step-enter-6 {
+  animation: stepGrowIn-6 0.5s ease forwards;
+}
+
+@keyframes stepGrowIn-0 {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes stepGrowIn-1 {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes stepGrowIn-2 {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes stepGrowIn-3 {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes stepGrowIn-4 {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes stepGrowIn-5 {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes stepGrowIn-6 {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+belt-wizard #summary .summary-header {
+  margin-bottom: 1.5rem;
+}
+
+belt-wizard #summary .summary-warning {
+  border: 1px solid #d97757;
+  padding: 1rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}
+
+belt-wizard #summary .summary-warning p {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+belt-wizard #summary .summary-warning ul {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+belt-wizard #summary .summary-warning li {
+  margin: 0;
+}
+
+belt-wizard #summary .summary-missing-link {
+  border: 1px dashed #d97757;
+  color: white;
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+belt-wizard #summary .summary-missing-link:hover {
+  background: #fed7aa;
+}
+
+belt-wizard #summary .summary-complete {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: #15803d;
+  font-weight: 500;
 }
