@@ -245,6 +245,70 @@ export class CustomBeltWizard extends LitElement {
     },
   }]);
 
+  private reorderArray<T>(items: T[], from: number, to: number): T[] {
+    const copy = [...items];
+    const [moved] = copy.splice(from, 1);
+    copy.splice(to, 0, moved);
+    return copy;
+  }
+
+  private handleReorder(
+    kind: "loop" | "concho",
+    fromIndex: number,
+    toIndex: number,
+  ) {
+    if (fromIndex === toIndex) return;
+
+    if (kind === "loop") {
+      this.beltLoops = this.reorderArray(this.beltLoops, fromIndex, toIndex);
+      this.reorderFormDataMulti("loop", fromIndex, toIndex);
+    } else {
+      this.beltConchos = this.reorderArray(
+        this.beltConchos,
+        fromIndex,
+        toIndex,
+      );
+      this.reorderFormDataMulti("concho", fromIndex, toIndex);
+    }
+
+    this.applySelectionToPreview();
+  }
+
+  private reorderFormDataMulti(
+    kind: "loop" | "concho",
+    from: number,
+    to: number,
+  ) {
+    if (!this.selection) return;
+
+    const ids = this.selection.getAll(kind) as string[];
+    const variants = this.selection.getAll(`${kind}Variant`) as string[];
+
+    if (
+      from < 0 ||
+      from >= ids.length ||
+      to < 0 ||
+      to >= ids.length
+    ) {
+      return;
+    }
+
+    while (variants.length < ids.length) {
+      variants.push("");
+    }
+
+    const newIds = this.reorderArray(ids, from, to);
+    const newVariants = this.reorderArray(variants, from, to);
+
+    this.selection.delete(kind);
+    this.selection.delete(`${kind}Variant`);
+
+    newIds.forEach((id) => this.selection!.append(kind, id));
+    newVariants.forEach((vId) => {
+      if (vId) this.selection!.append(`${kind}Variant`, vId);
+    });
+  }
+
   private multiSelectShortcut(skipLabel: string, hasSelection: boolean) {
     const stepId = this.wizard.currentStep.id;
     const isLoopsStep = stepId === "loops";
@@ -360,6 +424,22 @@ export class CustomBeltWizard extends LitElement {
               base="${getImageAt(this.beltBase, 0)}"
               buckle="${buckleImage ?? ""}"
               tip="${this.beltTip ? getImageAt(this.beltTip, 0) : undefined}"
+              @reorder-loops="${(
+                e: CustomEvent<{ fromIndex: number; toIndex: number }>,
+              ) =>
+                this.handleReorder(
+                  "loop",
+                  e.detail.fromIndex,
+                  e.detail.toIndex,
+                )}"
+              @reorder-conchos="${(
+                e: CustomEvent<{ fromIndex: number; toIndex: number }>,
+              ) =>
+                this.handleReorder(
+                  "concho",
+                  e.detail.fromIndex,
+                  e.detail.toIndex,
+                )}"
             >
             </belt-preview>
           </section>
