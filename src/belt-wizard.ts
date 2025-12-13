@@ -10,7 +10,7 @@ import { createRef, Ref, ref } from "lit/directives/ref.js";
 import "./components/belt-checkout.js";
 import "./components/belt-preview.js";
 
-import { firstImage, Product, queryProducts } from "./api/index.ts";
+import { getImageAt, Product, queryProducts } from "./api/index.ts";
 import BeltCheckout from "./components/belt-checkout.ts";
 import BeltPreview from "./components/belt-preview.ts";
 import {
@@ -51,7 +51,7 @@ export class CustomBeltWizard extends LitElement {
   @state()
   private beltTip: Product | null = null;
   @state()
-  private activeBuckleId: string | null = null;
+  private buckleChoices: Product[] = [];
 
   @state()
   private buckleVariantImage: string | null = null;
@@ -60,13 +60,42 @@ export class CustomBeltWizard extends LitElement {
   private firstBaseSelected = false;
 
   @state()
-  private activeVariantKey: string | null = null; // which card's popup is open
+  private activeVariantKey: string | null = null;
 
   private variantSelection = new Map<string, string>();
-  // key: `${kind}:${productId}`, value: variantId
 
   private getVariantKey(kind: VariantKind, productId: string): string {
     return `${kind}:${productId}`;
+  }
+
+  private isSetProduct(product: Product | null): boolean {
+    return !!product?.tags?.some((t) => t.toLowerCase() === "set");
+  }
+
+  private hasSetSelected(): boolean {
+    return this.isSetProduct(this.beltBuckle);
+  }
+
+  private advanceWizard() {
+    const hasSet = this.hasSetSelected();
+    const steps = this.wizard.steps;
+    let nextIndex = this.wizard.stepIndex + 1;
+
+    while (nextIndex < steps.length) {
+      const id = steps[nextIndex].id;
+
+      // If a Set is selected, skip loops & tip steps
+      if (hasSet && (id === "loops" || id === "tip")) {
+        nextIndex++;
+        continue;
+      }
+
+      break;
+    }
+
+    if (nextIndex < steps.length) {
+      this.wizard.goTo(nextIndex);
+    }
   }
 
   // TODO: Integrate belt variants as a new step after belt size selection
@@ -250,7 +279,7 @@ export class CustomBeltWizard extends LitElement {
 
     const currentStep = this.wizard.currentStep;
     const buckleImage = this.buckleVariantImage ??
-      (this.beltBuckle ? firstImage(this.beltBuckle) : undefined);
+      (this.beltBuckle ? getImageAt(this.beltBuckle, 0) : undefined);
 
     return html`
       <section id="stepper">
@@ -293,9 +322,9 @@ export class CustomBeltWizard extends LitElement {
             <belt-preview
               class="step-${this.wizard.stepIndex}"
               ${ref(this.preview)}
-              base="${firstImage(this.beltBase)}"
+              base="${getImageAt(this.beltBase, 0)}"
               buckle="${buckleImage ?? ""}"
-              tip="${this.beltTip ? firstImage(this.beltTip) : undefined}"
+              tip="${this.beltTip ? getImageAt(this.beltTip, 0) : undefined}"
             >
             </belt-preview>
           </section>
@@ -324,7 +353,7 @@ export class CustomBeltWizard extends LitElement {
             this.shouldAdvance = false;
 
             await delay(500);
-            this.wizard.next();
+            this.advanceWizard();
           }}">
             ${this.wizard.currentView}
           </form>
@@ -339,32 +368,39 @@ export class CustomBeltWizard extends LitElement {
     this.shouldAdvance = true;
     this.form.value?.requestSubmit();
 
-    if(this.wizard.currentStep.id === "base") {
-      // requery the appropriate buckles, loops and tips based on base selection width
+    if (this.wizard.currentStep.id === "base") {
       const baseWidth = this.beltBase?.tags?.find((t) => t.endsWith("mm"));
+      const widthFilter = baseWidth ? ` AND tag:${baseWidth}` : "";
 
       const [
         beltBuckles,
+        beltSets,
         beltLoops,
         beltTips,
       ] = await Promise.all([
-          queryProducts(`tag:buckle${baseWidth ? " AND tag:" + baseWidth : ""}`),
-          queryProducts(`tag:Loop${baseWidth ? " AND tag:" + baseWidth : ""}`),
-          queryProducts(`tag:tip${baseWidth ? " AND tag:" + baseWidth : ""}`),
-        ]);
-      this.beltData[1] = beltBuckles;
+        queryProducts(`tag:buckle${widthFilter}`),
+        queryProducts(`tag:set${widthFilter}`),
+        queryProducts(`tag:Loop${widthFilter}`),
+        queryProducts(`tag:tip${widthFilter}`),
+      ]);
+
+      this.buckleChoices = [...beltBuckles, ...beltSets];
+
+      this.beltData[1] = this.buckleChoices;
       this.beltData[2] = beltLoops;
       this.beltData[4] = beltTips;
+      this.beltData[6] = beltSets;
 
-      console.debug("Rebuilt buckle, loop, and tip steps based on base width:", baseWidth);
-      
-      this.buildSingleSelectStep("buckle", beltBuckles);
+      console.debug(
+        "Rebuilt buckle, set, loop, and tip steps based on base width:",
+        baseWidth,
+      );
+
+      this.buildSingleSelectStep("buckle", this.buckleChoices);
       this.buildMultiSelectStep("loop", beltLoops, 2);
       this.buildSingleSelectStep("tip", beltTips);
     }
   }
-
-
 
   private beltData: Product[][] = [];
 
@@ -381,7 +417,7 @@ export class CustomBeltWizard extends LitElement {
 
             return thumbnailOption(
               p.id,
-              firstImage(p),
+              getImageAt(p, 0),
               variantKind,
               p.id,
               p.title,
@@ -393,6 +429,11 @@ export class CustomBeltWizard extends LitElement {
                   hasVariants,
                   () => {
                     this.ensureSelection();
+
+                    if (variantKind === "tip" && this.hasSetSelected()) {
+                      this.resetBuckleLoopsAndTip();
+                    }
+
                     this.selection!.set(variantKind, p.id);
                     this.applySelectionToPreview();
                     this.submitStep();
@@ -407,8 +448,12 @@ export class CustomBeltWizard extends LitElement {
       `;
   }
 
-  private buildMultiSelectStep(variantKind: VariantKind, products: Product[], maxCount: number) {
-    const step = this.wizard.find(variantKind+"s")!;
+  private buildMultiSelectStep(
+    variantKind: VariantKind,
+    products: Product[],
+    maxCount: number,
+  ) {
+    const step = this.wizard.find(variantKind + "s")!;
     step.view = () =>
       html`
         <div class="row wrap gap-medium">
@@ -426,7 +471,7 @@ export class CustomBeltWizard extends LitElement {
 
             return thumbnailOption(
               p.id,
-              firstImage(p),
+              getImageAt(p, 0),
               variantKind,
               p.id,
               p.title,
@@ -462,6 +507,7 @@ export class CustomBeltWizard extends LitElement {
       beltConchos,
       beltTips,
       beltSizes,
+      beltSets,
     ] = this
       .beltData = await Promise.all([
         queryProducts("tag:Belt Strap"),
@@ -470,10 +516,14 @@ export class CustomBeltWizard extends LitElement {
         queryProducts("tag:concho"),
         queryProducts(`tag:tip`),
         queryProducts("tag:size"),
+        queryProducts("tag:Set"),
       ]);
 
+    this.buckleChoices = [...beltBuckles, ...beltSets];
+    this.beltData[1] = this.buckleChoices;
+
     this.buildSingleSelectStep("base", beltBases);
-    this.buildSingleSelectStep("buckle", beltBuckles);
+    this.buildSingleSelectStep("buckle", this.buckleChoices);
     this.buildMultiSelectStep("loop", beltLoops, 2);
     this.buildMultiSelectStep("concho", beltConchos, 5);
     this.buildSingleSelectStep("tip", beltTips);
@@ -526,14 +576,17 @@ export class CustomBeltWizard extends LitElement {
   private applySelectionToPreview() {
     const [
       beltBases,
-      beltBuckles,
+      _beltBuckles,
       beltLoops,
       beltConchos,
       beltTips,
+      _beltSizes,
+      _beltSets,
     ] = this.beltData;
 
     const hadBaseBefore = !!this.beltBase;
 
+    // BASE
     if (this.selection?.has("base")) {
       this.beltBase = beltBases.find((b) =>
         b.id === this.selection!.get("base")
@@ -547,35 +600,38 @@ export class CustomBeltWizard extends LitElement {
       this.firstBaseSelected = true;
     }
 
+    // BUCKLE
     if (this.selection?.has("buckle")) {
-      this.beltBuckle = beltBuckles.find((b) =>
-        b.id === this.selection!.get("buckle")
-      ) ?? null;
+      const id = this.selection!.get("buckle");
+      this.beltBuckle = this.buckleChoices.find((b) => b.id === id) ?? null;
     } else {
       this.beltBuckle = null;
     }
-    if (this.selection?.has("buckleVariant") && this.beltBuckle) {
-      const variantId = this.selection.get("buckleVariant") as string;
-      const variants = (this.beltBuckle as any).variants ?? [];
-      const variant = variants.find((v: any) => v.id === variantId);
 
-      this.selectedBuckleVariantId = variantId;
+    // Buckle image: normal buckles use index 0, sets use index 1
+    if (this.beltBuckle) {
+      if (this.isSetProduct(this.beltBuckle)) {
+        this.buckleVariantImage =
+          getImageAt(this.beltBuckle, 1, { fallbackToFirst: false }) ??
+            getImageAt(this.beltBuckle, 0);
+      } else if (this.selection?.has("buckleVariant")) {
+        const variantId = this.selection.get("buckleVariant") as string;
+        const variants = (this.beltBuckle as any).variants ?? [];
+        const variant = variants.find((v: any) => v.id === variantId);
 
-      if (variant && variant.image?.url) {
-        this.buckleVariantImage = variant.image.url;
+        if (variant && variant.image?.url) {
+          this.buckleVariantImage = variant.image.url;
+        } else {
+          this.buckleVariantImage = getImageAt(this.beltBuckle, 0);
+        }
       } else {
-        this.buckleVariantImage = firstImage(this.beltBuckle);
+        this.buckleVariantImage = getImageAt(this.beltBuckle, 0);
       }
-    } else if (this.beltBuckle) {
-      // No variant chosen; default to product image
-      this.selectedBuckleVariantId = null;
-      this.buckleVariantImage = firstImage(this.beltBuckle);
     } else {
-      this.selectedBuckleVariantId = null;
       this.buckleVariantImage = null;
     }
 
-    // Loops: allow duplicates, max 2 total
+    // LOOPS: allow duplicates, max 2 total
     if (this.selection?.has("loop")) {
       const loopIds = this.selection!.getAll("loop") as string[];
       const loopVariantIds =
@@ -603,8 +659,7 @@ export class CustomBeltWizard extends LitElement {
             }
           }
 
-          // fallback: generic product image
-          return firstImage(loopProduct);
+          return getImageAt(loopProduct, 0);
         });
       }
     } else {
@@ -614,7 +669,7 @@ export class CustomBeltWizard extends LitElement {
       }
     }
 
-    // Conchos: allow duplicates, max 5 total
+    // CONCHOS: allow duplicates, max 5 total
     if (this.selection?.has("concho")) {
       const conchoIds = this.selection!.getAll("concho") as string[];
       const conchoVariantIds =
@@ -643,8 +698,7 @@ export class CustomBeltWizard extends LitElement {
               }
             }
 
-            // fallback: generic product image
-            return firstImage(conchoProduct);
+            return getImageAt(conchoProduct, 0);
           },
         );
       }
@@ -659,6 +713,29 @@ export class CustomBeltWizard extends LitElement {
       this.beltTip = beltTips.find((b) =>
         b.id === this.selection!.get("tip")
       ) ?? null;
+    } else {
+      this.beltTip = null;
+    }
+
+    if (
+      this.beltBuckle &&
+      this.isSetProduct(this.beltBuckle) &&
+      this.preview.value
+    ) {
+      const loopImg = getImageAt(this.beltBuckle, 2, {
+        fallbackToFirst: false,
+      });
+      const tipImg = getImageAt(this.beltBuckle, 3, {
+        fallbackToFirst: false,
+      });
+
+      if (!this.selection?.has("loop")) {
+        this.preview.value.loops = loopImg ? [loopImg] : [];
+      }
+
+      if (!this.selection?.has("tip")) {
+        this.preview.value.tip = tipImg ?? (undefined as any);
+      }
     }
   }
 
@@ -696,7 +773,7 @@ export class CustomBeltWizard extends LitElement {
               : singleSelectedVariantId === variantId;
             const showCountBadge = isMulti && count > 0;
             const imgUrl = variant.image?.url ??
-              (variant.images?.[0]?.url ?? firstImage(product));
+              (variant.images?.[0]?.url ?? getImageAt(product, 0));
 
             return html`
               <button
@@ -759,7 +836,7 @@ export class CustomBeltWizard extends LitElement {
     }
 
     const imgUrl = variant.image?.url ??
-      (variant.images?.[0]?.url ?? firstImage(product));
+      (variant.images?.[0]?.url ?? getImageAt(product, 0));
 
     switch (kind) {
       case "base": {
@@ -779,6 +856,10 @@ export class CustomBeltWizard extends LitElement {
         break;
       }
       case "tip": {
+        if (this.hasSetSelected()) {
+          this.resetBuckleLoopsAndTip();
+        }
+
         this.selection!.set("tip", product.id);
         this.beltTip = product;
         if (this.preview.value) {
@@ -786,7 +867,12 @@ export class CustomBeltWizard extends LitElement {
         }
         break;
       }
+
       case "loop": {
+        if (this.hasSetSelected()) {
+          this.resetBuckleLoopsAndTip();
+        }
+
         const totalLoops = this.getMultiTotal("loop");
         if (totalLoops >= 2) {
           break;
@@ -829,14 +915,6 @@ export class CustomBeltWizard extends LitElement {
     return (this.selection.getAll(kind) as string[]).length;
   }
 
-  private getMultiCountForProduct(
-    kind: "loop" | "concho",
-    productId: string,
-  ): number {
-    if (!this.selection) return 0;
-    const all = this.selection.getAll(kind) as string[];
-    return all.filter((id) => id === productId).length;
-  }
   private getVariantCountsForProduct(
     kind: "loop" | "concho",
     productId: string,
@@ -859,8 +937,17 @@ export class CustomBeltWizard extends LitElement {
     return counts;
   }
 
-  private toggleSelection(variantKind: VariantKind, selectionId: string, maxCount: number) {
+  private toggleSelection(
+    variantKind: VariantKind,
+    selectionId: string,
+    maxCount: number,
+  ) {
     this.ensureSelection();
+
+    if (variantKind === "loop" && this.hasSetSelected()) {
+      this.resetBuckleLoopsAndTip();
+    }
+
     const current = this.selection!.getAll(variantKind) as string[];
 
     const totalCount = current.length;
@@ -877,6 +964,34 @@ export class CustomBeltWizard extends LitElement {
     }
 
     this.applySelectionToPreview();
+  }
+
+  private resetBuckleLoopsAndTip() {
+    if (!this.selection) return;
+
+    const keysToClear = [
+      "buckle",
+      "buckleVariant",
+      "loop",
+      "loopVariant",
+      "tip",
+      "tipVariant",
+    ];
+
+    for (const key of keysToClear) {
+      this.selection.delete(key);
+    }
+
+    this.beltBuckle = null;
+    this.buckleVariantImage = null;
+    this.beltLoops = [];
+    this.beltTip = null;
+
+    if (this.preview.value) {
+      this.preview.value.buckle = "";
+      this.preview.value.loops = [];
+      this.preview.value.tip = undefined as any;
+    }
   }
 
   private updateWizardSelection(formData: FormData) {

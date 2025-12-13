@@ -1,7 +1,7 @@
 import { css, html, LitElement, TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 
-import { firstImage, Product } from "../api/index.ts";
+import { getImageAt, Product } from "../api/index.ts";
 import * as styles from "../styles.ts";
 import { formatMoney } from "../utils.ts";
 import { thumbnailOption } from "./option.ts";
@@ -51,7 +51,7 @@ export default class BeltCheckout extends LitElement {
     const productToThumbnail = (product: Product, name: string, step: number, count?: number): TemplateResult => {
       return thumbnailOption(
         product.id,
-        firstImage(product),
+        getImageAt(product, 0),
         name,
         product.id,
         product.title,

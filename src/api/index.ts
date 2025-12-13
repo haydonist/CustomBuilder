@@ -37,7 +37,7 @@ const productQuery = `
               currencyCode
             }
           }
-          images(first: 1) {
+          images(first: 4, sortKey: POSITION) {
             edges {
               node {
                 id
@@ -169,7 +169,14 @@ export function totalProductQuantity(product: Product): number | null {
   return quantities.reduce((sum, q) => sum + q, 0);
 }
 
-export function firstImage(product: Product): string {
-  assert(product.images && product.images.length);
-  return product.images[0].url;
+export function getImageAt(
+  product: Product,
+  index: number,
+  { fallbackToFirst = true }: { fallbackToFirst?: boolean } = {},
+): string | null {
+  const images = product.images ?? [];
+  if (!images.length) return null;
+
+  const img = images[index] ?? (fallbackToFirst ? images[0] : null);
+  return img?.url ?? null;
 }
