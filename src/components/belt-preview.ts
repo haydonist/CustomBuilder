@@ -40,10 +40,10 @@ export default class BeltPreview extends LitElement {
   #tip {
     max-height: 100%;
     z-index: 1;
-    pointer-events: none;
+    pointer-events: auto;
   }
   #buckle {
-    left: -5.5%;
+    left: -7.5%;
   }
 
   #tip {
@@ -52,8 +52,9 @@ export default class BeltPreview extends LitElement {
 
   /* LOOPS: are interactive */
   #loops {
-    left: -2.5%;
+    left: 3%;
     height: 100%;
+    gap: 20%;
     z-index: 10;
     pointer-events: auto !important;
     cursor: grab;
@@ -61,10 +62,17 @@ export default class BeltPreview extends LitElement {
   }
 
   .loop-item {
+    position: relative;
     height: 100%;
-    margin-right: -40%;
+    width: 20px;       
+    max-width: 20px;
+    overflow: hidden;   
     cursor: grab;
     pointer-events: auto !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
   }
 
   .loop-item:active {
@@ -73,9 +81,8 @@ export default class BeltPreview extends LitElement {
 
   .loop {
     max-height: 100%;
-    margin-right: -40%;
     cursor: grab;
-    pointer-events: auto !important;
+    pointer-events: none; 
   }
 
   /* CONCHOS: are interactive */
@@ -91,6 +98,7 @@ export default class BeltPreview extends LitElement {
   }
 
   .concho-wrapper {
+    position: relative;
     max-height: 200px;
     max-width: 50px;
     overflow: hidden;
@@ -130,6 +138,40 @@ export default class BeltPreview extends LitElement {
     .concho-wrapper.dragging .concho {
       opacity: 0.55;
     }
+
+  .loop-item::after,
+  .concho-wrapper::after
+ {
+    content: "";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(220, 220, 220, 0.95);
+    color: #ffffff;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none; 
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 20;
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M5%205%20L19%2019%20M19%205%20L5%2019%22%20stroke%3D%22white%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 8px 8px;
+    cursor: pointer;
+  }
+
+  .concho-wrapper:hover::after,
+  .loop-item:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-30px);
+  }
+
 `;
 
   // ---------- DRAG HANDLERS ----------
