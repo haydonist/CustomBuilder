@@ -51,9 +51,9 @@ export default class BeltPreview extends LitElement {
     }
 
     #loops {
-      left: 3%;
+      left: 2.6%;
       height: 100%;
-      gap: 10%;
+      gap: 15px;
       z-index: 10;
       pointer-events: auto !important;
       cursor: grab;
@@ -85,8 +85,8 @@ export default class BeltPreview extends LitElement {
     }
 
     #conchosList {
-      left: 15vw;
-      width: 40vw;
+      left: 18%;
+      width: 50%;
       height: 100%;
       z-index: 10;
       display: flex;
