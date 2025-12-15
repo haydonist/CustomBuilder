@@ -12,117 +12,115 @@ export default class BeltPreview extends LitElement {
   @state() conchos: string[] = [];
 
   static override styles = css`
-  ${styles.theme}
+    ${styles.theme}
 
-  :host {
-    position: relative;
-    display: block;
-    width: 100%;
-    min-height: 250px;
-    pointer-events: auto;
-  }
+    :host {
+      position: relative;
+      display: block;
+      width: 100%;
+      min-height: 250px;
+      pointer-events: auto;
+    }
 
-  .center-vertically {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-  }
+    .center-vertically {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+    }
 
-  #base {
-    position: relative;
-    width: auto;
-    max-height: 200px;
-    margin-top: 4px;
-    pointer-events: none;
-  }
+    #base {
+      position: relative;
+      width: auto;
+      max-height: 200px;
+      margin-top: 4px;
+      pointer-events: none;
+    }
 
-  #buckle,
-  #tip {
-    max-height: 100%;
-    z-index: 1;
-    pointer-events: auto;
-  }
-  #buckle {
-    left: -7.5%;
-  }
+    #buckle,
+    #tip {
+      max-height: 100%;
+      z-index: 1;
+      pointer-events: auto;
+    }
+    #buckle {
+      left: -7.5%;
+    }
 
-  #tip {
-    right: -2%;
-  }
+    #tip {
+      right: -2%;
+    }
 
-  /* LOOPS: are interactive */
-  #loops {
-    left: 3%;
-    height: 100%;
-    gap: 20%;
-    z-index: 10;
-    pointer-events: auto !important;
-    cursor: grab;
-    display: flex;
-  }
+    #loops {
+      left: 3%;
+      height: 100%;
+      gap: 10%;
+      z-index: 10;
+      pointer-events: auto !important;
+      cursor: grab;
+      display: flex;
+    }
 
-  .loop-item {
-    position: relative;
-    height: 100%;
-    width: 20px;       
-    max-width: 20px;
-    overflow: hidden;   
-    cursor: grab;
-    pointer-events: auto !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-  }
+    .loop-item {
+      position: relative;
+      height: 100%;
+      width: 20px;
+      max-width: 20px;
+      overflow: hidden;
+      cursor: grab;
+      pointer-events: auto !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
 
-  .loop-item:active {
-    cursor: grabbing;
-  }
+    .loop-item:active {
+      cursor: grabbing;
+    }
 
-  .loop {
-    max-height: 100%;
-    cursor: grab;
-    pointer-events: none; 
-  }
+    .loop {
+      max-height: 100%;
+      cursor: grab;
+      pointer-events: auto !important;
+    }
 
-  /* CONCHOS: are interactive */
-  #conchosList {
-    left: 15vw;
-    width: 40vw;
-    height: 100%;
-    z-index: 10;
-    display: flex;
-    justify-content: space-evenly;
-    align-items: center;
-    pointer-events: auto !important;
-  }
+    #conchosList {
+      left: 15vw;
+      width: 40vw;
+      height: 100%;
+      z-index: 10;
+      display: flex;
+      justify-content: space-evenly;
+      align-items: center;
+      pointer-events: auto !important;
+    }
 
-  .concho-wrapper {
-    position: relative;
-    max-height: 200px;
-    max-width: 50px;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-    cursor: grab;
-    pointer-events: auto !important;
-  }
+    .concho-wrapper {
+      position: relative;
+      max-height: 200px;
+      max-width: 50px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      cursor: grab;
+      pointer-events: auto !important;
+    }
 
-  .concho-wrapper:active {
-    cursor: grabbing;
-  }
+    .concho-wrapper:active {
+      cursor: grabbing;
+    }
 
-  .concho {
-    display: block;
-    max-height: 200px;
-    margin: 0 auto;
-    clip-path: inset(0 30% 0 30%);
-    cursor: grab;
-    pointer-events: auto !important;
-  }
-  .loop-item,
+    .concho {
+      display: block;
+      max-height: 200px;
+      margin: 0 auto;
+      clip-path: inset(0 30% 0 30%);
+      cursor: grab;
+      pointer-events: auto !important;
+    }
+    .loop-item,
     .concho-wrapper {
       cursor: grab;
       pointer-events: auto !important;
@@ -139,166 +137,176 @@ export default class BeltPreview extends LitElement {
       opacity: 0.55;
     }
 
-  .loop-item::after,
-  .concho-wrapper::after
- {
-    content: "";
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: rgba(220, 220, 220, 0.95);
-    color: #ffffff;
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    pointer-events: none; 
-    transition: opacity 0.15s ease, transform 0.15s ease;
-    z-index: 20;
-    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M5%205%20L19%2019%20M19%205%20L5%2019%22%20stroke%3D%22white%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 8px 8px;
-    cursor: pointer;
-  }
 
-  .concho-wrapper:hover::after,
-  .loop-item:hover::after {
-    opacity: 1;
-    transform: translateX(-50%) translateY(-30px);
-  }
+    .remove-badge {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: none;
+      padding: 0;
+      background: rgba(220, 220, 220, 0.95);
+      background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M5%205%20L19%2019%20M19%205%20L5%2019%22%20stroke%3D%22white%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 8px 8px;
+      opacity: 0;
+      pointer-events: none;
+      cursor: pointer;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      z-index: 20;
+    }
 
-`;
+    .loop-item:hover .remove-badge,
+    .concho-wrapper:hover .remove-badge {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-30px);
+      pointer-events: auto;
+    }
+  `;
 
   // ---------- DRAG HANDLERS ----------
   private onLoopDragStart(e: DragEvent) {
-  const target = e.currentTarget as HTMLElement | null;
-  if (!target || !e.dataTransfer) return;
+    const target = e.currentTarget as HTMLElement | null;
+    if (!target || !e.dataTransfer) return;
 
-  this.draggingLoopIndex = Number(target.dataset.index);
-  e.dataTransfer.setData("text/plain", "loop");
-  e.dataTransfer.effectAllowed = "move";
+    this.draggingLoopIndex = Number(target.dataset.index);
+    e.dataTransfer.setData("text/plain", "loop");
+    e.dataTransfer.effectAllowed = "move";
 
-  target.classList.add("dragging");
-  this.createDragImageFrom(target, e);
-}
-
-private onLoopDragOver(e: DragEvent) {
-  e.preventDefault(); 
-}
-
-private onLoopDrop(e: DragEvent) {
-  e.preventDefault();
-  const target = e.currentTarget as HTMLElement | null;
-  if (!target) return;
-
-  const from = this.draggingLoopIndex;
-  const to = Number(target.dataset.index);
-  if (from == null || from === to) return;
-
-  const updated = [...this.loops];
-  const [moved] = updated.splice(from, 1);
-  updated.splice(to, 0, moved);
-  this.loops = updated;
-
-  this.draggingLoopIndex = null;
-}
-
-private onLoopDragEnd(e: DragEvent) {
-  const target = e.currentTarget as HTMLElement | null;
-  if (target) {
-    target.classList.remove("dragging");
+    target.classList.add("dragging");
+    this.createDragImageFrom(target, e);
   }
-  this.draggingLoopIndex = null;
-}
 
+  private onLoopDragOver(e: DragEvent) {
+    e.preventDefault();
+  }
+
+  private onLoopDrop(e: DragEvent) {
+    e.preventDefault();
+    const target = e.currentTarget as HTMLElement | null;
+    if (!target) return;
+
+    const from = this.draggingLoopIndex;
+    const to = Number(target.dataset.index);
+    if (from == null || from === to) return;
+
+    const updated = [...this.loops];
+    const [moved] = updated.splice(from, 1);
+    updated.splice(to, 0, moved);
+    this.loops = updated;
+
+    this.draggingLoopIndex = null;
+  }
+
+  private onLoopDragEnd(e: DragEvent) {
+    const target = e.currentTarget as HTMLElement | null;
+    if (target) {
+      target.classList.remove("dragging");
+    }
+    this.draggingLoopIndex = null;
+  }
 
   private onConchoDragStart(e: DragEvent) {
-  const target = e.currentTarget as HTMLElement | null;
-  if (!target || !e.dataTransfer) return;
+    const target = e.currentTarget as HTMLElement | null;
+    if (!target || !e.dataTransfer) return;
 
-  this.draggingConchoIndex = Number(target.dataset.index);
-  e.dataTransfer.setData("text/plain", "concho");
-  e.dataTransfer.effectAllowed = "move";
+    this.draggingConchoIndex = Number(target.dataset.index);
+    e.dataTransfer.setData("text/plain", "concho");
+    e.dataTransfer.effectAllowed = "move";
 
-  target.classList.add("dragging");
-  this.createDragImageFrom(target, e);
-}
-
-private onConchoDragOver(e: DragEvent) {
-  e.preventDefault();
-}
-
-private onConchoDrop(e: DragEvent) {
-  e.preventDefault();
-  const target = e.currentTarget as HTMLElement | null;
-  if (!target) return;
-
-  const from = this.draggingConchoIndex;
-  const to = Number(target.dataset.index);
-  if (from == null || from === to) return;
-
-  const updated = [...this.conchos];
-  const [moved] = updated.splice(from, 1);
-  updated.splice(to, 0, moved);
-  this.conchos = updated;
-
-  this.draggingConchoIndex = null;
-}
-
-private onConchoDragEnd(e: DragEvent) {
-  const target = e.currentTarget as HTMLElement | null;
-  if (target) {
-    target.classList.remove("dragging");
+    target.classList.add("dragging");
+    this.createDragImageFrom(target, e);
   }
-  this.draggingConchoIndex = null;
-}
 
+  private onConchoDragOver(e: DragEvent) {
+    e.preventDefault();
+  }
+
+  private onConchoDrop(e: DragEvent) {
+    e.preventDefault();
+    const target = e.currentTarget as HTMLElement | null;
+    if (!target) return;
+
+    const from = this.draggingConchoIndex;
+    const to = Number(target.dataset.index);
+    if (from == null || from === to) return;
+
+    const updated = [...this.conchos];
+    const [moved] = updated.splice(from, 1);
+    updated.splice(to, 0, moved);
+    this.conchos = updated;
+
+    this.draggingConchoIndex = null;
+  }
+
+  private onConchoDragEnd(e: DragEvent) {
+    const target = e.currentTarget as HTMLElement | null;
+    if (target) {
+      target.classList.remove("dragging");
+    }
+    this.draggingConchoIndex = null;
+  }
 
   private createDragImageFrom(target: HTMLElement, e: DragEvent) {
-  if (!e.dataTransfer) return;
+    if (!e.dataTransfer) return;
 
-  const img = target.querySelector("img") as HTMLImageElement | null;
-  if (!img) return;
+    const img = target.querySelector("img") as HTMLImageElement | null;
+    if (!img) return;
 
-  const rect = img.getBoundingClientRect();
-  const scale = 1.2; // size of draggable image relative to displayed size
+    const rect = img.getBoundingClientRect();
+    const scale = 1.2;
 
-  const dragImg = img.cloneNode(true) as HTMLImageElement;
-  dragImg.style.opacity = "0.85";
-  dragImg.style.pointerEvents = "none";
-  dragImg.style.position = "absolute";
-  dragImg.style.top = "-9999px";
-  dragImg.style.left = "-9999px";
+    const dragImg = img.cloneNode(true) as HTMLImageElement;
+    dragImg.style.opacity = "0.85";
+    dragImg.style.pointerEvents = "none";
+    dragImg.style.position = "absolute";
+    dragImg.style.top = "-9999px";
+    dragImg.style.left = "-9999px";
 
-  const width = rect.width * scale;
-  const height = rect.height * scale;
+    const width = rect.width * scale;
+    const height = rect.height * scale;
 
-  dragImg.style.width = `${width}px`;
-  dragImg.style.height = `${height}px`;
+    dragImg.style.width = `${width}px`;
+    dragImg.style.height = `${height}px`;
 
-  document.body.appendChild(dragImg);
+    document.body.appendChild(dragImg);
 
-  e.dataTransfer.setDragImage(dragImg, width / 2, height / 2);
+    e.dataTransfer.setDragImage(dragImg, width / 2, height / 2);
 
-  requestAnimationFrame(() => {
-    if (dragImg.parentNode) {
-      dragImg.parentNode.removeChild(dragImg);
-    }
-  });
-}
+    requestAnimationFrame(() => {
+      if (dragImg.parentNode) {
+        dragImg.parentNode.removeChild(dragImg);
+      }
+    });
+  }
 
-
-
+  private handleRemoveClick(
+    kind: "loop" | "concho",
+    index: number,
+    e: MouseEvent,
+  ) {
+    e.stopPropagation();
+    this.dispatchEvent(
+      new CustomEvent(`remove-${kind}`, {
+        detail: { index },
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
 
   override render() {
     return html`
       <img id="base" src=${this.base ?? ""} aria-hidden="true" />
-      <img id="buckle" class="center-vertically" src=${this.buckle ?? ""} aria-hidden="true" />
+      <img
+        id="buckle"
+        class="center-vertically"
+        src=${this.buckle ?? ""}
+        aria-hidden="true"
+      />
       <div id="loops" class="center-vertically">
         ${this.loops.map(
           (loop, index) => html`
@@ -311,6 +319,13 @@ private onConchoDragEnd(e: DragEvent) {
               @drop=${this.onLoopDrop}
               @dragend=${this.onLoopDragEnd}
             >
+              <button
+                type="button"
+                class="remove-badge"
+                @click=${(e: MouseEvent) =>
+                  this.handleRemoveClick("loop", index, e)}
+                aria-label="Remove loop"
+              ></button>
               <img class="loop" src=${loop} aria-hidden="true" />
             </div>
           `,
@@ -328,12 +343,24 @@ private onConchoDragEnd(e: DragEvent) {
               @drop=${this.onConchoDrop}
               @dragend=${this.onConchoDragEnd}
             >
+              <button
+                type="button"
+                class="remove-badge"
+                @click=${(e: MouseEvent) =>
+                  this.handleRemoveClick("concho", index, e)}
+                aria-label="Remove concho"
+              ></button>
               <img class="concho" src=${concho} aria-hidden="true" />
             </div>
           `,
         )}
       </div>
-      <img id="tip" class="center-vertically" src=${this.tip ?? ""} aria-hidden="true" />
+      <img
+        id="tip"
+        class="center-vertically"
+        src=${this.tip ?? ""}
+        aria-hidden="true"
+      />
     `;
   }
 }

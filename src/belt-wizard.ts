@@ -344,6 +344,29 @@ export class CustomBeltWizard extends LitElement {
     `;
   }
 
+  private removeItem(kind: "loop" | "concho", index: number) {
+    if (!this.selection) return;
+
+    const ids = this.selection.getAll(kind) as string[];
+    const variantKey = `${kind}Variant`;
+    const variants = this.selection.getAll(variantKey) as string[];
+
+    if (index < 0 || index >= ids.length) return;
+
+    ids.splice(index, 1);
+    if (variants.length > index) {
+      variants.splice(index, 1);
+    }
+
+    this.selection.delete(kind);
+    ids.forEach((id) => this.selection!.append(kind, id));
+
+    this.selection.delete(variantKey);
+    variants.forEach((vId) => this.selection!.append(variantKey, vId));
+
+    this.applySelectionToPreview();
+  }
+
   constructor() {
     super();
 
@@ -440,6 +463,10 @@ export class CustomBeltWizard extends LitElement {
                   e.detail.fromIndex,
                   e.detail.toIndex,
                 )}"
+              @remove-loop="${(e: CustomEvent<{ index: number }>) =>
+                this.removeItem("loop", e.detail.index)}"
+              @remove-concho="${(e: CustomEvent<{ index: number }>) =>
+                this.removeItem("concho", e.detail.index)}"
             >
             </belt-preview>
           </section>
