@@ -1090,20 +1090,25 @@ export class CustomBeltWizard extends LitElement {
       this.resetBuckleLoopsAndTip();
     }
 
-    const current = this.selection!.getAll(variantKind) as string[];
+    let current = (this.selection!.getAll(variantKind) as string[]) ?? [];
 
     const totalCount = current.length;
     const sameCount = current.filter((id) => id === selectionId).length;
 
     if (sameCount >= maxCount) {
-      const remaining = current.filter((id) => id !== selectionId);
-      this.selection!.delete(variantKind);
-      remaining.forEach((id) => this.selection!.append(variantKind, id));
+      current = current.filter((id) => id !== selectionId);
     } else if (totalCount >= maxCount && sameCount === 0) {
-      return;
+      // (do nothing)
     } else {
-      this.selection!.append(variantKind, selectionId);
+      current = [...current, selectionId];
     }
+
+    if (current.length > maxCount) {
+      current = current.slice(0, maxCount);
+    }
+
+    this.selection!.delete(variantKind);
+    current.forEach((id) => this.selection!.append(variantKind, id));
 
     this.applySelectionToPreview();
   }
