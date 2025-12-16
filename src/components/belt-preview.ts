@@ -63,8 +63,9 @@ export default class BeltPreview extends LitElement {
     .loop-item {
       position: relative;
       height: 100%;
-      width: 20px;
-      max-width: 20px;
+      width: 40px;
+      max-width: 40px;
+      margin-right: -20px;
       overflow: hidden;
       cursor: grab;
       pointer-events: auto !important;
