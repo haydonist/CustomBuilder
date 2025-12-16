@@ -33,12 +33,12 @@ export default class BeltPreview extends LitElement {
   }
 
   #base {
-    position: relative;
-    width: auto;
-    max-height: 200px;
-    margin-top: 4px;
-    pointer-events: none;
-  }
+  position: relative;
+  display: block;
+  width: 90vw;       /* visual size */
+  max-width: 100%;
+  pointer-events: none;
+}
 
   #buckle,
   #tip {
@@ -153,6 +153,9 @@ private onLoopDragOver(e: DragEvent) {
   e.preventDefault();
 }
 
+private _baseCanvas: HTMLCanvasElement | null = null;
+private _ro?: ResizeObserver;
+
 private onLoopDrop(e: DragEvent) {
   e.preventDefault();
   const target = e.currentTarget as HTMLElement | null;
@@ -168,6 +171,21 @@ private onLoopDrop(e: DragEvent) {
   this.loops = updated;
 
   this.draggingLoopIndex = null;
+}
+
+override firstUpdated() {
+  // Re-render when 90vw changes (viewport resize, layout changes, etc.)
+  this._ro = new ResizeObserver(() => this.renderBeltBase());
+  this._ro.observe(document.documentElement);
+}
+
+override disconnectedCallback() {
+  super.disconnectedCallback();
+  this._ro?.disconnect();
+}
+
+protected override updated(changed: PropertyValues) {
+  if (changed.has("base")) this.renderBeltBase();
 }
 
 private onLoopDragEnd(e: DragEvent) {
@@ -257,22 +275,24 @@ private onConchoDragEnd(e: DragEvent) {
 
 
 
-  protected override willUpdate(changedProperties: PropertyValues): void {
-    if (changedProperties.has("base")) cacheImage(this.base!);
-  }
+  protected override willUpdate(changed: PropertyValues) {
+  if (changed.has("base") && this.base) cacheImage(this.base);
+}
 
   override render() {
     // TODO: Render the belt base, with transparent edges cropped out, to a canvas
     return html`
-      <canvas id="base" width="auto" height="150px" aria-hidden="true" ${ref((el?: Element) => {
-        if (!el) return;
-        assertInstanceOf(el, HTMLCanvasElement);
-        const canvas = el;
-        canvas.width = el.parentElement?.clientWidth ?? self.visualViewport?.width ?? 1280;
-        canvas.height = 150;
-        this.renderBeltBase(canvas);
-      })}></canvas>
-      <img id="buckle" class="center-vertically" src=${this.buckle} aria-hidden="true" />
+      <canvas
+  id="base"
+  aria-hidden="true"
+  ${ref((el?: Element) => {
+    if (!el) return;
+    assertInstanceOf(el, HTMLCanvasElement);
+    this._baseCanvas = el;
+    // kick a render once the element exists
+    queueMicrotask(() => this.renderBeltBase());
+  })}
+/>
       <img id="buckle" class="center-vertically" src=${this.buckle ?? ""} aria-hidden="true" />
       <div id="loops" class="center-vertically">
         ${this.loops.map(
@@ -312,17 +332,37 @@ private onConchoDragEnd(e: DragEvent) {
     `;
   }
 
-  private async renderBeltBase(canvas: HTMLCanvasElement) {
-    if (!this.base) return;
+  private async renderBeltBase() {
+    console.debug("renderBeltBase()", { hasCanvas: !!this._baseCanvas, base: this.base });
 
-    const img = await cachedImages[this.base];
-    const croppedImg = await cropToContents(img, img.naturalWidth, img.naturalHeight);
-    canvas.width = canvas.height / 2 / croppedImg.height * croppedImg.width;
+  const canvas = this._baseCanvas;
+  if (!canvas || !this.base) return;
 
-    const ctx = canvas.getContext('2d');
+  try {
+    const img = await cacheImage(this.base);
+    const cropped = await cropToContents(img, img.naturalWidth, img.naturalHeight);
+
+    await new Promise(requestAnimationFrame); // ensure layout is ready
+    const cssWidth = Math.floor(canvas.getBoundingClientRect().width) || 1;
+
+    const aspect = cropped.height / cropped.width;
+    const cssHeight = Math.max(1, Math.round(cssWidth * aspect));
+    canvas.style.height = `${cssHeight}px`;
+
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(cssWidth * dpr);
+    canvas.height = Math.round(cssHeight * dpr);
+
+    const ctx = canvas.getContext("2d");
     assert(ctx);
-    ctx.drawImage(croppedImg, 0, 0, croppedImg.width, croppedImg.height, 0, 0, canvas.width, canvas.height / 2);
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssWidth, cssHeight);
+    ctx.drawImage(cropped, 0, 0, cssWidth, cssHeight);
+  } catch (e) {
+    console.error("renderBeltBase failed:", e);
   }
+}
 }
 
 declare global {

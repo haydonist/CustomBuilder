@@ -1,33 +1,53 @@
 import { assert } from "@std/assert";
 
-/** Crop the given `image` such that its transparent edges are removed. */
-export default async function cropToContents(image: ImageBitmapSource, w: number, h: number): Promise<ImageBitmap> {
-  const canvas = new OffscreenCanvas(w, h);
+export default async function cropToContents(
+  source: ImageBitmapSource,
+  w: number,
+  h: number,
+): Promise<ImageBitmap> {
+  // OffscreenCanvas is nice when it exists, but don’t bet your life on it.
+  const canvas: OffscreenCanvas | HTMLCanvasElement =
+    typeof OffscreenCanvas !== "undefined"
+      ? new OffscreenCanvas(w, h)
+      : Object.assign(document.createElement("canvas"), {
+        width: w,
+        height: h,
+      });
+
   const ctx = canvas.getContext("2d");
   assert(ctx, "Could not create a canvas context!");
 
-  // Copy the source image to the canvas
-  ctx.drawImage(await createImageBitmap(image), 0, 0);
+  const bitmap = source instanceof ImageBitmap
+    ? source
+    : await createImageBitmap(source);
 
-  // Find the visible bounds of the image
-  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height, { colorSpace: "srgb" });
-  const bounds = { top: pixels.height, left: pixels.width, right: 0, bottom: 0 }
+  ctx.clearRect(0, 0, w, h);
+  ctx.drawImage(bitmap, 0, 0);
 
-  for (let x = 0; x < pixels.width - bounds.right; x += 1) {
-    for (let y = 0; y < pixels.width - bounds.bottom; y += 1) {
-      const i = y * (pixels.width * 4) + x * 4 + 3;
-      const alpha = pixels.data[i];
+  const pixels = ctx.getImageData(0, 0, w, h);
 
-      if (!alpha) continue;
-      if (y < bounds.top) bounds.top = y;
-      if (x < bounds.left) bounds.left = x;
-      if (x > bounds.right) bounds.right = x;
-      if (y > bounds.bottom) bounds.bottom = y;
+  let top = h, left = w, right = -1, bottom = -1;
+  const data = pixels.data;
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const a = data[(y * w + x) * 4 + 3];
+      if (a === 0) continue;
+
+      if (x < left) left = x;
+      if (x > right) right = x;
+      if (y < top) top = y;
+      if (y > bottom) bottom = y;
     }
   }
 
-  // Extract a cropped bitmap from the canvas
-  const width = bounds.right - bounds.left;
-  const height = bounds.bottom - bounds.top;
-  return await createImageBitmap(canvas, bounds.left, bounds.top, width, height);
+  // Fully transparent image: just return the original bitmap (or a 1x1 transparent)
+  if (right < left || bottom < top) {
+    return bitmap;
+  }
+
+  const cropW = right - left + 1;
+  const cropH = bottom - top + 1;
+
+  return await createImageBitmap(canvas as any, left, top, cropW, cropH);
 }
