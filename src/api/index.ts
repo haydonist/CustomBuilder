@@ -1,4 +1,7 @@
-import { assert } from "@std/assert";
+// Simple assert function (replaces @std/assert)
+function assert(condition: unknown, message?: string): asserts condition {
+  if (!condition) throw new Error(message ?? "Assertion failed");
+}
 import { createStorefrontApiClient } from "@shopify/storefront-api-client";
 
 const client = createStorefrontApiClient({

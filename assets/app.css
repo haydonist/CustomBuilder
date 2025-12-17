@@ -8,7 +8,7 @@ body {
 }
 
 body {
-  color: var(--neutral);
+  color: #fff;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -84,8 +84,23 @@ body > main {
   flex-direction: column;
   flex-grow: 1;
   margin: 0rem auto;
-  min-width: 1260px;
-  max-width: min(1260px, 100%);
+  max-width: 100%;
+}
+
+/* Shopify Theme App Extension containment */
+belt-wizard {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.belt-builder-wrapper {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 /* Jumbotron */
@@ -226,13 +241,35 @@ belt-wizard {
 /* Steps */
 #stepHeading {
   margin-block-start: 2em;
+  text-align: left;
 }
 
 #stepHeading h2 {
   margin-block: 0;
+  color: #fff;
+}
+
+/*
+ * Shopify themes often ship strong global h2 styles that can bleed into our
+ * light-DOM belt-wizard (it disables shadow DOM). Force our intended sizing.
+ */
+belt-wizard #stepHeading h2.heading-4 {
+  font-size: 40px !important;
+  line-height: 1.05 !important;
+  letter-spacing: normal !important;
 }
 #stepHeading h2 ~ .subtitle {
   margin-block-start: 0;
+  color: #fff;
+}
+
+belt-wizard #stepHeading .subtitle {
+  font-size: 16px !important;
+  line-height: 1.3 !important;
+}
+
+.summary-header .heading-5 {
+  color: #fff;
 }
 
 #stepTitle {

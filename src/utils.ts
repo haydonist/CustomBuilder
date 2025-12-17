@@ -1,4 +1,4 @@
-import type { MoneyV2, Product } from "./api/index.ts";
+import type { MoneyV2, Product } from "./api/index.js";
 
 export function formatMoney(m: MoneyV2): string {
   const value = Number.parseFloat(m.amount);

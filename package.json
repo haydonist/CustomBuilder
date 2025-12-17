@@ -5,7 +5,8 @@
   "private": true,
   "author": "Chance Snow <chance@snow.llc>",
   "contributors": [
-    "Hayden Anderson <hayden@jollywebconsulting.com>"
+    "Hayden Anderson <hayden@jollywebconsulting.com>",
+    "@kaykay38"
   ],
   "version": "0.0.0",
   "type": "module",
@@ -14,21 +15,24 @@
     "test:watch": "tsc && concurrently -k -r \"tsc --watch --preserveWatchOutput\" \"wtr --watch\"",
     "storybook": "tsc && npm run analyze -- --exclude dist && concurrently -k -r \"tsc --watch --preserveWatchOutput\" \"storybook dev -p 8080\"",
     "storybook:build": "tsc && npm run analyze -- --exclude dist && storybook build",
-    "analyze": "cem analyze --litelement"
+    "analyze": "cem analyze --litelement",
+    "copy:extension-assets": "mkdir -p extensions/belt-wizard-block/assets && cp assets/belts/sizing-chart.png extensions/belt-wizard-block/assets/sizing-chart.png",
+    "build:extension": "npm run copy:extension-assets && npx vite build --config vite.config.ts && npm run build:css",
+    "build:css": "cat assets/theme.css assets/app.css > extensions/belt-wizard-block/assets/belt-wizard.css",
+    "shopify:dev": "npm run build:extension && shopify app dev",
+    "shopify:deploy": "npm run build:extension && shopify app deploy"
   },
   "dependencies": {
     "@adobe/lit-mobx": "^2.2.2",
     "@shopify/storefront-api-client": "^1.0.9",
-    "@std/async": "npm:@jsr/std__async@^1.0.14",
-    "lit": "^3.1.4",
+        "lit": "^3.1.4",
     "mobx": "^6.13.7",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@custom-elements-manifest/analyzer": "^0.10.3",
     "@open-wc/testing": "^4.0.0",
-    "@std/assert": "npm:@jsr/std__assert",
-    "@storybook/addon-a11y": "^7.6.20",
+        "@storybook/addon-a11y": "^7.6.20",
     "@storybook/addon-essentials": "^7.6.20",
     "@storybook/addon-links": "^7.6.20",
     "@storybook/web-components": "^7.6.20",

@@ -1,10 +1,10 @@
 import { css, html, LitElement, TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 
-import { getImageAt, Product } from "../api/index.ts";
-import * as styles from "../styles.ts";
-import { formatMoney } from "../utils.ts";
-import { thumbnailOption } from "./option.ts";
+import { getImageAt, Product } from "../api/index.js";
+import * as styles from "../styles.js";
+import { formatMoney } from "../utils.js";
+import { thumbnailOption } from "./option.js";
 
 type ProductCountById = Map<string, { product: Product, count: number }>;
 

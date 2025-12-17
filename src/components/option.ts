@@ -1,6 +1,6 @@
 import { html } from "lit";
-import { formatMoney } from "../utils.ts";
-import { MoneyV2 } from "../api/index.ts";
+import { formatMoney } from "../utils.js";
+import { MoneyV2 } from "../api/index.js";
 
 export type EventHandler = (ev: Event) => void;
 

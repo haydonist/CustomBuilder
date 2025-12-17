@@ -1,6 +1,7 @@
-import { delay } from "@std/async";
+// Simple delay function (replaces @std/async)
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 import { css, html, LitElement, PropertyValues } from "lit";
-import { customElement, eventOptions, state } from "lit/decorators.js";
+import { customElement, eventOptions, state, property } from "lit/decorators.js";
 import { createRef, Ref, ref } from "lit/directives/ref.js";
 
 // ===============
@@ -10,16 +11,16 @@ import { createRef, Ref, ref } from "lit/directives/ref.js";
 import "./components/belt-checkout.js";
 import "./components/belt-preview.js";
 
-import { getImageAt, Product, queryProducts } from "./api/index.ts";
-import BeltCheckout from "./components/belt-checkout.ts";
-import BeltPreview from "./components/belt-preview.ts";
+import { getImageAt, Product, queryProducts } from "./api/index.js";
+import BeltCheckout from "./components/belt-checkout.js";
+import BeltPreview from "./components/belt-preview.js";
 import {
   colorChipOption,
   textOption,
   thumbnailOption,
-} from "./components/option.ts";
-import { beltColors } from "./models/belts.ts";
-import Wizard, { renderView } from "./models/wizard/index.ts";
+} from "./components/option.js";
+import { beltColors, beltSizes } from "./models/belts.js";
+import Wizard, { renderView } from "./models/wizard/index.js";
 
 // See https://open-wc.org
 // See https://open-wc.org/guides/developing-components/code-examples
@@ -37,6 +38,9 @@ export class CustomBeltWizard extends LitElement {
   private preview: Ref<BeltPreview> = createRef();
   private checkout: Ref<BeltCheckout> = createRef();
   private shouldAdvance = false;
+
+  @property({ type: String, attribute: "sizing-chart-src" })
+  sizingChartSrc?: string;
 
   @state()
   private loading = false;
@@ -131,11 +135,15 @@ export class CustomBeltWizard extends LitElement {
     subtitle: "We will add 3” to meet your perfect fit belt size",
     view: html`
       <div class="row wrap gap-medium"></div>
-      <img
-        id="sizingChart"
-        src="/assets/belts/sizing-chart.png"
-        alt="Perfect belt sizing chart"
-      />
+      ${this.sizingChartSrc
+        ? html`
+          <img
+            id="sizingChart"
+            src="${this.sizingChartSrc}"
+            alt="Perfect belt sizing chart"
+          />
+        `
+        : null}
     `,
     background: {
       image: "url(/assets/belts/looped-belt.png)",
@@ -514,24 +522,78 @@ export class CustomBeltWizard extends LitElement {
       const baseWidth = this.beltBase?.tags?.find((t) => t.endsWith("mm"));
       const widthFilter = baseWidth ? ` AND tag:${baseWidth}` : "";
 
+      const buckleQuery = baseWidth
+        ? `tag:buckle AND tag:${baseWidth} OR tag:Buckle AND tag:${baseWidth}`
+        : "tag:buckle OR tag:Buckle";
+      const setQuery = baseWidth
+        ? `tag:set AND tag:${baseWidth} OR tag:Set AND tag:${baseWidth}`
+        : "tag:set OR tag:Set";
+      const loopQuery = baseWidth
+        ? `tag:Loop AND tag:${baseWidth} OR tag:loop AND tag:${baseWidth}`
+        : "tag:Loop OR tag:loop";
+      const tipQuery = baseWidth
+        ? `tag:tip AND tag:${baseWidth} OR tag:Tip AND tag:${baseWidth}`
+        : "tag:tip OR tag:Tip";
+
       const [
         beltBuckles,
         beltSets,
         beltLoops,
         beltTips,
       ] = await Promise.all([
-        queryProducts(`tag:buckle${widthFilter}`),
-        queryProducts(`tag:set${widthFilter}`),
-        queryProducts(`tag:Loop${widthFilter}`),
-        queryProducts(`tag:tip${widthFilter}`),
+        queryProducts(buckleQuery),
+        queryProducts(setQuery),
+        queryProducts(loopQuery),
+        queryProducts(tipQuery),
       ]);
 
-      this.buckleChoices = [...beltBuckles, ...beltSets];
+      // If the base width filter yields zero results, fall back to unfiltered queries.
+      // This prevents an empty "Choose a Belt Buckle" step when products aren't tagged
+      // with the base width.
+      let resolvedBuckles = beltBuckles;
+      let resolvedSets = beltSets;
+      let resolvedLoops = beltLoops;
+      let resolvedTips = beltTips;
+
+      const hasWidthFilter = !!widthFilter;
+      const bucklesEmpty = resolvedBuckles.length + resolvedSets.length === 0;
+      const otherEmpty = resolvedLoops.length === 0 || resolvedTips.length === 0;
+
+      if (hasWidthFilter && (bucklesEmpty || otherEmpty)) {
+        const [fallbackBuckles, fallbackSets, fallbackLoops, fallbackTips] =
+          await Promise.all([
+            queryProducts("tag:buckle OR tag:Buckle"),
+            queryProducts("tag:set OR tag:Set"),
+            queryProducts("tag:Loop OR tag:loop"),
+            queryProducts("tag:tip OR tag:Tip"),
+          ]);
+
+        if (bucklesEmpty) {
+          resolvedBuckles = fallbackBuckles;
+          resolvedSets = fallbackSets;
+        }
+        if (resolvedLoops.length === 0) {
+          resolvedLoops = fallbackLoops;
+        }
+        if (resolvedTips.length === 0) {
+          resolvedTips = fallbackTips;
+        }
+      }
+
+      this.buckleChoices = [...resolvedBuckles, ...resolvedSets];
+
+      console.debug("Buckle step products:", {
+        baseWidth,
+        widthFilter,
+        buckles: resolvedBuckles.length,
+        sets: resolvedSets.length,
+        total: this.buckleChoices.length,
+      });
 
       this.beltData[1] = this.buckleChoices;
-      this.beltData[2] = beltLoops;
-      this.beltData[4] = beltTips;
-      this.beltData[6] = beltSets;
+      this.beltData[2] = resolvedLoops;
+      this.beltData[4] = resolvedTips;
+      this.beltData[6] = resolvedSets;
 
       console.debug(
         "Rebuilt buckle, set, loop, and tip steps based on base width:",
@@ -539,8 +601,8 @@ export class CustomBeltWizard extends LitElement {
       );
 
       this.buildSingleSelectStep("buckle", this.buckleChoices);
-      this.buildMultiSelectStep("loop", beltLoops, 2);
-      this.buildSingleSelectStep("tip", beltTips);
+      this.buildMultiSelectStep("loop", resolvedLoops, 2);
+      this.buildSingleSelectStep("tip", resolvedTips);
     }
   }
 
@@ -648,17 +710,17 @@ export class CustomBeltWizard extends LitElement {
       beltLoops,
       beltConchos,
       beltTips,
-      beltSizes,
+      beltSizesFromApi,
       beltSets,
     ] = this
       .beltData = await Promise.all([
         queryProducts("tag:Belt Strap"),
-        queryProducts(`tag:buckle`),
-        queryProducts(`tag:Loop`),
+        queryProducts("tag:buckle OR tag:Buckle"),
+        queryProducts("tag:Loop OR tag:loop"),
         queryProducts("tag:concho"),
-        queryProducts(`tag:tip`),
+        queryProducts("tag:tip OR tag:Tip"),
         queryProducts("tag:size"),
-        queryProducts("tag:Set"),
+        queryProducts("tag:Set OR tag:set"),
       ]);
 
     this.buckleChoices = [...beltBuckles, ...beltSets];
@@ -671,21 +733,20 @@ export class CustomBeltWizard extends LitElement {
     this.buildSingleSelectStep("tip", beltTips);
 
     const sizeStep = this.wizard.find("size")!;
-    const sizeProduct = beltSizes[0] ?? null;
+    const sizeProduct = beltSizesFromApi[0] ?? null;
 
     const sizeVariants = sizeProduct?.variants ?? [];
+    
+    // Use API variants if available, otherwise fall back to static beltSizes
+    const hasSizeVariants = sizeVariants.length > 0;
+    
     sizeStep.view = () =>
       html`
         <div class="row wrap gap-medium">
-          ${sizeVariants.length === 0
-            ? html`
-              <p>No sizes found. Check the "Size" product variants.</p>
-            `
-            : sizeVariants.map((variant) => {
+          ${hasSizeVariants
+            ? sizeVariants.map((variant) => {
               const title = variant.title.trim();
-
               const priceAmount = variant.price ?? null;
-
               const label = `${title}"`;
 
               return textOption(
@@ -698,13 +759,31 @@ export class CustomBeltWizard extends LitElement {
                   onClick: this.submitStep,
                 },
               );
+            })
+            : beltSizes.map((size) => {
+              const label = `${size}"`;
+
+              return textOption(
+                `size-${size}`,
+                "size",
+                String(size),
+                label,
+                undefined,
+                {
+                  onClick: this.submitStep,
+                },
+              );
             })}
         </div>
-        <img
-          id="sizingChart"
-          src="/assets/belts/sizing-chart.png"
-          alt="Perfect belt sizing chart"
-        />
+        ${this.sizingChartSrc
+          ? html`
+            <img
+              id="sizingChart"
+              src="${this.sizingChartSrc}"
+              alt="Perfect belt sizing chart"
+            />
+          `
+          : null}
       `;
 
     this.loading = false;
