@@ -1,6 +1,8 @@
 import { ColorOption, ThumbnailOption } from "../models/options.js";
 
 export enum BeltSize {
+  twentySix = 26,
+  twentyEight = 28,
   thirty = 30,
   thirtyTwo = 32,
   thirtyFour = 34,
@@ -8,11 +10,13 @@ export enum BeltSize {
   thirtyEight = 38,
   forty = 40,
   fortyTwo = 42,
+  fortyFour = 44,
   fortySix = 46,
   fortyEight = 48,
   fifty = 50,
   fiftyTwo = 52,
   fiftyFour = 54,
+  fiftySix = 56,
 }
 
 export const beltSizes = Object.values(BeltSize).filter(val => typeof val !== "string");

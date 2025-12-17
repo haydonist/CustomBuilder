@@ -1,6 +1,6 @@
 import { css, html, LitElement } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import * as styles from "../styles.ts";
+import * as styles from "../styles.js";
 
 @customElement("belt-preview")
 export default class BeltPreview extends LitElement {
@@ -22,6 +22,13 @@ export default class BeltPreview extends LitElement {
       pointer-events: auto;
     }
 
+    #belt {
+      position: relative;
+      display: inline-block;
+      width: max-content;
+      max-width: 100%;
+    }
+
     .center-vertically {
       position: absolute;
       top: 50%;
@@ -30,6 +37,7 @@ export default class BeltPreview extends LitElement {
 
     #base {
       position: relative;
+      display: block;
       width: auto;
       max-height: 200px;
       margin-top: 4px;
@@ -47,7 +55,7 @@ export default class BeltPreview extends LitElement {
     }
 
     #tip {
-      right: -2%;
+      right: var(--belt-tip-offset, -8%);
     }
 
     #loops {
@@ -300,67 +308,69 @@ export default class BeltPreview extends LitElement {
 
   override render() {
     return html`
-      <img id="base" src=${this.base ?? ""} aria-hidden="true" />
-      <img
-        id="buckle"
-        class="center-vertically"
-        src=${this.buckle ?? ""}
-        aria-hidden="true"
-      />
-      <div id="loops" class="center-vertically">
-        ${this.loops.map(
-          (loop, index) => html`
-            <div
-              class="loop-item"
-              draggable="true"
-              data-index=${index}
-              @dragstart=${this.onLoopDragStart}
-              @dragover=${this.onLoopDragOver}
-              @drop=${this.onLoopDrop}
-              @dragend=${this.onLoopDragEnd}
-            >
-              <button
-                type="button"
-                class="remove-badge"
-                @click=${(e: MouseEvent) =>
-                  this.handleRemoveClick("loop", index, e)}
-                aria-label="Remove loop"
-              ></button>
-              <img class="loop" src=${loop} aria-hidden="true" />
-            </div>
-          `,
-        )}
+      <div id="belt">
+        <img id="base" src=${this.base ?? ""} aria-hidden="true" />
+        <img
+          id="buckle"
+          class="center-vertically"
+          src=${this.buckle ?? ""}
+          aria-hidden="true"
+        />
+        <div id="loops" class="center-vertically">
+          ${this.loops.map(
+            (loop, index) => html`
+              <div
+                class="loop-item"
+                draggable="true"
+                data-index=${index}
+                @dragstart=${this.onLoopDragStart}
+                @dragover=${this.onLoopDragOver}
+                @drop=${this.onLoopDrop}
+                @dragend=${this.onLoopDragEnd}
+              >
+                <button
+                  type="button"
+                  class="remove-badge"
+                  @click=${(e: MouseEvent) =>
+                    this.handleRemoveClick("loop", index, e)}
+                  aria-label="Remove loop"
+                ></button>
+                <img class="loop" src=${loop} aria-hidden="true" />
+              </div>
+            `,
+          )}
+        </div>
+        <div id="conchosList" class="center-vertically">
+          ${this.conchos.map(
+            (concho, index) => html`
+              <div
+                class="concho-wrapper"
+                draggable="true"
+                data-index=${index}
+                @dragstart=${this.onConchoDragStart}
+                @dragover=${this.onConchoDragOver}
+                @drop=${this.onConchoDrop}
+                @dragend=${this.onConchoDragEnd}
+              >
+                <button
+                  type="button"
+                  class="remove-badge"
+                  @click=${(e: MouseEvent) =>
+                    this.handleRemoveClick("concho", index, e)}
+                  aria-label="Remove concho"
+                ></button>
+                <img class="concho" src=${concho} aria-hidden="true" />
+              </div>
+            `,
+          )}
+        </div>
+        <img
+          id="tip"
+          class="center-vertically"
+          src=${this.tip ?? ""}
+          aria-hidden="true"
+        />
       </div>
-      <div id="conchosList" class="center-vertically">
-        ${this.conchos.map(
-          (concho, index) => html`
-            <div
-              class="concho-wrapper"
-              draggable="true"
-              data-index=${index}
-              @dragstart=${this.onConchoDragStart}
-              @dragover=${this.onConchoDragOver}
-              @drop=${this.onConchoDrop}
-              @dragend=${this.onConchoDragEnd}
-            >
-              <button
-                type="button"
-                class="remove-badge"
-                @click=${(e: MouseEvent) =>
-                  this.handleRemoveClick("concho", index, e)}
-                aria-label="Remove concho"
-              ></button>
-              <img class="concho" src=${concho} aria-hidden="true" />
-            </div>
-          `,
-        )}
-      </div>
-      <img
-        id="tip"
-        class="center-vertically"
-        src=${this.tip ?? ""}
-        aria-hidden="true"
-      />
     `;
   }
 }

@@ -1,0 +1,39 @@
+# Theme App Extension Configuration
+# This extension embeds the Belt Builder wizard into Shopify storefronts
+
+api_version = "2025-01"
+
+[[extensions]]
+name = "Belt Builder"
+handle = "belt-wizard-block"
+uid = "9719a1ff-f682-62ac-14bd-62efd5f21e340018f37c"
+type = "theme"
+
+  [extensions.capabilities]
+  # Allow app blocks in the theme editor
+  app_block = true
+
+  [extensions.settings]
+    [[extensions.settings.fields]]
+    key = "heading_text"
+    type = "single_line_text_field"
+    name = "Heading Text"
+    description = "Main heading displayed above the belt builder"
+
+    [[extensions.settings.fields]]
+    key = "subheading_text"
+    type = "single_line_text_field"
+    name = "Subheading Text"
+    description = "Subheading text below the main heading"
+
+    [[extensions.settings.fields]]
+    key = "button_text"
+    type = "single_line_text_field"
+    name = "Button Text"
+    description = "Text for the Get Started button"
+
+    [[extensions.settings.fields]]
+    key = "show_jumbotron"
+    type = "boolean"
+    name = "Show Hero Section"
+    description = "Display the hero/jumbotron section"

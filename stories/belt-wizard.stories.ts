@@ -1,5 +1,7 @@
 import { html, TemplateResult } from "lit";
 
+import "../assets/theme.css";
+import "../assets/app.css";
 import "../src/belt-wizard.js";
 import { Theme } from "../src/belt-wizard.js";
 

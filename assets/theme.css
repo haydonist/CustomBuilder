@@ -82,6 +82,7 @@ h1, h2, h3, h4, h5, h6 {
   font-optical-sizing: auto;
   font-weight: normal;
   font-style: normal;
+  color: #fff;
 }
 
 h1, .heading-1 {
@@ -102,6 +103,7 @@ h4, .heading-4 {
 
 h5, .heading-5 {
   font-size: 32px;
+  color: var(--neutral-white);
 }
 
 h6, .heading-6 {
@@ -286,14 +288,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 .row.wrap:has(.option.text-only) {
   display: grid;
   grid-template-columns: auto auto auto auto;
-  margin: 0 auto;
   width: min-content;
-}
-
-@media screen and (min-width: 500px) {
-  .row.wrap:has(.option.text-only) {
-    margin: initial;
-  }
 }
 
 .option.text-only:has(input:checked) {
@@ -323,6 +318,22 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   font-size: 18px;
   font-weight: 600;
   margin-bottom: 0.2rem;
+}
+
+.option label span.price {
+  color: #fff;
+}
+
+/* Shopify themes often apply strong typography colors; force prices readable */
+belt-wizard .option .price,
+belt-wizard .option span.price,
+belt-wizard .option label span.price {
+  color: #fff !important;
+}
+
+/* Checkout total price should always be readable against dark background */
+#checkoutTotal .price {
+  color: #fff;
 }
 
 .option:not(.text-only) label span.label {

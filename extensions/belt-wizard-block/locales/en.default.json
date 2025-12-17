@@ -1,0 +1,18 @@
+{
+  "name": "Belt Builder",
+  "description": "A customizable belt builder wizard that allows customers to design their own belts",
+  "settings": {
+    "heading_text": {
+      "label": "Heading Text"
+    },
+    "subheading_text": {
+      "label": "Subheading Text"
+    },
+    "button_text": {
+      "label": "Button Text"
+    },
+    "show_jumbotron": {
+      "label": "Show Hero Section"
+    }
+  }
+}

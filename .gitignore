@@ -21,3 +21,8 @@
 
 storybook-static
 custom-elements.json
+
+# Shopify extension build artifacts
+extensions/belt-wizard-block/assets/belt-wizard.js
+extensions/belt-wizard-block/assets/belt-wizard.js.map
+extensions/belt-wizard-block/assets/belt-wizard.css

@@ -1,0 +1,156 @@
+{% comment %}
+  Belt Builder Section
+  A full-page section for the Belt Builder wizard
+{% endcomment %}
+
+<div class="belt-builder-section page-width">
+  {% render 'belt-wizard-styles' %}
+  
+  {% liquid
+    assign heading = section.settings.heading_text | default: 'BeltMaster'
+    assign subheading = section.settings.subheading_text | default: 'Build Your Own Custom Belt'
+    assign description = section.settings.description_text | default: 'Craft your own belt with premium leather and the buckle of your choice.'
+    assign button_text = section.settings.button_text | default: 'Get Started'
+    assign show_jumbotron = section.settings.show_jumbotron
+  %}
+
+  {% if show_jumbotron %}
+  <div id="jumbotron" class="belt-builder-jumbotron">
+    <h1 class="belt-builder-heading heading-5 uppercase">{{ heading }}</h1>
+    <h2 class="belt-builder-subheading">{{ subheading }}</h2>
+    <p class="belt-builder-description">{{ description }}</p>
+    <button id="getStarted" class="belt-builder-btn btn primary">{{ button_text }}</button>
+  </div>
+  {% endif %}
+  
+  <belt-wizard {% if show_jumbotron %}hidden{% endif %}></belt-wizard>
+</div>
+
+{{ 'belt-wizard.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'belt-wizard.js' | asset_url }}" defer></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const getStartedBtn = document.getElementById('getStarted');
+    const jumbotron = document.getElementById('jumbotron');
+    const wizard = document.querySelector('belt-wizard');
+    
+    if (getStartedBtn && wizard) {
+      getStartedBtn.addEventListener('click', function() {
+        if (jumbotron) {
+          jumbotron.style.display = 'none';
+        }
+        wizard.removeAttribute('hidden');
+      });
+    }
+  });
+</script>
+
+<style>
+  .belt-builder-section {
+    min-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #291c12;
+    color: #fff;
+  }
+  
+  .belt-builder-jumbotron {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    flex-grow: 1;
+    padding: 4rem 2rem;
+    background: linear-gradient(135deg, #291c12 0%, #2d2d2d 100%);
+    color: white;
+    border-radius: 8px;
+  }
+  
+  .belt-builder-heading {
+    font-size: 1rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    color: #ad8e76;
+  }
+  
+  .belt-builder-subheading {
+    font-size: 2.5rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  
+  .belt-builder-description {
+    color: #ad8e76;
+    margin-bottom: 1.5rem;
+  }
+  
+  .belt-builder-btn {
+    background-color: #8b5e3c;
+    color: white;
+    border: none;
+    padding: 12px 22px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background-color 0.3s ease;
+  }
+  
+  .belt-builder-btn:hover {
+    background-color: #7a4f31;
+  }
+  
+  belt-wizard {
+    flex-grow: 1;
+    background-color: #291c12;
+  }
+  
+  belt-wizard[hidden] {
+    display: none;
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Belt Builder Section",
+  "target": "section",
+  "tag": "section",
+  "class": "belt-builder-section-wrapper",
+  "stylesheet": "belt-wizard.css",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading_text",
+      "label": "Heading Text",
+      "default": "BeltMaster"
+    },
+    {
+      "type": "text",
+      "id": "subheading_text",
+      "label": "Subheading Text",
+      "default": "Build Your Own Custom Belt"
+    },
+    {
+      "type": "text",
+      "id": "description_text",
+      "label": "Description Text",
+      "default": "Craft your own belt with premium leather and the buckle of your choice."
+    },
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Button Text",
+      "default": "Get Started"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_jumbotron",
+      "label": "Show Hero Section",
+      "default": true
+    }
+  ]
+}
+{% endschema %}
