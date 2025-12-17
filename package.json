@@ -5,7 +5,8 @@
   "private": true,
   "author": "Chance Snow <chance@snow.llc>",
   "contributors": [
-    "Hayden Anderson <hayden@jollywebconsulting.com>"
+    "Hayden Anderson <hayden@jollywebconsulting.com>",
+    "@kaykay38"
   ],
   "version": "0.0.0",
   "type": "module",
@@ -15,7 +16,8 @@
     "storybook": "tsc && npm run analyze -- --exclude dist && concurrently -k -r \"tsc --watch --preserveWatchOutput\" \"storybook dev -p 8080\"",
     "storybook:build": "tsc && npm run analyze -- --exclude dist && storybook build",
     "analyze": "cem analyze --litelement",
-    "build:extension": "npx vite build --config vite.config.ts && npm run build:css",
+    "copy:extension-assets": "mkdir -p extensions/belt-wizard-block/assets && cp assets/belts/sizing-chart.png extensions/belt-wizard-block/assets/sizing-chart.png",
+    "build:extension": "npm run copy:extension-assets && npx vite build --config vite.config.ts && npm run build:css",
     "build:css": "cat assets/theme.css assets/app.css > extensions/belt-wizard-block/assets/belt-wizard.css",
     "shopify:dev": "npm run build:extension && shopify app dev",
     "shopify:deploy": "npm run build:extension && shopify app deploy"

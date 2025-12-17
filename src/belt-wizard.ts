@@ -1,7 +1,7 @@
 // Simple delay function (replaces @std/async)
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 import { css, html, LitElement, PropertyValues } from "lit";
-import { customElement, eventOptions, state } from "lit/decorators.js";
+import { customElement, eventOptions, state, property } from "lit/decorators.js";
 import { createRef, Ref, ref } from "lit/directives/ref.js";
 
 // ===============
@@ -38,6 +38,9 @@ export class CustomBeltWizard extends LitElement {
   private preview: Ref<BeltPreview> = createRef();
   private checkout: Ref<BeltCheckout> = createRef();
   private shouldAdvance = false;
+
+  @property({ type: String, attribute: "sizing-chart-src" })
+  sizingChartSrc?: string;
 
   @state()
   private loading = false;
@@ -132,11 +135,15 @@ export class CustomBeltWizard extends LitElement {
     subtitle: "We will add 3” to meet your perfect fit belt size",
     view: html`
       <div class="row wrap gap-medium"></div>
-      <img
-        id="sizingChart"
-        src="/assets/belts/sizing-chart.png"
-        alt="Perfect belt sizing chart"
-      />
+      ${this.sizingChartSrc
+        ? html`
+          <img
+            id="sizingChart"
+            src="${this.sizingChartSrc}"
+            alt="Perfect belt sizing chart"
+          />
+        `
+        : null}
     `,
     background: {
       image: "url(/assets/belts/looped-belt.png)",
@@ -768,11 +775,15 @@ export class CustomBeltWizard extends LitElement {
               );
             })}
         </div>
-        <img
-          id="sizingChart"
-          src="/assets/belts/sizing-chart.png"
-          alt="Perfect belt sizing chart"
-        />
+        ${this.sizingChartSrc
+          ? html`
+            <img
+              id="sizingChart"
+              src="${this.sizingChartSrc}"
+              alt="Perfect belt sizing chart"
+            />
+          `
+          : null}
       `;
 
     this.loading = false;

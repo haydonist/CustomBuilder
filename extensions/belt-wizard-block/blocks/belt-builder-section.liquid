@@ -23,7 +23,10 @@
   </div>
   {% endif %}
   
-  <belt-wizard {% if show_jumbotron %}hidden{% endif %}></belt-wizard>
+  <belt-wizard
+    sizing-chart-src="{{ 'sizing-chart.png' | asset_url }}"
+    {% if show_jumbotron %}hidden{% endif %}
+  ></belt-wizard>
 </div>
 
 {{ 'belt-wizard.css' | asset_url | stylesheet_tag }}

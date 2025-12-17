@@ -20,7 +20,10 @@
   </div>
   {% endif %}
   
-  <belt-wizard {% unless show_jumbotron %}{% else %}hidden{% endunless %}></belt-wizard>
+  <belt-wizard
+    sizing-chart-src="{{ 'sizing-chart.png' | asset_url }}"
+    {% unless show_jumbotron %}{% else %}hidden{% endunless %}
+  ></belt-wizard>
 </div>
 
 <script src="{{ 'belt-wizard.js' | asset_url }}" defer></script>
