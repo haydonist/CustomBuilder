@@ -8,17 +8,13 @@ import { createRef, Ref, ref } from "lit/directives/ref.js";
 // ===============
 // NOTE: Do NOT remove these, otherwise custom element decorators are not executed and they will break!
 import "./components/belt-checkout.js";
-import "./components/belt-preview.js";
+import "./components/belt-preview/index.js";
 
 import { getImageAt, Product, queryProducts } from "./api/index.ts";
 import BeltCheckout from "./components/belt-checkout.ts";
-import BeltPreview from "./components/belt-preview.ts";
-import {
-  colorChipOption,
-  textOption,
-  thumbnailOption,
-} from "./components/option.ts";
-import { beltColors } from "./models/belts.ts";
+import BeltPreview from "./components/belt-preview/index.ts";
+import { colorChipOption, textOption, thumbnailOption } from "./components/option.ts";
+import { beltColors, beltSizes } from "./models/belts.ts";
 import Wizard, { renderView } from "./models/wizard/index.ts";
 
 // See https://open-wc.org
