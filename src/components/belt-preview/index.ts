@@ -347,7 +347,6 @@ private onConchoDragEnd(e: DragEvent) {
 
     const aspect = cropped.height / cropped.width;
     const cssHeight = Math.max(1, Math.round(cssWidth * aspect));
-    canvas.style.height = `${cssHeight}px`;
 
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(cssWidth * dpr);

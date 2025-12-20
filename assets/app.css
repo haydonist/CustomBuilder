@@ -252,6 +252,7 @@ belt-wizard section.step h2 {
   min-height: 150px;
   pointer-events: none;
   transition: transform 0.5s ease-in-out;
+  align-content: center;
 }
 #preview belt-preview.step-1 {
   transform: scale(1.5) translateX(1600px);
@@ -279,7 +280,7 @@ belt-wizard section.step h2 {
   background-size: 80vw auto;
   background-repeat: no-repeat;
   position: relative;
-  margin-top: -200px;
+  margin-top: -10%;
   z-index: 5;
 }
 
