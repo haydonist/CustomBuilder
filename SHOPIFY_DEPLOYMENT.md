@@ -141,6 +141,36 @@ shopify app deploy
 
 After deploying, you typically install the released version onto a store from the Shopify Partner Dashboard (the exact labels can vary). Look for actions like "Test on store" / "Install" for the app, then complete the install flow in the target store admin.
 
+### 7. Updating the App Version / Code (Partner Dashboard + App Distribution)
+
+When you change the app code (Theme App Extension Liquid/assets, settings schema, etc.), you generally update stores by deploying a new app version.
+
+1. **Update code locally**
+
+2. **Deploy a new version via Shopify CLI**
+
+```bash
+npm run shopify:deploy
+# or
+shopify app deploy
+```
+
+This uploads the updated extension/app version to Shopify.
+
+3. **Confirm the new version in Shopify Partners**
+   - In Shopify Partners, open the app ("Dev Dashboard").
+   - Check the app's version / extensions area to confirm the latest deployment is present.
+   - If you distribute the app via an install link (App Distribution), ensure the install link is pointing at the intended/released version.
+
+### Are updates automatically applied to the store?
+
+Usually, yes:
+- If a store already has the app installed and you deploy an update, Shopify will serve the latest deployed Theme App Extension assets/blocks without requiring the merchant to reinstall.
+
+Common cases where you may need manual action:
+- If you change requested permissions/scopes for the app, the store typically needs to re-authorize the app.
+- If you're actively editing in the theme editor, you may need to refresh the theme editor to see newly deployed blocks/assets.
+
 ## Using the Belt Builder in a Theme
 
 ### Option 1: Add as App Block (Recommended)
