@@ -1,5 +1,5 @@
 import { delay } from "@std/async";
-import { css, html, LitElement, PropertyValues } from "lit";
+import { html, LitElement, PropertyValues } from "lit";
 import { customElement, eventOptions, state } from "lit/decorators.js";
 import { createRef, Ref, ref } from "lit/directives/ref.js";
 
@@ -13,8 +13,12 @@ import "./components/belt-preview/index.js";
 import { getImageAt, Product, queryProducts } from "./api/index.ts";
 import BeltCheckout from "./components/belt-checkout.ts";
 import BeltPreview from "./components/belt-preview/index.ts";
-import { colorChipOption, textOption, thumbnailOption } from "./components/option.ts";
-import { beltColors, beltSizes } from "./models/belts.ts";
+import {
+  colorChipOption,
+  textOption,
+  thumbnailOption,
+} from "./components/option.ts";
+import { beltColors } from "./models/belts.ts";
 import Wizard, { renderView } from "./models/wizard/index.ts";
 
 // See https://open-wc.org
@@ -181,9 +185,17 @@ export class CustomBeltWizard extends LitElement {
     id: "summary",
     title: "Your Belt",
     subtitle: "Here's your chosen belt.",
-    shortcut: html`
-      <a class="btn primary" href="#">Checkout</a>
-    `,
+    shortcut: () =>
+      html`
+        <button
+          type="button"
+          class="btn primary"
+          @click="${() => this.triggerCheckoutFromShortcut()}"
+        >
+          Checkout
+        </button>
+      `,
+
     view: () => {
       const missingParts: { label: string; stepId: number }[] = [];
 
@@ -385,7 +397,72 @@ export class CustomBeltWizard extends LitElement {
       checkout.beltData = this.beltData;
       checkout.loops = this.beltLoops;
       checkout.conchos = this.beltConchos;
+
+      checkout.baseVariantId = this.getSelectedSingleVariantId(
+        "base",
+        this.beltBase,
+      );
+      checkout.buckleVariantId = this.getSelectedSingleVariantId(
+        "buckle",
+        this.beltBuckle,
+      );
+
+      checkout.tipVariantId = this.hasSetSelected()
+        ? undefined
+        : this.getSelectedSingleVariantId("tip", this.beltTip);
+
+      checkout.loopsVariantIds = this.hasSetSelected()
+        ? []
+        : this.getSelectedMultiVariantIds("loop", 2);
+
+      checkout.conchosVariantIds = this.getSelectedMultiVariantIds("concho", 5);
     }
+  }
+
+  private getSelectedSingleVariantId(
+    kind: "base" | "buckle" | "tip",
+    product: Product | null,
+  ): string | undefined {
+    if (!product) return undefined;
+
+    const candidate =
+      (this.selection?.get(`${kind}Variant`) as string | null) ?? null;
+
+    if (candidate && product.variants.some((v) => v.id === candidate)) {
+      return candidate;
+    }
+
+    const fallback = product.variants?.[0]?.id;
+    if (!fallback) {
+      throw new Error(`${kind} product ${product.id} has no variants`);
+    }
+    return fallback;
+  }
+
+  private getSelectedMultiVariantIds(
+    kind: "loop" | "concho",
+    max: number,
+  ): string[] {
+    const selectedProducts = kind === "loop"
+      ? this.beltLoops
+      : this.beltConchos;
+
+    const variantIds =
+      (this.selection?.getAll(`${kind}Variant`) as string[] | undefined) ?? [];
+
+    return selectedProducts.slice(0, max).map((product, index) => {
+      const candidate = variantIds[index];
+
+      if (candidate && product.variants.some((v) => v.id === candidate)) {
+        return candidate;
+      }
+
+      const fallback = product.variants?.[0]?.id;
+      if (!fallback) {
+        throw new Error(`${kind} product ${product.id} has no variants`);
+      }
+      return fallback;
+    });
   }
 
   override render() {
@@ -538,6 +615,21 @@ export class CustomBeltWizard extends LitElement {
       this.buildMultiSelectStep("loop", beltLoops, 2);
       this.buildSingleSelectStep("tip", beltTips);
     }
+  }
+  private triggerCheckoutFromShortcut(): void {
+    const checkoutEl = this.checkout.value;
+    if (!checkoutEl) return;
+
+    const anyCheckout = checkoutEl;
+    if (typeof anyCheckout.checkoutNow === "function") {
+      anyCheckout.checkoutNow();
+      return;
+    }
+
+    const btn = checkoutEl.shadowRoot?.querySelector("button.btn.primary") as
+      | HTMLButtonElement
+      | null;
+    btn?.click();
   }
 
   private beltData: Product[][] = [];

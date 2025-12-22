@@ -1,4 +1,3 @@
-import { assert } from "@std/assert";
 import { createStorefrontApiClient } from "@shopify/storefront-api-client";
 
 const client = createStorefrontApiClient({
