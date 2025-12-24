@@ -1,22 +1,34 @@
 import { css, html, LitElement, TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 
-import { getImageAt, Product } from "../api/index.ts";
+import { getImageAt, Product, ProductVariant } from "../api/index.ts";
+import { createCartAndGetCheckoutUrl, toLineVariant } from "../api/cart.ts";
+
 import * as styles from "../styles.ts";
 import { formatMoney } from "../utils.ts";
 import { thumbnailOption } from "./option.ts";
+
 
 type ProductCountById = Map<string, { product: Product, count: number }>;
 
 @customElement('belt-checkout')
 export default class BeltCheckout extends LitElement {
-  @property({type: String}) base?: string;
+    @property({type: String}) base?: string;
   @property({type: String}) buckle?: string;
   @property({type: String}) tip?: string;
 
-  @state() beltData: Product[][] = [];
+  @property({type: String}) baseVariantId?: string; 
+  @property({type: String}) buckleVariantId?: string;
+  @property({type: String}) tipVariantId?: string;
+  @property({ type: Array }) loopsVariantIds: string[] = [];
+  @property({ type: Array }) conchosVariantIds: string[] = [];
+
+
+
+    @state() beltData: Product[][] = [];
   @state() loops: Product[] = [];
   @state() conchos: Product[] = [];
+  @state() private isCheckingOut = false;
 
   static override styles = css`
     ${styles.theme}
@@ -69,18 +81,35 @@ export default class BeltCheckout extends LitElement {
     const tipSelection = this.tip && tipProduct ? productToThumbnail(tipProduct, "beltTip", 5) : null;
 
     // Calculate total price
-    const basePrice = Number.parseFloat(base.priceRange.minVariantPrice.amount);
-    const bucklePrice = Number.parseFloat(buckle.priceRange.minVariantPrice.amount);
-    const tipPrice = tipProduct ? Number.parseFloat(tipProduct.priceRange.minVariantPrice.amount) : 0;
-    const loopsPrice = aggregatePrice(loopCounts);
-    const conchosPrice = aggregatePrice(conchoCounts);
+    const baseVariant = getVariantById(base, this.baseVariantId);
+const buckleVariant = getVariantById(buckle, this.buckleVariantId);
+
+if (!baseVariant || !buckleVariant) {
+  // If render happens before variant ids are set, do nothing
+}
+    const baseVar = getVariantById(base, this.baseVariantId);
+    const buckleVar = getVariantById(buckle, this.buckleVariantId);
+    const tipVar = tipProduct ? getVariantById(tipProduct, this.tipVariantId) : null;
+
+    const basePrice = baseVar ? moneyToNumber(baseVar.price.amount) : 0;
+    const bucklePrice = buckleVar ? moneyToNumber(buckleVar.price.amount) : 0;
+    const tipPrice = tipVar ? moneyToNumber(tipVar.price.amount) : 0;
+    const variantPriceById = buildVariantPriceIndex(this.beltData);
+
+    const loopsPrice = aggregateVariantCounts(this.loopsVariantIds).reduce((sum, { variantId, count }) => {
+      return sum + (variantPriceById.get(variantId) ?? 0) * count;
+    }, 0);
+
+    const conchosPrice = aggregateVariantCounts(this.conchosVariantIds).reduce((sum, { variantId, count }) => {
+      return sum + (variantPriceById.get(variantId) ?? 0) * count;
+    }, 0);
+
     const amount = (basePrice + bucklePrice + tipPrice + loopsPrice + conchosPrice).toFixed(2);
-    const currencyCode = base.priceRange.minVariantPrice.currencyCode;
+    const currencyCode = baseVar?.price.currencyCode ?? base.priceRange.minVariantPrice.currencyCode;
 
     return html`
       <div class="row wrap gap-medium">
         ${productToThumbnail(base, "base", 0)}
-        <!-- FIXME: Use the correct color here and render a color chip option. -->
         ${productToThumbnail(buckle, "buckle", 2)}
         ${loopSelection}
         ${conchoSelection}
@@ -89,21 +118,48 @@ export default class BeltCheckout extends LitElement {
       <div id="checkoutTotal">
         Total: <span class="price">${formatMoney({ amount, currencyCode })}</span>
       </div>
-      <button
+            <button
         class="btn primary"
-        @click=${() =>
-          this.dispatchEvent(
-            new CustomEvent("checkout", { bubbles: false, composed: true }),
-          )}
+        ?disabled=${this.isCheckingOut}
+        @click=${() => this.checkoutNow()}
       >
-        Checkout
+        ${this.isCheckingOut ? "Sending to checkout..." : "Checkout"}
       </button>
     `;
   }
-
   private gotoStep(step: number): void {
     this.dispatchEvent(new CustomEvent('step-change', { detail: step, bubbles: false, composed: true }));
   }
+    public async checkoutNow(): Promise<void> {
+  if (this.isCheckingOut) return;
+  this.isCheckingOut = true;
+
+  try {
+    if (!this.baseVariantId) throw new Error("Missing baseVariantId");
+    if (!this.buckleVariantId) throw new Error("Missing buckleVariantId");
+
+    const loops = (this.loopsVariantIds ?? []).filter(Boolean);
+    const conchos = (this.conchosVariantIds ?? []).filter(Boolean);
+
+    const lines = [
+      toLineVariant(this.baseVariantId, 1),
+      toLineVariant(this.buckleVariantId, 1),
+      ...(this.tipVariantId ? [toLineVariant(this.tipVariantId, 1)] : []),
+
+      ...aggregateVariantCounts(loops).map(({ variantId, count }) =>
+        toLineVariant(variantId, count),
+      ),
+      ...aggregateVariantCounts(conchos).map(({ variantId, count }) =>
+        toLineVariant(variantId, count),
+      ),
+    ];
+
+    const checkoutUrl = await createCartAndGetCheckoutUrl(lines);
+    window.location.assign(checkoutUrl);
+  } finally {
+    this.isCheckingOut = false;
+  }
+}
 }
 
 declare global {
@@ -130,4 +186,35 @@ function aggregatePrice(collection: ProductCountById) {
     const unit = Number.parseFloat(product.priceRange.minVariantPrice.amount);
     return amount += unit * count;
   }, 0)
+}
+
+function moneyToNumber(amount: string): number {
+  const n = Number.parseFloat(amount);
+  if (Number.isNaN(n)) throw new Error(`Invalid money amount: ${amount}`);
+  return n;
+}
+
+function getVariantById(product: Product, variantId?: string): ProductVariant | null {
+  if (!variantId) return null;
+  return product.variants.find(v => v.id === variantId) ?? null;
+}
+
+function aggregateVariantCounts(variantIds: string[]): Array<{ variantId: string; count: number }> {
+  const map = new Map<string, number>();
+  for (const id of variantIds) {
+    map.set(id, (map.get(id) ?? 0) + 1);
+  }
+  return Array.from(map.entries()).map(([variantId, count]) => ({ variantId, count }));
+}
+
+function buildVariantPriceIndex(beltData: Product[][]): Map<string, number> {
+  const index = new Map<string, number>();
+  for (const group of beltData) {
+    for (const p of group) {
+      for (const v of p.variants) {
+        index.set(v.id, moneyToNumber(v.price.amount));
+      }
+    }
+  }
+  return index;
 }
