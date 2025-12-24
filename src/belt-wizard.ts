@@ -38,29 +38,16 @@ export class CustomBeltWizard extends LitElement {
   private checkout: Ref<BeltCheckout> = createRef();
   private shouldAdvance = false;
 
-  @state()
-  private loading = false;
-  @state()
-  private beltBase: Product | null = null;
-  @state()
-  private beltBuckle: Product | null = null;
-  @state()
-  private beltLoops: Product[] = [];
-  @state()
-  private beltConchos: Product[] = [];
-  @state()
-  private beltTip: Product | null = null;
-  @state()
-  private buckleChoices: Product[] = [];
-
-  @state()
-  private buckleVariantImage: string | null = null;
-
-  @state()
-  private firstBaseSelected = false;
-
-  @state()
-  private activeVariantKey: string | null = null;
+  @state() private loading = false;
+  @state() private beltBase: Product | null = null;
+  @state() private beltBuckle: Product | null = null;
+  @state() private beltLoops: Product[] = [];
+  @state() private beltConchos: Product[] = [];
+  @state() private beltTip: Product | null = null;
+  @state() private buckleChoices: Product[] = [];
+  @state() private buckleVariantImage: string | null = null;
+  @state() private firstBaseSelected = false;
+  @state() private activeVariantKey: string | null = null;
 
   private variantSelection = new Map<string, string>();
 
@@ -599,9 +586,7 @@ export class CustomBeltWizard extends LitElement {
         queryProducts(`tag:tip${widthFilter}`),
       ]);
 
-      this.buckleChoices = [...beltBuckles, ...beltSets];
-
-      this.beltData[1] = this.buckleChoices;
+      this.beltData[1] = this.buckleChoices = [...beltSets, ...beltBuckles];
       this.beltData[2] = beltLoops;
       this.beltData[4] = beltTips;
       this.beltData[6] = beltSets;
@@ -749,11 +734,10 @@ export class CustomBeltWizard extends LitElement {
         queryProducts("tag:Set"),
       ]);
 
-    this.buckleChoices = [...beltBuckles, ...beltSets];
     this.beltData[1] = this.buckleChoices;
 
     this.buildSingleSelectStep("base", beltBases);
-    this.buildSingleSelectStep("buckle", this.buckleChoices);
+    this.buildSingleSelectStep("buckle", this.buckleChoices = [...beltSets, ...beltBuckles]);
     this.buildMultiSelectStep("loop", beltLoops, 2);
     this.buildMultiSelectStep("concho", beltConchos, 5);
     this.buildSingleSelectStep("tip", beltTips);
