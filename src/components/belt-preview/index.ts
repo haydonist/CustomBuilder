@@ -209,12 +209,6 @@ private _ro?: ResizeObserver;
   this.draggingLoopIndex = null;
 }
 
-override firstUpdated() {
-  // Re-render when 90vw changes (viewport resize, layout changes, etc.)
-  this._ro = new ResizeObserver(() => this.renderBeltBase());
-  this._ro.observe(document.documentElement);
-}
-
 override disconnectedCallback() {
   super.disconnectedCallback();
   this._ro?.disconnect();
@@ -326,7 +320,7 @@ protected override updated(changed: PropertyValues) {
     // kick a render once the element exists
     queueMicrotask(() => this.renderBeltBase());
   })}
-/>
+></canvas>
       <img id="buckle" class="center-vertically" src=${this.buckle ?? ""} aria-hidden="true" />
       <div id="loops" class="center-vertically">
         ${this.loops.map(
