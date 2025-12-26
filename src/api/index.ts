@@ -26,6 +26,15 @@ const productQuery = `
           id
           title
           tags
+          collections(first: 10) {
+            edges {
+              node {
+                id
+                title
+                handle
+              }
+            }
+          }
           priceRange {
             minVariantPrice {
               amount
@@ -102,10 +111,17 @@ export interface ProductVariant {
   quantityAvailable: number | null;
 }
 
+export interface ProductCollection {
+  id: string;
+  title: string;
+  handle: string;
+}
+
 export interface Product {
   id: string;
   title: string;
   tags: string[];
+  collections: ProductCollection[];
   images: ProductImage[];
   priceRange: {
     minVariantPrice: MoneyV2;
@@ -143,6 +159,11 @@ export async function queryProducts(
     id: product.id,
     title: product.title,
     tags: product.tags,
+    collections: (product.collections?.edges ?? []).map(({ node: c }: any) => ({
+      id: c.id,
+      title: c.title,
+      handle: c.handle,
+    })),
     images: product.images.edges.map(({ node: img }: any) => img),
     priceRange: product.priceRange,
     variants: product.variants.edges.map(({ node: v }: any) => ({

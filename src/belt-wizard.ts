@@ -38,16 +38,28 @@ export class CustomBeltWizard extends LitElement {
   private checkout: Ref<BeltCheckout> = createRef();
   private shouldAdvance = false;
 
-  @state() private loading = false;
-  @state() private beltBase: Product | null = null;
-  @state() private beltBuckle: Product | null = null;
-  @state() private beltLoops: Product[] = [];
-  @state() private beltConchos: Product[] = [];
-  @state() private beltTip: Product | null = null;
-  @state() private buckleChoices: Product[] = [];
-  @state() private buckleVariantImage: string | null = null;
-  @state() private firstBaseSelected = false;
-  @state() private activeVariantKey: string | null = null;
+  @state()
+  private loading = false;
+  @state()
+  private beltBase: Product | null = null;
+  @state()
+  private beltBuckle: Product | null = null;
+  @state()
+  private beltLoops: Product[] = [];
+  @state()
+  private beltConchos: Product[] = [];
+  @state()
+  private beltTip: Product | null = null;
+  @state()
+  private buckleChoices: Product[] = [];
+  @state()
+  private buckleVariantImage: string | null = null;
+  @state()
+  private firstBaseSelected = false;
+  @state()
+  private activeVariantKey: string | null = null;
+  @state()
+  private showBuckleSets = true;
 
   private variantSelection = new Map<string, string>();
 
@@ -245,6 +257,27 @@ export class CustomBeltWizard extends LitElement {
     const [moved] = copy.splice(from, 1);
     copy.splice(to, 0, moved);
     return copy;
+  }
+
+  private groupProductsByCollection(products: Product[]) {
+    const groups = new Map<string, Product[]>();
+
+    for (const product of products) {
+      const cols = product.collections ?? [];
+
+      if (cols.length === 0) {
+        const key = "Other";
+        groups.set(key, [...(groups.get(key) ?? []), product]);
+        continue;
+      }
+
+      for (const c of cols) {
+        const key = c.title; // or c.handle if you want stable keys
+        groups.set(key, [...(groups.get(key) ?? []), product]);
+      }
+    }
+
+    return groups;
   }
 
   private handleReorder(
@@ -487,8 +520,23 @@ export class CustomBeltWizard extends LitElement {
             ? html`
               <p class="subtitle">${currentStep.subtitle}</p>
             `
+            : null} ${currentStep.id === "buckle"
+            ? html`
+              <label>
+                <input
+                  type="checkbox"
+                  .checked="${this.showBuckleSets}"
+                  @change="${(e: Event) => {
+                    this.showBuckleSets =
+                      (e.target as HTMLInputElement).checked;
+                  }}"
+                />
+                Show Sets
+              </label>
+            `
             : null}
         </div>
+
         ${currentStep.shortcut && html`
           <div id="stepShortcut">${renderView(currentStep.shortcut)}</div>
         `}
@@ -621,46 +669,56 @@ export class CustomBeltWizard extends LitElement {
 
   private buildSingleSelectStep(variantKind: VariantKind, products: Product[]) {
     const buildStep = this.wizard.find(variantKind.toString())!;
-    buildStep.view = () =>
-      html`
-        <div class="row wrap gap-medium">
-          ${products.map((p: any) => {
-            const hasVariants = Array.isArray(p.variants) &&
-              p.variants.length > 1;
-            const popup = this.renderVariantPopup(variantKind, p);
-            const selected = this.selection?.get(variantKind) === p.id;
+    buildStep.view = () => {
+      const groups = this.groupProductsByCollection(products);
 
-            return thumbnailOption(
-              p.id,
-              getImageAt(p, 0),
-              variantKind,
-              p.id,
-              p.title,
-              p.priceRange.minVariantPrice,
-              {
-                onClick: this.handleCardClick(
-                  variantKind,
-                  p,
-                  hasVariants,
-                  () => {
-                    this.ensureSelection();
+      return html`
+        ${Array.from(groups.entries()).map(([collectionTitle, items]) =>
+          html`
+            <div>
+              <h3 class="collection-title">${collectionTitle}</h3>
+              <div class="row wrap gap-medium">
+                ${items.map((p: any) => {
+                  const hasVariants = Array.isArray(p.variants) &&
+                    p.variants.length > 1;
+                  const popup = this.renderVariantPopup(variantKind, p);
+                  const selected = this.selection?.get(variantKind) === p.id;
 
-                    if (variantKind === "tip" && this.hasSetSelected()) {
-                      this.resetBuckleLoopsAndTip();
-                    }
+                  return thumbnailOption(
+                    p.id,
+                    getImageAt(p, 0),
+                    variantKind,
+                    p.id,
+                    p.title,
+                    p.priceRange.minVariantPrice,
+                    {
+                      onClick: this.handleCardClick(
+                        variantKind,
+                        p,
+                        hasVariants,
+                        () => {
+                          this.ensureSelection();
 
-                    this.selection!.set(variantKind, p.id);
-                    this.applySelectionToPreview();
-                    this.submitStep();
-                  },
-                ),
-                selected,
-                popup,
-              },
-            );
-          })}
-        </div>
+                          if (variantKind === "tip" && this.hasSetSelected()) {
+                            this.resetBuckleLoopsAndTip();
+                          }
+
+                          this.selection!.set(variantKind, p.id);
+                          this.applySelectionToPreview();
+                          this.submitStep();
+                        },
+                      ),
+                      selected,
+                      popup,
+                    },
+                  );
+                })}
+              </div>
+            </div>
+          `
+        )}
       `;
+    };
   }
 
   private buildMultiSelectStep(
@@ -669,47 +727,60 @@ export class CustomBeltWizard extends LitElement {
     maxCount: number,
   ) {
     const step = this.wizard.find(variantKind + "s")!;
-    step.view = () =>
-      html`
-        <div class="row wrap gap-medium">
-          ${products.map((p: any) => {
-            const currentProducts = this.selection?.getAll(variantKind) as
-              | string[]
-              | undefined;
-            const count = currentProducts
-              ? currentProducts.filter((id) => id === p.id).length
-              : 0;
-            const selected = count > 0;
-            const hasVariants = Array.isArray(p.variants) &&
-              p.variants.length > 1;
-            const popup = this.renderVariantPopup(variantKind, p);
+    step.view = () => {
+      const groups = this.groupProductsByCollection(products);
 
-            return thumbnailOption(
-              p.id,
-              getImageAt(p, 0),
-              variantKind,
-              p.id,
-              p.title,
-              p.priceRange.minVariantPrice,
-              {
-                onClick: this.handleCardClick(
-                  variantKind,
-                  p,
-                  hasVariants,
-                  (ev: Event) => {
-                    ev.preventDefault();
-                    this.toggleSelection(variantKind, p.id, maxCount);
-                    this.requestUpdate();
-                  },
-                ),
-                selected,
-                count,
-                popup,
-              },
-            );
-          })}
-        </div>
+      return html`
+        ${Array.from(groups.entries()).map(([collectionTitle, items]) =>
+          html`
+            <div>
+              <h3 class="collection-title">${collectionTitle}</h3>
+
+              <div class="row wrap gap-medium">
+                ${items.map((p: any) => {
+                  const currentProducts = this.selection?.getAll(variantKind) as
+                    | string[]
+                    | undefined;
+
+                  const count = currentProducts
+                    ? currentProducts.filter((id) => id === p.id).length
+                    : 0;
+
+                  const selected = count > 0;
+                  const hasVariants = Array.isArray(p.variants) &&
+                    p.variants.length > 1;
+                  const popup = this.renderVariantPopup(variantKind, p);
+
+                  return thumbnailOption(
+                    p.id,
+                    getImageAt(p, 0),
+                    variantKind,
+                    p.id,
+                    p.title,
+                    p.priceRange.minVariantPrice,
+                    {
+                      onClick: this.handleCardClick(
+                        variantKind,
+                        p,
+                        hasVariants,
+                        (ev: Event) => {
+                          ev.preventDefault();
+                          this.toggleSelection(variantKind, p.id, maxCount);
+                          this.requestUpdate();
+                        },
+                      ),
+                      selected,
+                      count,
+                      popup,
+                    },
+                  );
+                })}
+              </div>
+            </div>
+          `
+        )}
       `;
+    };
   }
 
   private async updateProducts() {
@@ -737,7 +808,10 @@ export class CustomBeltWizard extends LitElement {
     this.beltData[1] = this.buckleChoices;
 
     this.buildSingleSelectStep("base", beltBases);
-    this.buildSingleSelectStep("buckle", this.buckleChoices = [...beltSets, ...beltBuckles]);
+    this.buildSingleSelectStep(
+      "buckle",
+      this.buckleChoices = [...beltSets, ...beltBuckles],
+    );
     this.buildMultiSelectStep("loop", beltLoops, 2);
     this.buildMultiSelectStep("concho", beltConchos, 5);
     this.buildSingleSelectStep("tip", beltTips);

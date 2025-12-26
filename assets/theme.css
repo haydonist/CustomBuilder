@@ -248,6 +248,11 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   outline-offset: 2px;
 }
 
+.collection-title {
+  font-size: 2rem;
+  margin-bottom: 0;
+}
+
 /* Options */
 .option {
   cursor: pointer;
