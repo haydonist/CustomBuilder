@@ -684,7 +684,7 @@ belt-wizard #summary .summary-complete {
 }
 
 .switch input:checked + .switch-track {
-  background: #476fff; 
+  background: #476fff;
 }
 
 .switch input:checked + .switch-track .switch-thumb {
@@ -723,7 +723,7 @@ belt-wizard #summary .summary-complete {
   padding: 0;
   border: 0;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08); 
+  background: rgba(255, 255, 255, 0.08);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -751,7 +751,7 @@ belt-wizard #summary .summary-complete {
   display: block;
   height: 3px;
   border-radius: 999px;
-  background: #fff; 
+  background: #fff;
 }
 
 .filter-icon .bar-1 {
@@ -800,7 +800,8 @@ belt-wizard #summary .summary-complete {
 
 .filter-popover-body {
   margin-top: 10px;
-  min-height: 80px; 
+  min-height: 80px;
+}
 
 .filter-item {
   display: flex;
