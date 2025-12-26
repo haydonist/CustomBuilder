@@ -36,6 +36,8 @@ export class CustomBeltWizard extends LitElement {
   private form: Ref<HTMLFormElement> = createRef();
   private preview: Ref<BeltPreview> = createRef();
   private checkout: Ref<BeltCheckout> = createRef();
+  private filterWrap: Ref<HTMLDivElement> = createRef();
+
   private shouldAdvance = false;
 
   @state()
@@ -60,6 +62,10 @@ export class CustomBeltWizard extends LitElement {
   private activeVariantKey: string | null = null;
   @state()
   private showBuckleSets = true;
+  @state()
+  private showCollectionFilter = false;
+  @state()
+  private collectionFilters: Record<string, string[]> = {};
 
   private variantSelection = new Map<string, string>();
 
@@ -73,6 +79,134 @@ export class CustomBeltWizard extends LitElement {
 
   private hasSetSelected(): boolean {
     return this.isSetProduct(this.beltBuckle);
+  }
+  private shouldShowCollectionFilter(stepId: string): boolean {
+    return stepId === "buckle" ||
+      stepId === "loops" ||
+      stepId === "conchos" ||
+      stepId === "tip";
+  }
+  private onGlobalPointerDown = (e: PointerEvent) => {
+    if (!this.showCollectionFilter) return;
+
+    const wrap = this.filterWrap.value;
+    const target = e.target as Node | null;
+
+    if (wrap && target && !wrap.contains(target)) {
+      this.showCollectionFilter = false;
+    }
+  };
+
+  private onGlobalKeyDown = (e: KeyboardEvent) => {
+    if (!this.showCollectionFilter) return;
+    if (e.key === "Escape") this.showCollectionFilter = false;
+  };
+
+  private getFilterStepKey(stepId: string): string | null {
+    if (stepId === "buckle") return "buckle";
+    if (stepId === "loops") return "loops";
+    if (stepId === "conchos") return "conchos";
+    if (stepId === "tip") return "tip";
+    return null;
+  }
+
+  private getProductsForStep(stepId: string): Product[] {
+    const [
+      _bases,
+      _buckles,
+      loops,
+      conchos,
+      tips,
+    ] = this.beltData;
+
+    if (stepId === "buckle") {
+      // your buckle step uses buckleChoices (sets + buckles)
+      let items = this.buckleChoices ?? [];
+
+      // keep your "Show Sets" behavior: filter by tag "set"
+      if (!this.showBuckleSets) {
+        items = items.filter((p) => !this.isSetProduct(p));
+      }
+      return items;
+    }
+
+    if (stepId === "loops") return loops ?? [];
+    if (stepId === "conchos") return conchos ?? [];
+    if (stepId === "tip") return tips ?? [];
+
+    return [];
+  }
+
+  private getAllCollectionsForStep(stepId: string): string[] {
+    const products = this.getProductsForStep(stepId);
+    const set = new Set<string>();
+
+    for (const p of products) {
+      const titles = p.collections?.length
+        ? p.collections.map((c) => c.title)
+        : ["Other"];
+
+      titles.forEach((t) => set.add(t));
+    }
+
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }
+
+  private getSelectedCollectionsForStep(stepId: string): string[] {
+    const key = this.getFilterStepKey(stepId);
+    if (!key) return [];
+    return this.collectionFilters[key] ?? [];
+  }
+
+  private toggleCollectionFilter(stepId: string, collectionTitle: string) {
+    const key = this.getFilterStepKey(stepId);
+    if (!key) return;
+
+    const current = new Set(this.collectionFilters[key] ?? []);
+    if (current.has(collectionTitle)) current.delete(collectionTitle);
+    else current.add(collectionTitle);
+
+    this.collectionFilters = {
+      ...this.collectionFilters,
+      [key]: Array.from(current),
+    };
+  }
+
+  private filterProductsBySelectedCollections(
+    stepId: string,
+    products: Product[],
+  ): Product[] {
+    const selected = this.getSelectedCollectionsForStep(stepId);
+    if (!selected.length) return products;
+
+    const selectedSet = new Set(selected);
+
+    return products.filter((p) => {
+      const titles = p.collections?.length
+        ? p.collections.map((c) => c.title)
+        : ["Other"];
+
+      return titles.some((t) => selectedSet.has(t));
+    });
+  }
+
+  private rebuildStepForFilter(stepId: string) {
+    if (stepId === "buckle") {
+      this.buildSingleSelectStep("buckle", this.buckleChoices);
+      return;
+    }
+    if (stepId === "loops") {
+      this.buildMultiSelectStep("loop", this.beltData[2] ?? [], 2);
+      return;
+    }
+    if (stepId === "conchos") {
+      this.buildMultiSelectStep("concho", this.beltData[3] ?? [], 5);
+      return;
+    }
+    if (stepId === "tip") {
+      this.buildSingleSelectStep("tip", this.beltData[4] ?? []);
+      return;
+    }
   }
 
   private advanceWizard() {
@@ -259,25 +393,31 @@ export class CustomBeltWizard extends LitElement {
     return copy;
   }
 
-  private groupProductsByCollection(products: Product[]) {
-    const groups = new Map<string, Product[]>();
+  private groupProductsByCollection(
+    products: Product[],
+    options?: { hideSets?: boolean },
+  ): Map<string, Product[]> {
+    const map = new Map<string, Product[]>();
 
     for (const product of products) {
-      const cols = product.collections ?? [];
-
-      if (cols.length === 0) {
-        const key = "Other";
-        groups.set(key, [...(groups.get(key) ?? []), product]);
+      if (
+        options?.hideSets &&
+        product.tags?.some((t) => t.toLowerCase() === "set")
+      ) {
         continue;
       }
 
-      for (const c of cols) {
-        const key = c.title; // or c.handle if you want stable keys
-        groups.set(key, [...(groups.get(key) ?? []), product]);
+      const titles = product.collections?.length
+        ? product.collections.map((c) => c.title)
+        : ["Other"];
+
+      for (const title of titles) {
+        if (!map.has(title)) map.set(title, []);
+        map.get(title)!.push(product);
       }
     }
 
-    return groups;
+    return map;
   }
 
   private handleReorder(
@@ -410,7 +550,7 @@ export class CustomBeltWizard extends LitElement {
     return this;
   }
 
-  protected override updated(_changedProperties: PropertyValues): void {
+  protected override updated(changed: PropertyValues): void {
     // Ensure the checkout component has the latest belt data
     if (this.checkout.value) {
       const checkout = this.checkout.value;
@@ -436,6 +576,15 @@ export class CustomBeltWizard extends LitElement {
         : this.getSelectedMultiVariantIds("loop", 2);
 
       checkout.conchosVariantIds = this.getSelectedMultiVariantIds("concho", 5);
+    }
+    if (changed.has("showCollectionFilter")) {
+      if (this.showCollectionFilter) {
+        window.addEventListener("pointerdown", this.onGlobalPointerDown);
+        window.addEventListener("keydown", this.onGlobalKeyDown);
+      } else {
+        window.removeEventListener("pointerdown", this.onGlobalPointerDown);
+        window.removeEventListener("keydown", this.onGlobalKeyDown);
+      }
     }
   }
 
@@ -520,20 +669,6 @@ export class CustomBeltWizard extends LitElement {
             ? html`
               <p class="subtitle">${currentStep.subtitle}</p>
             `
-            : null} ${currentStep.id === "buckle"
-            ? html`
-              <label>
-                <input
-                  type="checkbox"
-                  .checked="${this.showBuckleSets}"
-                  @change="${(e: Event) => {
-                    this.showBuckleSets =
-                      (e.target as HTMLInputElement).checked;
-                  }}"
-                />
-                Show Sets
-              </label>
-            `
             : null}
         </div>
 
@@ -586,25 +721,147 @@ export class CustomBeltWizard extends LitElement {
         class="step ${this.firstBaseSelected ? "step-shifted" : ""}"
       >
         <div class="step-content step-enter-${this.wizard.stepIndex}">
-          <form ${ref(this.form)} @submit="${async (ev: Event) => {
-            ev.preventDefault();
-            // Ensure the form data has its moment to change
-            await delay(0);
-            new FormData(this.form.value);
-          }}" @formdata="${async ({ formData }: FormDataEvent) => {
-            this.updateWizardSelection(formData);
+          ${this.shouldShowCollectionFilter(currentStep.id)
+            ? html`
+              <div class="step-tools">
+                ${currentStep.id === "buckle"
+                  ? html`
+                    <label class="switch">
+                      <input
+                        type="checkbox"
+                        .checked="${this.showBuckleSets}"
+                        @change="${(e: Event) => {
+                          this.showBuckleSets =
+                            (e.target as HTMLInputElement).checked;
+                          this.buildSingleSelectStep(
+                            "buckle",
+                            this.buckleChoices,
+                          );
+                          this.requestUpdate();
+                        }}"
+                      />
+                      <span class="switch-track" aria-hidden="true">
+                        <span class="switch-thumb" aria-hidden="true"></span>
+                      </span>
+                      <span class="switch-label">Show Sets</span>
+                    </label>
+                  `
+                  : null}
 
-            // If this submit wasn't triggered by submitStep(), do NOT auto-advance.
-            if (!this.shouldAdvance) {
-              return;
-            }
+                <div class="filter-wrap" ${ref(this.filterWrap)}>
+                  <button
+                    type="button"
+                    class="filter-btn"
+                    aria-haspopup="dialog"
+                    aria-expanded="${this.showCollectionFilter
+                      ? "true"
+                      : "false"}"
+                    @click="${(e: Event) => {
+                      e.stopPropagation();
+                      this.showCollectionFilter = !this.showCollectionFilter;
+                    }}"
+                  >
+                    <span class="filter-icon" aria-hidden="true">
+                      <span class="bar bar-1"></span>
+                      <span class="bar bar-2"></span>
+                      <span class="bar bar-3"></span>
+                    </span>
+                  </button>
 
-            // Reset for future submits
-            this.shouldAdvance = false;
+                  ${this.showCollectionFilter
+                    ? html`
+                      <div
+                        class="filter-popover"
+                        role="dialog"
+                        aria-modal="false"
+                        @click="${(e: Event) => e.stopPropagation()}"
+                      >
+                        <div class="filter-popover-header">
+                          <div class="filter-popover-title">Filter</div>
+                          <button
+                            type="button"
+                            class="filter-popover-close"
+                            @click="${() => (this.showCollectionFilter =
+                              false)}"
+                            aria-label="Close"
+                          >
+                            ×
+                          </button>
+                        </div>
 
-            await delay(500);
-            this.advanceWizard();
-          }}">
+                        <div class="filter-popover-body">
+                          ${(() => {
+                            const stepId = this.wizard.currentStep.id;
+                            const filterKey = this.getFilterStepKey(stepId);
+                            if (!filterKey) return null;
+
+                            const collections = this.getAllCollectionsForStep(
+                              stepId,
+                            );
+                            const selected = new Set(
+                              this.getSelectedCollectionsForStep(stepId),
+                            );
+
+                            if (collections.length === 0) {
+                              return html`
+                                <div>No collections found for this step.</div>
+                              `;
+                            }
+
+                            return html`
+                              <div class="filter-list" role="listbox" aria-multiselectable="true">
+                                ${collections.map((title) => {
+                                  const isSelected = selected.has(title);
+
+                                  return html`
+                                    <button
+                                      type="button"
+                                      class="filter-item ${isSelected
+                                        ? "is-selected"
+                                        : ""}"
+                                      aria-pressed="${isSelected
+                                        ? "true"
+                                        : "false"}"
+                                      @click="${() => {
+                                        this.toggleCollectionFilter(
+                                          stepId,
+                                          title,
+                                        );
+                                        this.rebuildStepForFilter(stepId);
+                                        this.requestUpdate();
+                                      }}"
+                                    >
+                                      <span class="filter-item-title">${title}</span>
+                                    </button>
+                                  `;
+                                })}
+                              </div>
+                            `;
+                          })()}
+                        </div>
+                      </div>
+                    `
+                    : null}
+                </div>
+              </div>
+            `
+            : null}
+
+          <form
+            ${ref(this.form)}
+            @submit="${async (ev: Event) => {
+              ev.preventDefault();
+              await delay(0);
+              new FormData(this.form.value);
+            }}"
+            @formdata="${async ({ formData }: FormDataEvent) => {
+              this.updateWizardSelection(formData);
+              if (!this.shouldAdvance) return;
+              this.shouldAdvance = false;
+              await delay(500);
+              this.advanceWizard();
+            }}"
+          >
             ${this.wizard.currentView}
           </form>
         </div>
@@ -670,7 +927,19 @@ export class CustomBeltWizard extends LitElement {
   private buildSingleSelectStep(variantKind: VariantKind, products: Product[]) {
     const buildStep = this.wizard.find(variantKind.toString())!;
     buildStep.view = () => {
-      const groups = this.groupProductsByCollection(products);
+      let visibleProducts = products;
+
+      if (variantKind === "buckle" && !this.showBuckleSets) {
+        visibleProducts = visibleProducts.filter((p) => !this.isSetProduct(p));
+      }
+
+      const stepId = variantKind === "buckle" ? "buckle" : variantKind;
+      visibleProducts = this.filterProductsBySelectedCollections(
+        stepId,
+        visibleProducts,
+      );
+
+      const groups = this.groupProductsByCollection(visibleProducts);
 
       return html`
         ${Array.from(groups.entries()).map(([collectionTitle, items]) =>
@@ -728,14 +997,23 @@ export class CustomBeltWizard extends LitElement {
   ) {
     const step = this.wizard.find(variantKind + "s")!;
     step.view = () => {
-      const groups = this.groupProductsByCollection(products);
+      const stepId = variantKind === "loop"
+        ? "loops"
+        : variantKind === "concho"
+        ? "conchos"
+        : `${variantKind}s`;
+
+      const filteredProducts = this.filterProductsBySelectedCollections(
+        stepId,
+        products,
+      );
+      const groups = this.groupProductsByCollection(filteredProducts);
 
       return html`
         ${Array.from(groups.entries()).map(([collectionTitle, items]) =>
           html`
             <div>
               <h3 class="collection-title">${collectionTitle}</h3>
-
               <div class="row wrap gap-medium">
                 ${items.map((p: any) => {
                   const currentProducts = this.selection?.getAll(variantKind) as

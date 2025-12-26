@@ -644,3 +644,207 @@ belt-wizard #summary .summary-complete {
   color: #15803d;
   font-weight: 500;
 }
+
+/* ===== Set? Switch ===== */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  user-select: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch-track {
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: #b0b0b0;
+  position: relative;
+  transition: background 150ms ease;
+  flex: 0 0 auto;
+}
+
+.switch-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #fff;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  transition: transform 150ms ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.switch input:checked + .switch-track {
+  background: #476fff; 
+}
+
+.switch input:checked + .switch-track .switch-thumb {
+  transform: translateX(18px);
+}
+
+.switch input:focus-visible + .switch-track {
+  outline: 2px solid #476fff;
+  outline-offset: 2px;
+}
+
+.switch-label {
+  line-height: 1;
+}
+.buckle-switch-row {
+  margin-top: 8px;
+}
+
+.step-tools {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.filter-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.filter-btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08); 
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.filter-btn:active {
+  transform: scale(0.98);
+}
+
+.filter-icon {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  line-height: 0;
+}
+
+.filter-icon .bar {
+  display: block;
+  height: 3px;
+  border-radius: 999px;
+  background: #fff; 
+}
+
+.filter-icon .bar-1 {
+  width: 18px;
+}
+.filter-icon .bar-2 {
+  width: 14px;
+}
+.filter-icon .bar-3 {
+  width: 10px;
+}
+
+.filter-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  z-index: 9999;
+}
+
+.filter-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.filter-popover-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+}
+
+.filter-popover-close {
+  border: 0;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: #111;
+}
+
+.filter-popover-body {
+  margin-top: 10px;
+  min-height: 80px; 
+
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #111 !important;
+  font-size: 14px;
+  width: 100%;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  background: transparent;
+  color: inherit;
+  border-radius: 10px;
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.2;
+}
+.filter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+}
+
+.filter-item:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.filter-item.is-selected {
+  background: #111;
+  color: #fff !important;
+  border-color: #111;
+}
+
+.filter-item.is-selected:hover {
+  background: #000;
+}
+
+.filter-item:focus-visible {
+  outline: 2px solid rgba(17, 17, 17, 0.6);
+  outline-offset: 2px;
+}
+
+.filter-item-title {
+  display: block;
+}
