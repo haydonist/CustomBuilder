@@ -264,16 +264,10 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   max-width: calc(50vw - 28px - 16px);
   width: 160px;
   aspect-ratio: 1;
-  backdrop-filter: blur(8px);
 }
 
 .option.text-only, .option .selection-indicator {
   object-fit: contain;
-  margin: 3px;
-  border: 1px solid var(--neutral-white);
-  border-radius: 8px;
-  background: #ffffff33;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .option:not(.text-only):not(.color-chip) label {
@@ -284,8 +278,16 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 }
 
 .option.text-only {
-  display: inline-block;
-  width: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  margin: 3px;
+  border: 1px solid var(--neutral-white);
+  border-radius: 8px;
+  background: #ffffff33;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .row.wrap:has(.option.text-only) {
@@ -346,15 +348,41 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 }
 
 .option:not(.text-only) input:checked + label .selection-indicator,
-.option.thumbnail.selected .selection-indicator {
+.option.thumbnail.selected .selection-indicator-wrapper {
   margin: 0;
   border-width: 4px;
   background: #ffffff80;
+}
+.option.thumbnail[data-kind="concho"] img.selection-indicator {
+  transform: scale(5);
+}
+
+.option.thumbnail[data-kind="buckle"][data-is-set="false"]
+  img.selection-indicator {
+  transform: scale(2) translateX(15%);
+}
+
+.option.thumbnail[data-kind="buckle"][data-is-set="true"]
+  img.selection-indicator {
+  transform: translatex(-5%);
+}
+.option.thumbnail[data-kind="loop"] img.selection-indicator {
+  transform: scale(3);
+}
+
+.option.thumbnail[data-kind="tip"] img.selection-indicator {
+  transform: scale(3);
 }
 
 .option.thumbnail .selection-indicator-wrapper {
   position: relative;
   display: inline-block;
+  margin: 3px;
+  border: 1px solid var(--neutral-white);
+  border-radius: 8px;
+  background: #ffffff33;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+  overflow: hidden;
 }
 
 .option.thumbnail .option-count {
@@ -421,7 +449,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   display: block;
   width: 40px;
   height: 40px;
-  scale: 2.5;
+  scale: 10;
   object-fit: cover;
 }
 

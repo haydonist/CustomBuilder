@@ -961,6 +961,7 @@ export class CustomBeltWizard extends LitElement {
                     p.title,
                     p.priceRange.minVariantPrice,
                     {
+                      isSet: variantKind === "buckle" && this.isSetProduct(p),
                       onClick: this.handleCardClick(
                         variantKind,
                         p,

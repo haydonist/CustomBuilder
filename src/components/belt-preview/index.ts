@@ -38,8 +38,12 @@ export default class BeltPreview extends LitElement {
   width: 90vw;       /* visual size */
   max-width: 100%;
   pointer-events: none;
-}
+  }
 
+  .selection-indicator-wrapper {
+    width: 160px;
+    height: 160px;
+  }
     #buckle,
     #tip {
       max-height: 100%;
@@ -47,11 +51,11 @@ export default class BeltPreview extends LitElement {
       pointer-events: auto;
     }
     #buckle {
-      left: -7.5%;
+      left: -5.8%;
+      z-index:-1;
     }
-
     #tip {
-      right: -2%;
+      right: -5%;
     }
 
     #loops {
@@ -125,6 +129,11 @@ export default class BeltPreview extends LitElement {
       cursor: grab;
       pointer-events: auto !important;
     }
+
+    .concho img{
+      scale: 5;
+    }
+
     .loop-item,
     .concho-wrapper {
       cursor: grab;

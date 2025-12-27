@@ -53,6 +53,7 @@ export function thumbnailOption(
     selected?: boolean;
     count?: number;
     popup?: ReturnType<typeof html> | null;
+    isSet?: boolean;
   },
 ) {
   if (!options) options = {};
@@ -66,6 +67,8 @@ export function thumbnailOption(
   return html`
     <span
       class="option thumbnail ${options.class ?? ""}"
+      data-kind="${name}"
+      data-is-set="${options.isSet ? "true" : "false"}"
       @click="${options.onClick}"
     >
       <input
@@ -76,9 +79,9 @@ export function thumbnailOption(
         value="${value}"
       />
       <label for="${id}">
-        <div class="selection-indicator-wrapper">
+        <div class="selection-indicator-wrapper ${options.class ?? ""}">
           <img
-            class="thumbnail selection-indicator ${options.class ?? ""}"
+            class="thumbnail selection-indicator"
             src="${img}"
             alt="${label}"
             width="160"
