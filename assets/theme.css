@@ -449,7 +449,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   display: block;
   width: 40px;
   height: 40px;
-  scale: 10;
+  scale: 5;
   object-fit: cover;
 }
 
@@ -461,6 +461,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 #preview {
   opacity: 0;
   transform: translateX(120px);
+  max-height: 150px;
 }
 
 /* When first base is selected, ease in from the side over 0.5s */
@@ -488,7 +489,7 @@ section.step.step-shifted {
 /* Options slide-down animation */
 @keyframes optionsSlideDown {
   from {
-    transform: translateY(-60%);
+    transform: translateY(-20%);
   }
   to {
     transform: translateY(0%);
@@ -671,6 +672,12 @@ belt-wizard #summary .summary-complete {
   font-size: 0.9rem;
   color: #15803d;
   font-weight: 500;
+}
+
+.size-step-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 2rem;
 }
 
 /* ===== Set? Switch ===== */

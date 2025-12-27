@@ -53,8 +53,16 @@ export default class BeltCheckout extends LitElement {
     // Group loops and conchos by product id and count occurrences
     const loopCounts = aggregateAndCount(this.loops);
     const conchoCounts = aggregateAndCount(this.conchos);
+    const isSetProduct = (p: Product) => (p.tags ?? []).some((t) => t.toLowerCase() === "set");
 
-    const productToThumbnail = (product: Product, name: string, step: number, count?: number): TemplateResult => {
+    const productToThumbnail = (
+      product: Product,
+      name: string,
+      step: number,
+      count?: number,
+    ): TemplateResult => {
+      const isSet = isSetProduct(product);
+
       return thumbnailOption(
         product.id,
         getImageAt(product, 0),
@@ -63,12 +71,16 @@ export default class BeltCheckout extends LitElement {
         product.title,
         product.priceRange.minVariantPrice,
         {
-          class: "summary",
+          class: [
+            "summary",
+            `kind-${name}`,        // kind-buckle, kind-loop, kind-concho, etc.
+            isSet ? "is-set" : "", 
+          ].filter(Boolean).join(" "),
           onClick: () => this.gotoStep(step),
-          count
+          count,
         },
       );
-    }
+    };
 
     const loopSelection = Array.from(loopCounts.values()).map(
       ({ product, count }) => productToThumbnail(product, "loop", 3, count)

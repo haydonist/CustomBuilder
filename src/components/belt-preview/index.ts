@@ -201,7 +201,7 @@ private onLoopDragOver(e: DragEvent) {
 private _baseCanvas: HTMLCanvasElement | null = null;
 private _ro?: ResizeObserver;
 
-  private onLoopDrop(e: DragEvent) {
+    private onLoopDrop(e: DragEvent) {
     e.preventDefault();
     const target = e.currentTarget as HTMLElement | null;
     if (!target) return;
@@ -215,8 +215,14 @@ private _ro?: ResizeObserver;
     updated.splice(to, 0, moved);
     this.loops = updated;
 
-  this.draggingLoopIndex = null;
-}
+    this.dispatchEvent(new CustomEvent("reorder-loops", {
+      detail: { fromIndex: from, toIndex: to },
+      bubbles: true,
+      composed: true,
+    }));
+
+    this.draggingLoopIndex = null;
+  }
 
 override disconnectedCallback() {
   super.disconnectedCallback();
@@ -264,6 +270,12 @@ protected override updated(changed: PropertyValues) {
     const [moved] = updated.splice(from, 1);
     updated.splice(to, 0, moved);
     this.conchos = updated;
+
+    this.dispatchEvent(new CustomEvent("reorder-conchos", {
+      detail: { fromIndex: from, toIndex: to },
+      bubbles: true,
+      composed: true, 
+    }));
 
     this.draggingConchoIndex = null;
   }

@@ -969,13 +969,34 @@ export class CustomBeltWizard extends LitElement {
                         () => {
                           this.ensureSelection();
 
+                          if (variantKind === "base") {
+                            const prevWidth = this.getBaseWidthTag(
+                              this.beltBase,
+                            );
+                            const nextWidth = this.getBaseWidthTag(p);
+
+                            const baseChanged = !!this.beltBase &&
+                              this.beltBase.id !== p.id;
+                            const widthChanged = prevWidth !== nextWidth;
+
+                            if (baseChanged && widthChanged) {
+                              this.resetSelectionsForBaseWidthChange();
+                            }
+                          }
+
                           if (variantKind === "tip" && this.hasSetSelected()) {
                             this.resetBuckleLoopsAndTip();
                           }
 
                           this.selection!.set(variantKind, p.id);
                           this.applySelectionToPreview();
-                          this.submitStep();
+
+                          if (variantKind !== "base") {
+                            this.submitStep();
+                          } else {
+                            this.shouldAdvance = false;
+                            this.form.value?.requestSubmit();
+                          }
                         },
                       ),
                       selected,
@@ -1101,35 +1122,37 @@ export class CustomBeltWizard extends LitElement {
     const sizeVariants = sizeProduct?.variants ?? [];
     sizeStep.view = () =>
       html`
-        <div class="row wrap gap-medium">
-          ${sizeVariants.length === 0
-            ? html`
-              <p>No sizes found. Check the "Size" product variants.</p>
-            `
-            : sizeVariants.map((variant) => {
-              const title = variant.title.trim();
+        <div class="size-step-wrapper">
+          <div class="row wrap gap-medium">
+            ${sizeVariants.length === 0
+              ? html`
+                <p>No sizes found. Check the "Size" product variants.</p>
+              `
+              : sizeVariants.map((variant) => {
+                const title = variant.title.trim();
 
-              const priceAmount = variant.price ?? null;
+                const priceAmount = variant.price ?? null;
 
-              const label = `${title}"`;
+                const label = `${title}"`;
 
-              return textOption(
-                `size-${variant.id}`,
-                "size",
-                variant.id,
-                label,
-                priceAmount,
-                {
-                  onClick: this.submitStep,
-                },
-              );
-            })}
+                return textOption(
+                  `size-${variant.id}`,
+                  "size",
+                  variant.id,
+                  label,
+                  priceAmount,
+                  {
+                    onClick: this.submitStep,
+                  },
+                );
+              })}
+          </div>
+          <img
+            id="sizingChart"
+            src="/assets/belts/sizing-chart.png"
+            alt="Perfect belt sizing chart"
+          />
         </div>
-        <img
-          id="sizingChart"
-          src="/assets/belts/sizing-chart.png"
-          alt="Perfect belt sizing chart"
-        />
       `;
 
     this.loading = false;
@@ -1562,6 +1585,50 @@ export class CustomBeltWizard extends LitElement {
     if (this.preview.value) {
       this.preview.value.buckle = "";
       this.preview.value.loops = [];
+      this.preview.value.tip = undefined as any;
+    }
+  }
+
+  private getBaseWidthTag(product: Product | null): string | null {
+    if (!product?.tags?.length) return null;
+    const t = product.tags.find((tag) => tag.toLowerCase().endsWith("mm"));
+    return t ?? null;
+  }
+
+  private resetSelectionsForBaseWidthChange() {
+    if (!this.selection) return;
+
+    const keysToClear = [
+      "buckle",
+      "buckleVariant",
+      "loop",
+      "loopVariant",
+      "concho",
+      "conchoVariant",
+      "tip",
+      "tipVariant",
+    ];
+
+    for (const key of keysToClear) this.selection.delete(key);
+
+    // Clear local state that mirrors selection
+    this.beltBuckle = null;
+    this.buckleVariantImage = null;
+    this.beltLoops = [];
+    this.beltConchos = [];
+    this.beltTip = null;
+
+    // Close any open UI + clear filters (collections will change with width)
+    this.showCollectionFilter = false;
+    this.collectionFilters = {};
+    this.activeVariantKey = null;
+    this.variantSelection.clear();
+
+    // Clear preview visuals
+    if (this.preview.value) {
+      this.preview.value.buckle = "";
+      this.preview.value.loops = [];
+      this.preview.value.conchos = [];
       this.preview.value.tip = undefined as any;
     }
   }
