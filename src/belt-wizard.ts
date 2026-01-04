@@ -10,14 +10,10 @@ import { createRef, Ref, ref } from "lit/directives/ref.js";
 import "./components/belt-checkout.js";
 import "./components/belt-preview/index.js";
 
-import { getImageAt, Product, queryProducts } from "./api/index.ts";
+import { getImageAt, Product, ProductVariant, queryProducts } from "./api/index.ts";
 import BeltCheckout from "./components/belt-checkout.ts";
 import BeltPreview from "./components/belt-preview/index.ts";
-import {
-  colorChipOption,
-  textOption,
-  thumbnailOption,
-} from "./components/option.ts";
+import { colorChipOption, textOption, thumbnailOption } from "./components/option.ts";
 import { beltColors } from "./models/belts.ts";
 import Wizard, { renderView } from "./models/wizard/index.ts";
 
@@ -81,10 +77,7 @@ export class CustomBeltWizard extends LitElement {
     return this.isSetProduct(this.beltBuckle);
   }
   private shouldShowCollectionFilter(stepId: string): boolean {
-    return stepId === "buckle" ||
-      stepId === "loops" ||
-      stepId === "conchos" ||
-      stepId === "tip";
+    return stepId === "buckle" || stepId === "loops" || stepId === "conchos" || stepId === "tip";
   }
   private onGlobalPointerDown = (e: PointerEvent) => {
     if (!this.showCollectionFilter) return;
@@ -111,13 +104,7 @@ export class CustomBeltWizard extends LitElement {
   }
 
   private getProductsForStep(stepId: string): Product[] {
-    const [
-      _bases,
-      _buckles,
-      loops,
-      conchos,
-      tips,
-    ] = this.beltData;
+    const [_bases, _buckles, loops, conchos, tips] = this.beltData;
 
     if (stepId === "buckle") {
       // your buckle step uses buckleChoices (sets + buckles)
@@ -142,9 +129,7 @@ export class CustomBeltWizard extends LitElement {
     const set = new Set<string>();
 
     for (const p of products) {
-      const titles = p.collections?.length
-        ? p.collections.map((c) => c.title)
-        : ["Other"];
+      const titles = p.collections?.length ? p.collections.map((c) => c.title) : ["Other"];
 
       titles.forEach((t) => set.add(t));
     }
@@ -172,19 +157,14 @@ export class CustomBeltWizard extends LitElement {
     };
   }
 
-  private filterProductsBySelectedCollections(
-    stepId: string,
-    products: Product[],
-  ): Product[] {
+  private filterProductsBySelectedCollections(stepId: string, products: Product[]): Product[] {
     const selected = this.getSelectedCollectionsForStep(stepId);
     if (!selected.length) return products;
 
     const selectedSet = new Set(selected);
 
     return products.filter((p) => {
-      const titles = p.collections?.length
-        ? p.collections.map((c) => c.title)
-        : ["Other"];
+      const titles = p.collections?.length ? p.collections.map((c) => c.title) : ["Other"];
 
       return titles.some((t) => selectedSet.has(t));
     });
@@ -247,144 +227,117 @@ export class CustomBeltWizard extends LitElement {
   };
 
   @state()
-  wizard = new Wizard([{
-    id: "base",
-    title: "Select a Belt Base",
-    shortcut: () =>
-      this.multiSelectShortcut(
-        "Select a Belt Base",
-        this.selection?.has("base") ?? false,
-      ),
-    view: html`
-      <div class="row wrap gap-medium"></div>
-    `,
-  }, {
-    id: "size",
-    title: "What is your waist size?",
-    subtitle: "We will add 3” to meet your perfect fit belt size",
-    view: html`
-      <div class="row wrap gap-medium"></div>
-      <img
-        id="sizingChart"
-        src="/assets/belts/sizing-chart.png"
-        alt="Perfect belt sizing chart"
-      />
-    `,
-    background: {
-      image: "url(/assets/belts/looped-belt.png)",
-      size: { default: "50vw", desktop: "33vw" },
+  wizard = new Wizard([
+    {
+      id: "base",
+      title: "Select a Belt Base",
+      shortcut: () => this.multiSelectShortcut("Select a Belt Base", this.selection?.has("base") ?? false),
+      view: html` <div class="row wrap gap-medium"></div> `,
     },
-  }, {
-    id: "buckle",
-    title: "Choose a Belt Buckle",
-    view: html`
-      <div class="row wrap gap-medium"></div>
-    `,
-  }, {
-    id: "loops",
-    title: "Add Belt Loops",
-    shortcut: () =>
-      this.multiSelectShortcut(
-        "No Belt Loops",
-        this.selection?.has("loop") || false,
-      ),
-    view: html`
-      <div class="row wrap gap-medium"></div>
-    `,
-  }, {
-    id: "conchos",
-    title: "Add Conchos",
-    subtitle: "Drag and drop conchos to style your belt",
-    shortcut: () =>
-      this.multiSelectShortcut(
-        "No Conchos",
-        this.selection?.has("concho") || false,
-      ),
-    view: html`
-      <div class="row wrap gap-medium"></div>
-    `,
-  }, {
-    id: "tip",
-    title: "Choose a Belt Tip",
-    shortcut: () =>
-      this.multiSelectShortcut(
-        "No Belt Tip",
-        this.selection?.has("tip") || false,
-      ),
-    view: html`
-      <div class="row wrap gap-medium"></div>
-    `,
-  }, {
-    id: "summary",
-    title: "Your Belt",
-    subtitle: "Here's your chosen belt.",
-    shortcut: () =>
-      html`
-        <button
-          type="button"
-          class="btn primary"
-          @click="${() => this.triggerCheckoutFromShortcut()}"
-        >
-          Checkout
-        </button>
+    {
+      id: "size",
+      title: "What is your waist size?",
+      subtitle: "We will add 3” to meet your perfect fit belt size",
+      view: html`
+        <div class="row wrap gap-medium"></div>
+        <img id="sizingChart" src="/assets/belts/sizing-chart.png" alt="Perfect belt sizing chart" />
       `,
-
-    view: () => {
-      const missingParts: { label: string; stepId: number }[] = [];
-
-      if (!this.beltBase) {
-        missingParts.push({ label: "Belt base", stepId: 0 });
-      }
-      if (!this.beltBuckle) {
-        missingParts.push({ label: "Buckle", stepId: 2 });
-      }
-      if (this.beltLoops.length === 0 && !this.hasSetSelected()) {
-        missingParts.push({ label: "Belt loop", stepId: 3 });
-      }
-
-      const hasMissing = missingParts.length > 0;
-
-      return html`
-        <div class="summary-header">
-          <h2 class="heading-5">Selections</h2>
-
-          ${hasMissing
-            ? html`
-              <div class="summary-warning">
-                <p>Your belt is missing:</p>
-                <ul>
-                  ${missingParts.map(
-                    (part) =>
-                      html`
-                        <li>
-                          <button
-                            type="button"
-                            class="summary-missing-link"
-                            @click="${() => this.wizard.goTo(part.stepId)}"
-                          >
-                            Add ${part.label}
-                          </button>
-                        </li>
-                      `,
-                  )}
-                </ul>
-              </div>
-            `
-            : ""}
-        </div>
-
-        <belt-checkout
-          ${ref(this.checkout)}
-          base="${this.beltBase?.id}"
-          buckle="${this.beltBuckle?.id}"
-          tip="${this.beltTip?.id}"
-          @step-change="${({ detail: step }: CustomEvent<number>) =>
-            this.wizard.goTo(step)}"
-        >
-        </belt-checkout>
-      `;
+      background: {
+        image: "url(/assets/belts/looped-belt.png)",
+        size: { default: "50vw", desktop: "33vw" },
+      },
     },
-  }]);
+    {
+      id: "buckle",
+      title: "Choose a Belt Buckle",
+      view: html` <div class="row wrap gap-medium"></div> `,
+    },
+    {
+      id: "loops",
+      title: "Add Belt Loops",
+      shortcut: () => this.multiSelectShortcut("No Belt Loops", this.selection?.has("loop") || false),
+      view: html` <div class="row wrap gap-medium"></div> `,
+    },
+    {
+      id: "conchos",
+      title: "Add Conchos",
+      subtitle: "Drag and drop conchos to style your belt",
+      shortcut: () => this.multiSelectShortcut("No Conchos", this.selection?.has("concho") || false),
+      view: html` <div class="row wrap gap-medium"></div> `,
+    },
+    {
+      id: "tip",
+      title: "Choose a Belt Tip",
+      shortcut: () => this.multiSelectShortcut("No Belt Tip", this.selection?.has("tip") || false),
+      view: html` <div class="row wrap gap-medium"></div> `,
+    },
+    {
+      id: "summary",
+      title: "Your Belt",
+      subtitle: "Here's your chosen belt.",
+      shortcut: () =>
+        html`
+          <button type="button" class="btn primary" @click="${() => this.triggerCheckoutFromShortcut()}">
+            Checkout
+          </button>
+        `,
+
+      view: () => {
+        const missingParts: { label: string; stepId: number }[] = [];
+
+        if (!this.beltBase) {
+          missingParts.push({ label: "Belt base", stepId: 0 });
+        }
+        if (!this.beltBuckle) {
+          missingParts.push({ label: "Buckle", stepId: 2 });
+        }
+        if (this.beltLoops.length === 0 && !this.hasSetSelected()) {
+          missingParts.push({ label: "Belt loop", stepId: 3 });
+        }
+
+        const hasMissing = missingParts.length > 0;
+
+        return html`
+          <div class="summary-header">
+            <h2 class="heading-5">Selections</h2>
+
+            ${hasMissing
+              ? html`
+                  <div class="summary-warning">
+                    <p>Your belt is missing:</p>
+                    <ul>
+                      ${missingParts.map(
+                        (part) =>
+                          html`
+                            <li>
+                              <button
+                                type="button"
+                                class="summary-missing-link"
+                                @click="${() => this.wizard.goTo(part.stepId)}"
+                              >
+                                Add ${part.label}
+                              </button>
+                            </li>
+                          `
+                      )}
+                    </ul>
+                  </div>
+                `
+              : ""}
+          </div>
+
+          <belt-checkout
+            ${ref(this.checkout)}
+            base="${this.beltBase?.id}"
+            buckle="${this.beltBuckle?.id}"
+            tip="${this.beltTip?.id}"
+            @step-change="${({ detail: step }: CustomEvent<number>) => this.wizard.goTo(step)}"
+          >
+          </belt-checkout>
+        `;
+      },
+    },
+  ]);
 
   private reorderArray<T>(items: T[], from: number, to: number): T[] {
     const copy = [...items];
@@ -393,23 +346,15 @@ export class CustomBeltWizard extends LitElement {
     return copy;
   }
 
-  private groupProductsByCollection(
-    products: Product[],
-    options?: { hideSets?: boolean },
-  ): Map<string, Product[]> {
+  private groupProductsByCollection(products: Product[], options?: { hideSets?: boolean }): Map<string, Product[]> {
     const map = new Map<string, Product[]>();
 
     for (const product of products) {
-      if (
-        options?.hideSets &&
-        product.tags?.some((t) => t.toLowerCase() === "set")
-      ) {
+      if (options?.hideSets && product.tags?.some((t) => t.toLowerCase() === "set")) {
         continue;
       }
 
-      const titles = product.collections?.length
-        ? product.collections.map((c) => c.title)
-        : ["Other"];
+      const titles = product.collections?.length ? product.collections.map((c) => c.title) : ["Other"];
 
       for (const title of titles) {
         if (!map.has(title)) map.set(title, []);
@@ -420,44 +365,27 @@ export class CustomBeltWizard extends LitElement {
     return map;
   }
 
-  private handleReorder(
-    kind: "loop" | "concho",
-    fromIndex: number,
-    toIndex: number,
-  ) {
+  private handleReorder(kind: "loop" | "concho", fromIndex: number, toIndex: number) {
     if (fromIndex === toIndex) return;
 
     if (kind === "loop") {
       this.beltLoops = this.reorderArray(this.beltLoops, fromIndex, toIndex);
       this.reorderFormDataMulti("loop", fromIndex, toIndex);
     } else {
-      this.beltConchos = this.reorderArray(
-        this.beltConchos,
-        fromIndex,
-        toIndex,
-      );
+      this.beltConchos = this.reorderArray(this.beltConchos, fromIndex, toIndex);
       this.reorderFormDataMulti("concho", fromIndex, toIndex);
     }
 
     this.applySelectionToPreview();
   }
 
-  private reorderFormDataMulti(
-    kind: "loop" | "concho",
-    from: number,
-    to: number,
-  ) {
+  private reorderFormDataMulti(kind: "loop" | "concho", from: number, to: number) {
     if (!this.selection) return;
 
     const ids = this.selection.getAll(kind) as string[];
     const variants = this.selection.getAll(`${kind}Variant`) as string[];
 
-    if (
-      from < 0 ||
-      from >= ids.length ||
-      to < 0 ||
-      to >= ids.length
-    ) {
+    if (from < 0 || from >= ids.length || to < 0 || to >= ids.length) {
       return;
     }
 
@@ -502,13 +430,7 @@ export class CustomBeltWizard extends LitElement {
     }
 
     return html`
-      <button
-        class="btn primary"
-        ?disabled="${!canContinue}"
-        @click="${() => this.submitStep()}"
-      >
-        ${label}
-      </button>
+      <button class="btn primary" ?disabled="${!canContinue}" @click="${() => this.submitStep()}">${label}</button>
     `;
   }
 
@@ -558,281 +480,206 @@ export class CustomBeltWizard extends LitElement {
       checkout.loops = this.beltLoops;
       checkout.conchos = this.beltConchos;
 
-      checkout.baseVariantId = this.getSelectedSingleVariantId(
-        "base",
-        this.beltBase,
-      );
-      checkout.buckleVariantId = this.getSelectedSingleVariantId(
-        "buckle",
-        this.beltBuckle,
-      );
-
-      checkout.tipVariantId = this.hasSetSelected()
-        ? undefined
-        : this.getSelectedSingleVariantId("tip", this.beltTip);
-
-      checkout.loopsVariantIds = this.hasSetSelected()
-        ? []
-        : this.getSelectedMultiVariantIds("loop", 2);
-
+      checkout.baseVariantId = this.getSelectedSingleVariantId("base", this.beltBase);
+      checkout.buckleVariantId = this.getSelectedSingleVariantId("buckle", this.beltBuckle);
+      checkout.tipVariantId = this.hasSetSelected() ? undefined : this.getSelectedSingleVariantId("tip", this.beltTip);
+      checkout.loopsVariantIds = this.hasSetSelected() ? [] : this.getSelectedMultiVariantIds("loop", 2);
       checkout.conchosVariantIds = this.getSelectedMultiVariantIds("concho", 5);
     }
     if (changed.has("showCollectionFilter")) {
       if (this.showCollectionFilter) {
-        window.addEventListener("pointerdown", this.onGlobalPointerDown);
-        window.addEventListener("keydown", this.onGlobalKeyDown);
+        self.addEventListener("pointerdown", this.onGlobalPointerDown);
+        self.addEventListener("keydown", this.onGlobalKeyDown);
       } else {
-        window.removeEventListener("pointerdown", this.onGlobalPointerDown);
-        window.removeEventListener("keydown", this.onGlobalKeyDown);
+        self.removeEventListener("pointerdown", this.onGlobalPointerDown);
+        self.removeEventListener("keydown", this.onGlobalKeyDown);
       }
     }
   }
 
-  private getSelectedSingleVariantId(
-    kind: "base" | "buckle" | "tip",
-    product: Product | null,
-  ): string | undefined {
+  private getSelectedSingleVariantId(kind: "base" | "buckle" | "tip", product: Product | null): string | undefined {
     if (!product) return undefined;
 
-    const candidate =
-      (this.selection?.get(`${kind}Variant`) as string | null) ?? null;
-
-    if (candidate && product.variants.some((v) => v.id === candidate)) {
-      return candidate;
-    }
+    const candidate = (this.selection?.get(`${kind}Variant`) as string | null) ?? null;
+    if (candidate && product.variants.some((v) => v.id === candidate)) return candidate;
 
     const fallback = product.variants?.[0]?.id;
-    if (!fallback) {
-      throw new Error(`${kind} product ${product.id} has no variants`);
-    }
+    if (!fallback) throw new Error(`${kind} product ${product.id} has no variants`);
     return fallback;
   }
 
-  private getSelectedMultiVariantIds(
-    kind: "loop" | "concho",
-    max: number,
-  ): string[] {
-    const selectedProducts = kind === "loop"
-      ? this.beltLoops
-      : this.beltConchos;
+  private getSelectedMultiVariantIds(kind: "loop" | "concho", max: number): string[] {
+    const selectedProducts = kind === "loop" ? this.beltLoops : this.beltConchos;
 
-    const variantIds =
-      (this.selection?.getAll(`${kind}Variant`) as string[] | undefined) ?? [];
+    const variantIds = (this.selection?.getAll(`${kind}Variant`) as string[] | undefined) ?? [];
 
     return selectedProducts.slice(0, max).map((product, index) => {
       const candidate = variantIds[index];
 
-      if (candidate && product.variants.some((v) => v.id === candidate)) {
-        return candidate;
-      }
+      if (candidate && product.variants.some((v) => v.id === candidate)) return candidate;
 
       const fallback = product.variants?.[0]?.id;
-      if (!fallback) {
-        throw new Error(`${kind} product ${product.id} has no variants`);
-      }
+      if (!fallback) throw new Error(`${kind} product ${product.id} has no variants`);
       return fallback;
     });
   }
 
   override render() {
-    if (this.loading) {
-      return html`
-        <div>Loading...</div>
-      `;
-    }
+    if (this.loading) return html` <div>Loading...</div> `;
 
     const currentStep = this.wizard.currentStep;
-    const buckleImage = this.buckleVariantImage ??
-      (this.beltBuckle ? getImageAt(this.beltBuckle, 0) : undefined);
+    const buckleImage = this.buckleVariantImage ?? (this.beltBuckle ? getImageAt(this.beltBuckle, 0) : undefined);
 
     return html`
       <section id="stepper">
-        ${this.wizard.steps.map((_, i) =>
-          html`
-            <button
-              class="step"
-              ?disabled="${this.wizard.stepIndex === i}"
-              title="${`Step ${i + 1} of ${this.wizard.steps.length}: ${
-                this.wizard.steps[i].title
-              }`}"
-              @click="${() => this.wizard.goTo(i)}"
-            >
-            </button>
-          `
+        ${this.wizard.steps.map(
+          (_, i) =>
+            html`
+              <button
+                class="step"
+                ?disabled="${this.wizard.stepIndex === i}"
+                title="${`Step ${i + 1} of ${this.wizard.steps.length}: ${this.wizard.steps[i].title}`}"
+                @click="${() => this.wizard.goTo(i)}"
+              ></button>
+            `
         )}
       </section>
       <section id="stepHeading" class="row">
-        <div id="stepTitle" class="step-title step-enter-${this.wizard
-          .stepIndex}">
+        <div id="stepTitle" class="step-title step-enter-${this.wizard.stepIndex}">
           <h2 class="heading-4">${currentStep.title}</h2>
-          ${currentStep.subtitle
-            ? html`
-              <p class="subtitle">${currentStep.subtitle}</p>
-            `
-            : null}
+          ${currentStep.subtitle ? html` <p class="subtitle">${currentStep.subtitle}</p> ` : null}
         </div>
 
-        ${currentStep.shortcut && html`
-          <div id="stepShortcut">${renderView(currentStep.shortcut)}</div>
-        `}
+        ${currentStep.shortcut && html` <div id="stepShortcut">${renderView(currentStep.shortcut)}</div> `}
       </section>
 
       ${this.beltBase
         ? html`
-          <section
-            id="preview"
-            class="${this.firstBaseSelected ? "preview-enter" : ""}"
-            style="position: sticky"
-          >
-            <belt-preview
-              class="step-${this.wizard.stepIndex}"
-              ${ref(this.preview)}
-              base="${getImageAt(this.beltBase, 1) ?? getImageAt(this.beltBase, 0) ?? ""}"
-              buckle="${buckleImage ?? ""}"
-              tip="${this.beltTip ? getImageAt(this.beltTip, 0) : undefined}"
-              @reorder-loops="${(e: CustomEvent<{ fromIndex: number; toIndex: number }>) =>
-                this.handleReorder("loop", e.detail.fromIndex, e.detail.toIndex)}"
-              @reorder-conchos="${(e: CustomEvent<{ fromIndex: number; toIndex: number }>) =>
-                this.handleReorder("concho", e.detail.fromIndex, e.detail.toIndex)}"
-              @remove-loop="${(e: CustomEvent<{ index: number }>) =>
-                this.removeItem("loop", e.detail.index)}"
-              @remove-concho="${(e: CustomEvent<{ index: number }>) =>
-                this.removeItem("concho", e.detail.index)}"
-            >
-            </belt-preview>
-          </section>
-        `
+            <section id="preview" class="${this.firstBaseSelected ? "preview-enter" : ""}" style="position: sticky">
+              <belt-preview
+                class="step-${this.wizard.stepIndex}"
+                ${ref(this.preview)}
+                base="${getImageAt(this.beltBase, 1) ?? getImageAt(this.beltBase, 0) ?? ""}"
+                buckle="${buckleImage ?? ""}"
+                tip="${this.beltTip ? getImageAt(this.beltTip, 0) : undefined}"
+                @reorder-loops="${(e: CustomEvent<{ fromIndex: number; toIndex: number }>) =>
+                  this.handleReorder("loop", e.detail.fromIndex, e.detail.toIndex)}"
+                @reorder-conchos="${(e: CustomEvent<{ fromIndex: number; toIndex: number }>) =>
+                  this.handleReorder("concho", e.detail.fromIndex, e.detail.toIndex)}"
+                @remove-loop="${(e: CustomEvent<{ index: number }>) => this.removeItem("loop", e.detail.index)}"
+                @remove-concho="${(e: CustomEvent<{ index: number }>) => this.removeItem("concho", e.detail.index)}"
+              >
+              </belt-preview>
+            </section>
+          `
         : null}
 
-      <section
-        id="${currentStep.id}"
-        class="step ${this.firstBaseSelected ? "step-shifted" : ""}"
-      >
+      <section id="${currentStep.id}" class="step ${this.firstBaseSelected ? "step-shifted" : ""}">
         <div class="step-content step-enter-${this.wizard.stepIndex}">
           ${this.shouldShowCollectionFilter(currentStep.id)
             ? html`
-              <div class="step-tools">
-                ${currentStep.id === "buckle"
-                  ? html`
-                    <label class="switch">
-                      <input
-                        type="checkbox"
-                        .checked="${this.showBuckleSets}"
-                        @change="${(e: Event) => {
-                          this.showBuckleSets =
-                            (e.target as HTMLInputElement).checked;
-                          this.buildSingleSelectStep(
-                            "buckle",
-                            this.buckleChoices,
-                          );
-                          this.requestUpdate();
-                        }}"
-                      />
-                      <span class="switch-track" aria-hidden="true">
-                        <span class="switch-thumb" aria-hidden="true"></span>
-                      </span>
-                      <span class="switch-label">Show Sets</span>
-                    </label>
-                  `
-                  : null}
-
-                <div class="filter-wrap" ${ref(this.filterWrap)}>
-                  <button
-                    type="button"
-                    class="filter-btn"
-                    aria-haspopup="dialog"
-                    aria-expanded="${this.showCollectionFilter
-                      ? "true"
-                      : "false"}"
-                    @click="${(e: Event) => {
-                      e.stopPropagation();
-                      this.showCollectionFilter = !this.showCollectionFilter;
-                    }}"
-                  >
-                    <span class="filter-icon" aria-hidden="true">
-                      <span class="bar bar-1"></span>
-                      <span class="bar bar-2"></span>
-                      <span class="bar bar-3"></span>
-                    </span>
-                  </button>
-
-                  ${this.showCollectionFilter
+                <div class="step-tools">
+                  ${currentStep.id === "buckle"
                     ? html`
-                      <div
-                        class="filter-popover"
-                        role="dialog"
-                        aria-modal="false"
-                        @click="${(e: Event) => e.stopPropagation()}"
-                      >
-                        <div class="filter-popover-header">
-                          <div class="filter-popover-title">Filter</div>
-                          <button
-                            type="button"
-                            class="filter-popover-close"
-                            @click="${() => (this.showCollectionFilter =
-                              false)}"
-                            aria-label="Close"
-                          >
-                            ×
-                          </button>
-                        </div>
-
-                        <div class="filter-popover-body">
-                          ${(() => {
-                            const stepId = this.wizard.currentStep.id;
-                            const filterKey = this.getFilterStepKey(stepId);
-                            if (!filterKey) return null;
-
-                            const collections = this.getAllCollectionsForStep(
-                              stepId,
-                            );
-                            const selected = new Set(
-                              this.getSelectedCollectionsForStep(stepId),
-                            );
-
-                            if (collections.length === 0) {
-                              return html`
-                                <div>No collections found for this step.</div>
-                              `;
-                            }
-
-                            return html`
-                              <div class="filter-list" role="listbox" aria-multiselectable="true">
-                                ${collections.map((title) => {
-                                  const isSelected = selected.has(title);
-
-                                  return html`
-                                    <button
-                                      type="button"
-                                      class="filter-item ${isSelected
-                                        ? "is-selected"
-                                        : ""}"
-                                      aria-pressed="${isSelected
-                                        ? "true"
-                                        : "false"}"
-                                      @click="${() => {
-                                        this.toggleCollectionFilter(
-                                          stepId,
-                                          title,
-                                        );
-                                        this.rebuildStepForFilter(stepId);
-                                        this.requestUpdate();
-                                      }}"
-                                    >
-                                      <span class="filter-item-title">${title}</span>
-                                    </button>
-                                  `;
-                                })}
-                              </div>
-                            `;
-                          })()}
-                        </div>
-                      </div>
-                    `
+                        <label class="switch">
+                          <input
+                            type="checkbox"
+                            .checked="${this.showBuckleSets}"
+                            @change="${(e: Event) => {
+                              this.showBuckleSets = (e.target as HTMLInputElement).checked;
+                              this.buildSingleSelectStep("buckle", this.buckleChoices);
+                              this.requestUpdate();
+                            }}"
+                          />
+                          <span class="switch-track" aria-hidden="true">
+                            <span class="switch-thumb" aria-hidden="true"></span>
+                          </span>
+                          <span class="switch-label">Show Sets</span>
+                        </label>
+                      `
                     : null}
+
+                  <div class="filter-wrap" ${ref(this.filterWrap)}>
+                    <button
+                      type="button"
+                      class="filter-btn"
+                      aria-haspopup="dialog"
+                      aria-expanded="${this.showCollectionFilter ? "true" : "false"}"
+                      @click="${(e: Event) => {
+                        e.stopPropagation();
+                        this.showCollectionFilter = !this.showCollectionFilter;
+                      }}"
+                    >
+                      <span class="filter-icon" aria-hidden="true">
+                        <span class="bar bar-1"></span>
+                        <span class="bar bar-2"></span>
+                        <span class="bar bar-3"></span>
+                      </span>
+                    </button>
+
+                    ${this.showCollectionFilter
+                      ? html`
+                          <div
+                            class="filter-popover"
+                            role="dialog"
+                            aria-modal="false"
+                            @click="${(e: Event) => e.stopPropagation()}"
+                          >
+                            <div class="filter-popover-header">
+                              <div class="filter-popover-title">Filter</div>
+                              <button
+                                type="button"
+                                class="filter-popover-close"
+                                @click="${() => (this.showCollectionFilter = false)}"
+                                aria-label="Close"
+                              >
+                                ×
+                              </button>
+                            </div>
+
+                            <div class="filter-popover-body">
+                              ${(() => {
+                                const stepId = this.wizard.currentStep.id;
+                                const filterKey = this.getFilterStepKey(stepId);
+                                if (!filterKey) return null;
+
+                                const collections = this.getAllCollectionsForStep(stepId);
+                                const selected = new Set(this.getSelectedCollectionsForStep(stepId));
+
+                                if (collections.length === 0) {
+                                  return html` <div>No collections found for this step.</div> `;
+                                }
+
+                                return html`
+                                  <div class="filter-list" role="listbox" aria-multiselectable="true">
+                                    ${collections.map((title) => {
+                                      const isSelected = selected.has(title);
+
+                                      return html`
+                                        <button
+                                          type="button"
+                                          class="filter-item ${isSelected ? "is-selected" : ""}"
+                                          aria-pressed="${isSelected ? "true" : "false"}"
+                                          @click="${() => {
+                                            this.toggleCollectionFilter(stepId, title);
+                                            this.rebuildStepForFilter(stepId);
+                                            this.requestUpdate();
+                                          }}"
+                                        >
+                                          <span class="filter-item-title">${title}</span>
+                                        </button>
+                                      `;
+                                    })}
+                                  </div>
+                                `;
+                              })()}
+                            </div>
+                          </div>
+                        `
+                      : null}
+                  </div>
                 </div>
-              </div>
-            `
+              `
             : null}
 
           <form
@@ -867,12 +714,7 @@ export class CustomBeltWizard extends LitElement {
       const baseWidth = this.beltBase?.tags?.find((t) => t.endsWith("mm"));
       const widthFilter = baseWidth ? ` AND tag:${baseWidth}` : "";
 
-      const [
-        beltBuckles,
-        beltSets,
-        beltLoops,
-        beltTips,
-      ] = await Promise.all([
+      const [beltBuckles, beltSets, beltLoops, beltTips] = await Promise.all([
         queryProducts(`tag:buckle${widthFilter}`),
         queryProducts(`tag:set${widthFilter}`),
         queryProducts(`tag:Loop${widthFilter}`),
@@ -884,10 +726,7 @@ export class CustomBeltWizard extends LitElement {
       this.beltData[4] = beltTips;
       this.beltData[6] = beltSets;
 
-      console.debug(
-        "Rebuilt buckle, set, loop, and tip steps based on base width:",
-        baseWidth,
-      );
+      console.debug("Rebuilt buckle, set, loop, and tip steps based on base width:", baseWidth);
 
       this.buildSingleSelectStep("buckle", this.buckleChoices);
       this.buildMultiSelectStep("loop", beltLoops, 2);
@@ -904,9 +743,7 @@ export class CustomBeltWizard extends LitElement {
       return;
     }
 
-    const btn = checkoutEl.shadowRoot?.querySelector("button.btn.primary") as
-      | HTMLButtonElement
-      | null;
+    const btn = checkoutEl.shadowRoot?.querySelector("button.btn.primary") as HTMLButtonElement | null;
     btn?.click();
   }
 
@@ -915,56 +752,43 @@ export class CustomBeltWizard extends LitElement {
   private buildSingleSelectStep(variantKind: VariantKind, products: Product[]) {
     const buildStep = this.wizard.find(variantKind.toString())!;
     buildStep.view = () => {
-      let visibleProducts = products;
-
-      if (variantKind === "buckle" && !this.showBuckleSets) {
-        visibleProducts = visibleProducts.filter((p) => !this.isSetProduct(p));
-      }
-
       const stepId = variantKind === "buckle" ? "buckle" : variantKind;
-      visibleProducts = this.filterProductsBySelectedCollections(
+      const hideBuckleSets = variantKind === "buckle" && !this.showBuckleSets;
+      const visibleProducts = this.filterProductsBySelectedCollections(
         stepId,
-        visibleProducts,
+        hideBuckleSets ? products.filter((p) => !this.isSetProduct(p)) : products,
       );
-
       const groups = this.groupProductsByCollection(visibleProducts);
 
       return html`
-        ${Array.from(groups.entries()).map(([collectionTitle, items]) =>
-          html`
-            <div>
-              <h3 class="collection-title">${collectionTitle}</h3>
-              <div class="row wrap gap-medium">
-                ${items.map((p: any) => {
-                  const hasVariants = Array.isArray(p.variants) &&
-                    p.variants.length > 1;
-                  const popup = this.renderVariantPopup(variantKind, p);
-                  const selected = this.selection?.get(variantKind) === p.id;
+        ${Array.from(groups.entries()).map(
+          ([collectionTitle, items]) =>
+            html`
+              <div>
+                <h3 class="collection-title">${collectionTitle}</h3>
+                <div class="row wrap gap-medium">
+                  ${items.map(p => {
+                    const hasVariants = Array.isArray(p.variants) && p.variants.length > 1;
+                    const popup = this.renderVariantPopup(variantKind, p);
+                    const selected = this.selection?.get(variantKind) === p.id;
 
-                  return thumbnailOption(
-                    p.id,
-                    getImageAt(p, 0),
-                    variantKind,
-                    p.id,
-                    p.title,
-                    p.priceRange.minVariantPrice,
-                    {
-                      isSet: variantKind === "buckle" && this.isSetProduct(p),
-                      onClick: this.handleCardClick(
-                        variantKind,
-                        p,
-                        hasVariants,
-                        () => {
+                    return thumbnailOption(
+                      p.id,
+                      getImageAt(p, 0)!,
+                      variantKind,
+                      p.id,
+                      p.title,
+                      p.priceRange.minVariantPrice,
+                      {
+                        isSet: variantKind === "buckle" && this.isSetProduct(p),
+                        onClick: this.handleCardClick(variantKind, p, hasVariants, () => {
                           this.ensureSelection();
 
                           if (variantKind === "base") {
-                            const prevWidth = this.getBaseWidthTag(
-                              this.beltBase,
-                            );
+                            const prevWidth = this.getBaseWidthTag(this.beltBase);
                             const nextWidth = this.getBaseWidthTag(p);
 
-                            const baseChanged = !!this.beltBase &&
-                              this.beltBase.id !== p.id;
+                            const baseChanged = !!this.beltBase && this.beltBase.id !== p.id;
                             const widthChanged = prevWidth !== nextWidth;
 
                             if (baseChanged && widthChanged) {
@@ -985,87 +809,65 @@ export class CustomBeltWizard extends LitElement {
                             this.shouldAdvance = false;
                             this.form.value?.requestSubmit();
                           }
-                        },
-                      ),
-                      selected,
-                      popup,
-                    },
-                  );
-                })}
+                        }),
+                        selected,
+                        popup,
+                      }
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          `
+            `
         )}
       `;
     };
   }
 
-  private buildMultiSelectStep(
-    variantKind: VariantKind,
-    products: Product[],
-    maxCount: number,
-  ) {
+  private buildMultiSelectStep(variantKind: VariantKind, products: Product[], maxCount: number) {
     const step = this.wizard.find(variantKind + "s")!;
     step.view = () => {
-      const stepId = variantKind === "loop"
-        ? "loops"
-        : variantKind === "concho"
-        ? "conchos"
-        : `${variantKind}s`;
-
-      const filteredProducts = this.filterProductsBySelectedCollections(
-        stepId,
-        products,
-      );
+      const stepId = variantKind === "loop" ? "loops" : variantKind === "concho" ? "conchos" : `${variantKind}s`;
+      const filteredProducts = this.filterProductsBySelectedCollections(stepId, products);
       const groups = this.groupProductsByCollection(filteredProducts);
 
       return html`
-        ${Array.from(groups.entries()).map(([collectionTitle, items]) =>
-          html`
-            <div>
-              <h3 class="collection-title">${collectionTitle}</h3>
-              <div class="row wrap gap-medium">
-                ${items.map((p: any) => {
-                  const currentProducts = this.selection?.getAll(variantKind) as
-                    | string[]
-                    | undefined;
+        ${Array.from(groups.entries()).map(
+          ([collectionTitle, items]) =>
+            html`
+              <div>
+                <h3 class="collection-title">${collectionTitle}</h3>
+                <div class="row wrap gap-medium">
+                  ${items.map(p => {
+                    const currentProducts = this.selection?.getAll(variantKind) as string[] | undefined;
 
-                  const count = currentProducts
-                    ? currentProducts.filter((id) => id === p.id).length
-                    : 0;
+                    const count = currentProducts ? currentProducts.filter((id) => id === p.id).length : 0;
 
-                  const selected = count > 0;
-                  const hasVariants = Array.isArray(p.variants) &&
-                    p.variants.length > 1;
-                  const popup = this.renderVariantPopup(variantKind, p);
+                    const selected = count > 0;
+                    const hasVariants = Array.isArray(p.variants) && p.variants.length > 1;
+                    const popup = this.renderVariantPopup(variantKind, p);
 
-                  return thumbnailOption(
-                    p.id,
-                    getImageAt(p, 0),
-                    variantKind,
-                    p.id,
-                    p.title,
-                    p.priceRange.minVariantPrice,
-                    {
-                      onClick: this.handleCardClick(
-                        variantKind,
-                        p,
-                        hasVariants,
-                        (ev: Event) => {
+                    return thumbnailOption(
+                      p.id,
+                      getImageAt(p, 0)!,
+                      variantKind,
+                      p.id,
+                      p.title,
+                      p.priceRange.minVariantPrice,
+                      {
+                        onClick: this.handleCardClick(variantKind, p, hasVariants, (ev: Event) => {
                           ev.preventDefault();
                           this.toggleSelection(variantKind, p.id, maxCount);
                           this.requestUpdate();
-                        },
-                      ),
-                      selected,
-                      count,
-                      popup,
-                    },
-                  );
-                })}
+                        }),
+                        selected,
+                        count,
+                        popup,
+                      }
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          `
+            `
         )}
       `;
     };
@@ -1074,16 +876,8 @@ export class CustomBeltWizard extends LitElement {
   private async updateProducts() {
     this.loading = true;
 
-    const [
-      beltBases,
-      beltBuckles,
-      beltLoops,
-      beltConchos,
-      beltTips,
-      beltSizes,
-      beltSets,
-    ] = this
-      .beltData = await Promise.all([
+    const [beltBases, beltBuckles, beltLoops, beltConchos, beltTips, beltSizes, beltSets] = (this.beltData =
+      await Promise.all([
         queryProducts("tag:Belt Strap"),
         queryProducts(`tag:buckle`),
         queryProducts(`tag:Loop`),
@@ -1091,15 +885,12 @@ export class CustomBeltWizard extends LitElement {
         queryProducts(`tag:tip`),
         queryProducts("tag:size"),
         queryProducts("tag:Set"),
-      ]);
+      ]));
 
     this.beltData[1] = this.buckleChoices;
 
     this.buildSingleSelectStep("base", beltBases);
-    this.buildSingleSelectStep(
-      "buckle",
-      this.buckleChoices = [...beltSets, ...beltBuckles],
-    );
+    this.buildSingleSelectStep("buckle", (this.buckleChoices = [...beltSets, ...beltBuckles]));
     this.buildMultiSelectStep("loop", beltLoops, 2);
     this.buildMultiSelectStep("concho", beltConchos, 5);
     this.buildSingleSelectStep("tip", beltTips);
@@ -1113,33 +904,20 @@ export class CustomBeltWizard extends LitElement {
         <div class="size-step-wrapper">
           <div class="row wrap gap-medium">
             ${sizeVariants.length === 0
-              ? html`
-                <p>No sizes found. Check the "Size" product variants.</p>
-              `
+              ? html` <p>No sizes found. Check the "Size" product variants.</p> `
               : sizeVariants.map((variant) => {
-                const title = variant.title.trim();
+                  const title = variant.title.trim();
 
-                const priceAmount = variant.price ?? null;
+                  const priceAmount = variant.price ?? null;
 
-                const label = `${title}"`;
+                  const label = `${title}"`;
 
-                return textOption(
-                  `size-${variant.id}`,
-                  "size",
-                  variant.id,
-                  label,
-                  priceAmount,
-                  {
+                  return textOption(`size-${variant.id}`, "size", variant.id, label, priceAmount, {
                     onClick: this.submitStep,
-                  },
-                );
-              })}
+                  });
+                })}
           </div>
-          <img
-            id="sizingChart"
-            src="/assets/belts/sizing-chart.png"
-            alt="Perfect belt sizing chart"
-          />
+          <img id="sizingChart" src="/assets/belts/sizing-chart.png" alt="Perfect belt sizing chart" />
         </div>
       `;
 
@@ -1152,23 +930,13 @@ export class CustomBeltWizard extends LitElement {
   }
 
   private applySelectionToPreview() {
-    const [
-      beltBases,
-      _beltBuckles,
-      beltLoops,
-      beltConchos,
-      beltTips,
-      _beltSizes,
-      _beltSets,
-    ] = this.beltData;
+    const [beltBases, _beltBuckles, beltLoops, beltConchos, beltTips, _beltSizes, _beltSets] = this.beltData;
 
     const hadBaseBefore = !!this.beltBase;
 
     // BASE
     if (this.selection?.has("base")) {
-      this.beltBase = beltBases.find((b) =>
-        b.id === this.selection!.get("base")
-      ) ?? null;
+      this.beltBase = beltBases.find((b) => b.id === this.selection!.get("base")) ?? null;
     } else {
       this.beltBase = null;
     }
@@ -1190,18 +958,13 @@ export class CustomBeltWizard extends LitElement {
     if (this.beltBuckle) {
       if (this.isSetProduct(this.beltBuckle)) {
         this.buckleVariantImage =
-          getImageAt(this.beltBuckle, 1, { fallbackToFirst: false }) ??
-            getImageAt(this.beltBuckle, 0);
+          getImageAt(this.beltBuckle, 1, { fallbackToFirst: false }) ?? getImageAt(this.beltBuckle, 0);
       } else if (this.selection?.has("buckleVariant")) {
         const variantId = this.selection.get("buckleVariant") as string;
-        const variants = (this.beltBuckle as any).variants ?? [];
-        const variant = variants.find((v: any) => v.id === variantId);
+        const variants = this.beltBuckle.variants ?? [];
+        const variant = variants.find(v => v.id === variantId);
 
-        if (variant && variant.image?.url) {
-          this.buckleVariantImage = variant.image.url;
-        } else {
-          this.buckleVariantImage = getImageAt(this.beltBuckle, 0);
-        }
+        this.buckleVariantImage = variant?.image?.url ?? getImageAt(this.beltBuckle, 0);;
       } else {
         this.buckleVariantImage = getImageAt(this.beltBuckle, 0);
       }
@@ -1212,115 +975,63 @@ export class CustomBeltWizard extends LitElement {
     // LOOPS: allow duplicates, max 2 total
     if (this.selection?.has("loop")) {
       const loopIds = this.selection!.getAll("loop") as string[];
-      const loopVariantIds =
-        this.selection!.getAll("loopVariant") as string[] ?? [];
+      const loopVariantIds = (this.selection!.getAll("loopVariant") as string[]) ?? [];
 
       const limitedLoopIds = loopIds.slice(0, 2);
-      const limitedLoopVariantIds = loopVariantIds.slice(
-        0,
-        limitedLoopIds.length,
-      );
+      const limitedLoopVariantIds = loopVariantIds.slice(0, limitedLoopIds.length);
 
-      this.beltLoops = limitedLoopIds
-        .map((id) => beltLoops.find((b) => b.id === id)!)
-        .filter(Boolean);
+      this.beltLoops = limitedLoopIds.map((id) => beltLoops.find((b) => b.id === id)!).filter(Boolean);
 
       if (this.preview.value) {
         this.preview.value.loops = this.beltLoops.map((loopProduct, index) => {
           const variantId = limitedLoopVariantIds[index];
-          const variants = (loopProduct as any).variants ?? [];
-
-          if (variantId && Array.isArray(variants)) {
-            const v = variants.find((vv: any) => vv.id === variantId);
-            if (v?.image?.url) {
-              return v.image.url;
-            }
-          }
+          const variants = loopProduct.variants ?? [];
+          if (variantId && Array.isArray(variants)) return variants.find(v => v.id === variantId)?.image?.url;
 
           return getImageAt(loopProduct, 0);
-        });
+        }).filter(x => x !== null && x !== undefined);
       }
     } else {
       this.beltLoops = [];
-      if (this.preview.value) {
-        this.preview.value.loops = [];
-      }
+      if (this.preview.value) this.preview.value.loops = [];
     }
 
     // CONCHOS: allow duplicates, max 5 total
     if (this.selection?.has("concho")) {
       const conchoIds = this.selection!.getAll("concho") as string[];
-      const conchoVariantIds =
-        this.selection!.getAll("conchoVariant") as string[] ?? [];
+      const conchoVariantIds = (this.selection!.getAll("conchoVariant") as string[]) ?? [];
 
       const limitedConchoIds = conchoIds.slice(0, 5);
-      const limitedConchoVariantIds = conchoVariantIds.slice(
-        0,
-        limitedConchoIds.length,
-      );
+      const limitedConchoVariantIds = conchoVariantIds.slice(0, limitedConchoIds.length);
 
-      this.beltConchos = limitedConchoIds
-        .map((id) => beltConchos.find((b) => b.id === id)!)
-        .filter(Boolean);
+      this.beltConchos = limitedConchoIds.map((id) => beltConchos.find((b) => b.id === id)!).filter(Boolean);
 
       if (this.preview.value) {
-        this.preview.value.conchos = this.beltConchos.map(
-          (conchoProduct, index) => {
-            const variantId = limitedConchoVariantIds[index];
-            const variants = (conchoProduct as any).variants ?? [];
+        this.preview.value.conchos = this.beltConchos.map((conchoProduct, index) => {
+          const variantId = limitedConchoVariantIds[index];
+          const variants = conchoProduct.variants ?? [];
+          if (variantId && Array.isArray(variants)) return variants.find(v => v.id === variantId)?.image?.url;
 
-            if (variantId && Array.isArray(variants)) {
-              const v = variants.find((vv: any) => vv.id === variantId);
-              if (v?.image?.url) {
-                return v.image.url;
-              }
-            }
-
-            return getImageAt(conchoProduct, 0);
-          },
-        );
+          return getImageAt(conchoProduct, 0);
+        }).filter(x => x !== null && x !== undefined);
       }
     } else {
       this.beltConchos = [];
-      if (this.preview.value) {
-        this.preview.value.conchos = [];
-      }
+      if (this.preview.value) this.preview.value.conchos = [];
     }
 
-    if (this.selection?.has("tip")) {
-      this.beltTip = beltTips.find((b) =>
-        b.id === this.selection!.get("tip")
-      ) ?? null;
-    } else {
-      this.beltTip = null;
-    }
+    this.beltTip = beltTips.find((b) => b.id === this.selection!.get("tip")) ?? null;
 
-    if (
-      this.beltBuckle &&
-      this.isSetProduct(this.beltBuckle) &&
-      this.preview.value
-    ) {
-      const loopImg = getImageAt(this.beltBuckle, 2, {
-        fallbackToFirst: false,
-      });
-      const tipImg = getImageAt(this.beltBuckle, 3, {
-        fallbackToFirst: false,
-      });
+    if (this.beltBuckle && this.isSetProduct(this.beltBuckle) && this.preview.value) {
+      const loopImg = getImageAt(this.beltBuckle, 2, { fallbackToFirst: false });
+      const tipImg = getImageAt(this.beltBuckle, 3, { fallbackToFirst: false });
 
-      if (!this.selection?.has("loop")) {
-        this.preview.value.loops = loopImg ? [loopImg] : [];
-      }
-
-      if (!this.selection?.has("tip")) {
-        this.preview.value.tip = tipImg ?? (undefined as any);
-      }
+      if (!this.selection?.has("loop")) this.preview.value.loops = loopImg ? [loopImg] : [];
+      if (!this.selection?.has("tip")) this.preview.value.tip = tipImg ?? null;
     }
   }
 
-  private renderVariantPopup(
-    kind: VariantKind,
-    product: any,
-  ): ReturnType<typeof html> | null {
+  private renderVariantPopup(kind: VariantKind, product: Product): ReturnType<typeof html> | null {
     const key = this.getVariantKey(kind, product.id);
     if (this.activeVariantKey !== key) return null;
 
@@ -1333,25 +1044,20 @@ export class CustomBeltWizard extends LitElement {
       ? this.getVariantCountsForProduct(kind as "loop" | "concho", product.id)
       : {};
 
-    const singleSelectedVariantId = !isMulti && this.selection
-      ? (this.selection.get(`${kind}Variant`) as string | null)
-      : null;
+    const singleSelectedVariantId =
+      !isMulti && this.selection ? (this.selection.get(`${kind}Variant`) as string | null) : null;
 
     return html`
-      <div
-        class="variant-popup"
-        @click="${(e: Event) => e.stopPropagation()}"
-      >
+      <div class="variant-popup" @click="${(e: Event) => e.stopPropagation()}">
         <div class="variant-popup-grid">
-          ${variants.map((variant: any) => {
+          ${variants.map(variant => {
             const variantId = variant.id;
-            const count = isMulti ? (countsByVariant[variantId] ?? 0) : 0;
+            const count = isMulti ? countsByVariant[variantId] ?? 0 : 0;
             const isSelected = isMulti
               ? count > 0 // any instances of this variant exist
               : singleSelectedVariantId === variantId;
             const showCountBadge = isMulti && count > 0;
-            const imgUrl = variant.image?.url ??
-              (variant.images?.[0]?.url ?? getImageAt(product, 0));
+            const imgUrl = variant.image?.url ?? variant.image?.url ?? getImageAt(product, 0);
 
             return html`
               <button
@@ -1364,11 +1070,7 @@ export class CustomBeltWizard extends LitElement {
                 }}"
               >
                 <img src="${imgUrl}" alt="${variant.title}" />
-                ${showCountBadge
-                  ? html`
-                    <span class="option-count">x${count}</span>
-                  `
-                  : null}
+                ${showCountBadge ? html` <span class="option-count">x${count}</span> ` : null}
               </button>
             `;
           })}
@@ -1377,12 +1079,7 @@ export class CustomBeltWizard extends LitElement {
     `;
   }
 
-  private handleCardClick(
-    kind: VariantKind,
-    product: any,
-    hasVariants: boolean,
-    baseOnClick?: (ev: Event) => void,
-  ) {
+  private handleCardClick(kind: VariantKind, product: Product, hasVariants: boolean, baseOnClick?: (ev: Event) => void) {
     return (ev: Event) => {
       if (hasVariants) {
         ev.preventDefault();
@@ -1398,11 +1095,7 @@ export class CustomBeltWizard extends LitElement {
     };
   }
 
-  private handleVariantSelect(
-    kind: VariantKind,
-    product: any,
-    variant: any,
-  ) {
+  private handleVariantSelect(kind: VariantKind, product: Product, variant: ProductVariant) {
     this.ensureSelection();
     const key = this.getVariantKey(kind, product.id);
     this.variantSelection.set(key, variant.id);
@@ -1413,8 +1106,7 @@ export class CustomBeltWizard extends LitElement {
       this.selection!.set(`${kind}Variant`, variant.id);
     }
 
-    const imgUrl = variant.image?.url ??
-      (variant.images?.[0]?.url ?? getImageAt(product, 0));
+    const imgUrl = variant.image?.url ?? variant.image?.url ?? getImageAt(product, 0);
 
     switch (kind) {
       case "base": {
@@ -1447,30 +1139,23 @@ export class CustomBeltWizard extends LitElement {
       }
 
       case "loop": {
-        if (this.hasSetSelected()) {
-          this.resetBuckleLoopsAndTip();
-        }
+        if (this.hasSetSelected()) this.resetBuckleLoopsAndTip();
 
         const totalLoops = this.getMultiTotal("loop");
-        if (totalLoops >= 2) {
-          break;
-        }
-
+        if (totalLoops >= 2) break;
         this.selection!.append("loop", product.id);
 
         this.applySelectionToPreview();
 
         if (this.preview.value) {
           const loopIds = this.selection!.getAll("loop") as string[];
-          this.preview.value.loops = loopIds.map(() => imgUrl);
+          this.preview.value.loops = loopIds.map(() => imgUrl).filter(x => x !== null);
         }
         break;
       }
       case "concho": {
         const totalConchos = this.getMultiTotal("concho");
-        if (totalConchos >= 5) {
-          break;
-        }
+        if (totalConchos >= 5) break;
 
         this.selection!.append("concho", product.id);
 
@@ -1483,9 +1168,8 @@ export class CustomBeltWizard extends LitElement {
     this.activeVariantKey = null;
     this.requestUpdate();
 
-    if (kind === "buckle" || kind === "tip" || kind === "base") {
-      this.submitStep();
-    }
+    if (kind !== "buckle" && kind !== "tip" && kind !== "base") return;
+    this.submitStep();
   }
 
   private getMultiTotal(kind: "loop" | "concho"): number {
@@ -1493,10 +1177,7 @@ export class CustomBeltWizard extends LitElement {
     return (this.selection.getAll(kind) as string[]).length;
   }
 
-  private getVariantCountsForProduct(
-    kind: "loop" | "concho",
-    productId: string,
-  ): Record<string, number> {
+  private getVariantCountsForProduct(kind: "loop" | "concho", productId: string): Record<string, number> {
     const counts: Record<string, number> = {};
     if (!this.selection) return counts;
 
@@ -1515,34 +1196,20 @@ export class CustomBeltWizard extends LitElement {
     return counts;
   }
 
-  private toggleSelection(
-    variantKind: VariantKind,
-    selectionId: string,
-    maxCount: number,
-  ) {
+  private toggleSelection(variantKind: VariantKind, selectionId: string, maxCount: number) {
     this.ensureSelection();
 
-    if (variantKind === "loop" && this.hasSetSelected()) {
-      this.resetBuckleLoopsAndTip();
-    }
+    if (variantKind === "loop" && this.hasSetSelected()) this.resetBuckleLoopsAndTip();
 
+    // WTF is this? Why so convoluted?
     let current = (this.selection!.getAll(variantKind) as string[]) ?? [];
-
-    const totalCount = current.length;
     const sameCount = current.filter((id) => id === selectionId).length;
+    current = sameCount >= maxCount
+      ? current.filter((id) => id !== selectionId)
+      : [...current, selectionId];
+    if (current.length > maxCount) current = current.slice(0, maxCount);
 
-    if (sameCount >= maxCount) {
-      current = current.filter((id) => id !== selectionId);
-    } else if (totalCount >= maxCount && sameCount === 0) {
-      // (do nothing)
-    } else {
-      current = [...current, selectionId];
-    }
-
-    if (current.length > maxCount) {
-      current = current.slice(0, maxCount);
-    }
-
+    // Reset variant selection
     this.selection!.delete(variantKind);
     current.forEach((id) => this.selection!.append(variantKind, id));
 
@@ -1552,29 +1219,18 @@ export class CustomBeltWizard extends LitElement {
   private resetBuckleLoopsAndTip() {
     if (!this.selection) return;
 
-    const keysToClear = [
-      "buckle",
-      "buckleVariant",
-      "loop",
-      "loopVariant",
-      "tip",
-      "tipVariant",
-    ];
-
-    for (const key of keysToClear) {
-      this.selection.delete(key);
-    }
+    const keysToClear = ["buckle", "buckleVariant", "loop", "loopVariant", "tip", "tipVariant"];
+    for (const key of keysToClear) this.selection.delete(key);
 
     this.beltBuckle = null;
     this.buckleVariantImage = null;
     this.beltLoops = [];
     this.beltTip = null;
 
-    if (this.preview.value) {
-      this.preview.value.buckle = "";
-      this.preview.value.loops = [];
-      this.preview.value.tip = undefined as any;
-    }
+    if (!this.preview.value) return;
+    this.preview.value.buckle = "";
+    this.preview.value.loops = [];
+    this.preview.value.tip = null;
   }
 
   private getBaseWidthTag(product: Product | null): string | null {
@@ -1596,7 +1252,6 @@ export class CustomBeltWizard extends LitElement {
       "tip",
       "tipVariant",
     ];
-
     for (const key of keysToClear) this.selection.delete(key);
 
     // Clear local state that mirrors selection
@@ -1614,10 +1269,10 @@ export class CustomBeltWizard extends LitElement {
 
     // Clear preview visuals
     if (this.preview.value) {
-      this.preview.value.buckle = "";
+      this.preview.value.buckle = null;
       this.preview.value.loops = [];
       this.preview.value.conchos = [];
-      this.preview.value.tip = undefined as any;
+      this.preview.value.tip = null;
     }
   }
 

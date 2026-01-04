@@ -13,19 +13,17 @@ type ProductCountById = Map<string, { product: Product, count: number }>;
 
 @customElement('belt-checkout')
 export default class BeltCheckout extends LitElement {
-    @property({type: String}) base?: string;
+  @property({type: String}) base?: string;
   @property({type: String}) buckle?: string;
   @property({type: String}) tip?: string;
 
-  @property({type: String}) baseVariantId?: string; 
+  @property({type: String}) baseVariantId?: string;
   @property({type: String}) buckleVariantId?: string;
   @property({type: String}) tipVariantId?: string;
   @property({ type: Array }) loopsVariantIds: string[] = [];
   @property({ type: Array }) conchosVariantIds: string[] = [];
 
-
-
-    @state() beltData: Product[][] = [];
+  @state() beltData: Product[][] = [];
   @state() loops: Product[] = [];
   @state() conchos: Product[] = [];
   @state() private isCheckingOut = false;
@@ -44,16 +42,14 @@ export default class BeltCheckout extends LitElement {
     }`;
 
   override render() {
-
-    // Otherwise, render chips for all of the user's product selections
     const [beltBases, beltBuckles, _beltLoops, _beltConchos, beltTips] = this.beltData;
-    const base = beltBases.find(x => x.id === this.base)!;
-    const buckle = beltBuckles.find(x => x.id === this.buckle)!;
+    const base = beltBases.find(x => x.id === this.base);
+    const buckle = beltBuckles.find(x => x.id === this.buckle);
 
     // Group loops and conchos by product id and count occurrences
     const loopCounts = aggregateAndCount(this.loops);
     const conchoCounts = aggregateAndCount(this.conchos);
-    const isSetProduct = (p: Product) => (p.tags ?? []).some((t) => t.toLowerCase() === "set");
+    const isSetProduct = (p: Product) => (p?.tags ?? []).some((t) => t.toLowerCase() === "set");
 
     const productToThumbnail = (
       product: Product,
@@ -65,7 +61,7 @@ export default class BeltCheckout extends LitElement {
 
       return thumbnailOption(
         product.id,
-        getImageAt(product, 0),
+        getImageAt(product, 0)!,
         name,
         product.id,
         product.title,
@@ -73,8 +69,9 @@ export default class BeltCheckout extends LitElement {
         {
           class: [
             "summary",
-            `kind-${name}`,        // kind-buckle, kind-loop, kind-concho, etc.
-            isSet ? "is-set" : "", 
+            // kind-buckle, kind-loop, kind-concho, etc.
+            `kind-${name}`,
+            isSet ? "set" : "",
           ].filter(Boolean).join(" "),
           onClick: () => this.gotoStep(step),
           count,
@@ -90,47 +87,40 @@ export default class BeltCheckout extends LitElement {
     );
 
     const tipProduct = beltTips.find(x => x.id === this.tip) ?? null;
-    const tipSelection = this.tip && tipProduct ? productToThumbnail(tipProduct, "beltTip", 5) : null;
+    const tipVariant = tipProduct ? getVariantById(tipProduct, this.tipVariantId) : null;
 
-    // Calculate total price
-    const baseVariant = getVariantById(base, this.baseVariantId);
-const buckleVariant = getVariantById(buckle, this.buckleVariantId);
+    const baseVariant = base ? getVariantById(base, this.baseVariantId) : null;
+    const buckleVariant = buckle ? getVariantById(buckle, this.buckleVariantId) : null;
+    // If render happens before variant ids are set, do nothing
+    if (!baseVariant || !buckleVariant) return;
 
-if (!baseVariant || !buckleVariant) {
-  // If render happens before variant ids are set, do nothing
-}
-    const baseVar = getVariantById(base, this.baseVariantId);
-    const buckleVar = getVariantById(buckle, this.buckleVariantId);
-    const tipVar = tipProduct ? getVariantById(tipProduct, this.tipVariantId) : null;
-
-    const basePrice = baseVar ? moneyToNumber(baseVar.price.amount) : 0;
-    const bucklePrice = buckleVar ? moneyToNumber(buckleVar.price.amount) : 0;
-    const tipPrice = tipVar ? moneyToNumber(tipVar.price.amount) : 0;
+    // Calculate price
+    const basePrice = baseVariant ? moneyToNumber(baseVariant.price.amount) : 0;
+    const bucklePrice = buckleVariant ? moneyToNumber(buckleVariant.price.amount) : 0;
+    const tipPrice = tipVariant ? moneyToNumber(tipVariant.price.amount) : 0;
     const variantPriceById = buildVariantPriceIndex(this.beltData);
-
     const loopsPrice = aggregateVariantCounts(this.loopsVariantIds).reduce((sum, { variantId, count }) => {
       return sum + (variantPriceById.get(variantId) ?? 0) * count;
     }, 0);
-
     const conchosPrice = aggregateVariantCounts(this.conchosVariantIds).reduce((sum, { variantId, count }) => {
       return sum + (variantPriceById.get(variantId) ?? 0) * count;
     }, 0);
 
     const amount = (basePrice + bucklePrice + tipPrice + loopsPrice + conchosPrice).toFixed(2);
-    const currencyCode = baseVar?.price.currencyCode ?? base.priceRange.minVariantPrice.currencyCode;
+    const currencyCode = baseVariant?.price.currencyCode ?? base?.priceRange.minVariantPrice.currencyCode ?? "en-US";
 
     return html`
       <div class="row wrap gap-medium">
-        ${productToThumbnail(base, "base", 0)}
-        ${productToThumbnail(buckle, "buckle", 2)}
+        ${base ? productToThumbnail(base, "base", 0) : null}
+        ${buckle ? productToThumbnail(buckle, "buckle", 2) : null}
         ${loopSelection}
         ${conchoSelection}
-        ${tipSelection}
+        ${tipProduct ? productToThumbnail(tipProduct, "beltTip", 5) : null}
       </div>
       <div id="checkoutTotal">
         Total: <span class="price">${formatMoney({ amount, currencyCode })}</span>
       </div>
-            <button
+      <button
         class="btn primary"
         ?disabled=${this.isCheckingOut}
         @click=${() => this.checkoutNow()}
@@ -139,39 +129,36 @@ if (!baseVariant || !buckleVariant) {
       </button>
     `;
   }
+
   private gotoStep(step: number): void {
     this.dispatchEvent(new CustomEvent('step-change', { detail: step, bubbles: false, composed: true }));
   }
-    public async checkoutNow(): Promise<void> {
-  if (this.isCheckingOut) return;
-  this.isCheckingOut = true;
 
-  try {
-    if (!this.baseVariantId) throw new Error("Missing baseVariantId");
-    if (!this.buckleVariantId) throw new Error("Missing buckleVariantId");
+  public async checkoutNow(): Promise<void> {
+    if (this.isCheckingOut) return;
+    this.isCheckingOut = true;
 
-    const loops = (this.loopsVariantIds ?? []).filter(Boolean);
-    const conchos = (this.conchosVariantIds ?? []).filter(Boolean);
+    try {
+      if (!this.baseVariantId) throw new Error("Missing baseVariantId");
+      if (!this.buckleVariantId) throw new Error("Missing buckleVariantId");
 
-    const lines = [
-      toLineVariant(this.baseVariantId, 1),
-      toLineVariant(this.buckleVariantId, 1),
-      ...(this.tipVariantId ? [toLineVariant(this.tipVariantId, 1)] : []),
+      const loops = (this.loopsVariantIds ?? []).filter(Boolean);
+      const conchos = (this.conchosVariantIds ?? []).filter(Boolean);
 
-      ...aggregateVariantCounts(loops).map(({ variantId, count }) =>
-        toLineVariant(variantId, count),
-      ),
-      ...aggregateVariantCounts(conchos).map(({ variantId, count }) =>
-        toLineVariant(variantId, count),
-      ),
-    ];
+      const lines = [
+        toLineVariant(this.baseVariantId, 1),
+        toLineVariant(this.buckleVariantId, 1),
+        ...(this.tipVariantId ? [toLineVariant(this.tipVariantId, 1)] : []),
+        ...aggregateVariantCounts(loops).map(({ variantId, count }) => toLineVariant(variantId, count)),
+        ...aggregateVariantCounts(conchos).map(({ variantId, count }) => toLineVariant(variantId, count)),
+      ];
 
-    const checkoutUrl = await createCartAndGetCheckoutUrl(lines);
-    window.location.assign(checkoutUrl);
-  } finally {
-    this.isCheckingOut = false;
+      const checkoutUrl = await createCartAndGetCheckoutUrl(lines);
+      self.location.assign(checkoutUrl);
+    } finally {
+      this.isCheckingOut = false;
+    }
   }
-}
 }
 
 declare global {
