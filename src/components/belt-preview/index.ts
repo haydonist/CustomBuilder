@@ -15,6 +15,11 @@ export default class BeltPreview extends LitElement {
   @state() loops: string[] = [];
   @state() conchos: string[] = [];
 
+  #baseCanvas: HTMLCanvasElement | null = null;
+
+  private draggingLoopIndex: number | null = null;
+  private draggingConchoIndex: number | null = null;
+
   static override styles = css`
     ${styles.theme}
 
@@ -32,18 +37,18 @@ export default class BeltPreview extends LitElement {
       transform: translateY(-50%);
     }
 
-  #base {
-  position: relative;
-  display: block;
-  width: 90vw;       /* visual size */
-  max-width: 100%;
-  pointer-events: none;
-  }
+    #base {
+      position: relative;
+      display: block;
+      width: 90vw;       /* visual size */
+      max-width: 100%;
+      pointer-events: none;
+    }
 
-  .selection-indicator-wrapper {
-    width: 160px;
-    height: 160px;
-  }
+    .selection-indicator-wrapper {
+      width: 160px;
+      height: 160px;
+    }
     #buckle,
     #tip {
       max-height: 100%;
@@ -181,167 +186,28 @@ export default class BeltPreview extends LitElement {
     }
   `;
 
-  // ---------- DRAG HANDLERS ----------
-  private onLoopDragStart(e: DragEvent) {
-    const target = e.currentTarget as HTMLElement | null;
-    if (!target || !e.dataTransfer) return;
-
-    this.draggingLoopIndex = Number(target.dataset.index);
-    e.dataTransfer.setData("text/plain", "loop");
-    e.dataTransfer.effectAllowed = "move";
-
-    target.classList.add("dragging");
-    this.createDragImageFrom(target, e);
+  protected override updated(changed: PropertyValues) {
+    if (changed.has("base")) this.renderBeltBase();
   }
-
-private onLoopDragOver(e: DragEvent) {
-  e.preventDefault();
-}
-
-private _baseCanvas: HTMLCanvasElement | null = null;
-private _ro?: ResizeObserver;
-
-    private onLoopDrop(e: DragEvent) {
-    e.preventDefault();
-    const target = e.currentTarget as HTMLElement | null;
-    if (!target) return;
-
-    const from = this.draggingLoopIndex;
-    const to = Number(target.dataset.index);
-    if (from == null || from === to) return;
-
-    const updated = [...this.loops];
-    const [moved] = updated.splice(from, 1);
-    updated.splice(to, 0, moved);
-    this.loops = updated;
-
-    this.dispatchEvent(new CustomEvent("reorder-loops", {
-      detail: { fromIndex: from, toIndex: to },
-      bubbles: true,
-      composed: true,
-    }));
-
-    this.draggingLoopIndex = null;
-  }
-
-override disconnectedCallback() {
-  super.disconnectedCallback();
-  this._ro?.disconnect();
-}
-
-protected override updated(changed: PropertyValues) {
-  if (changed.has("base")) this.renderBeltBase();
-}
-
-  private onLoopDragEnd(e: DragEvent) {
-    const target = e.currentTarget as HTMLElement | null;
-    if (target) {
-      target.classList.remove("dragging");
-    }
-    this.draggingLoopIndex = null;
-  }
-
-  private onConchoDragStart(e: DragEvent) {
-    const target = e.currentTarget as HTMLElement | null;
-    if (!target || !e.dataTransfer) return;
-
-    this.draggingConchoIndex = Number(target.dataset.index);
-    e.dataTransfer.setData("text/plain", "concho");
-    e.dataTransfer.effectAllowed = "move";
-
-    target.classList.add("dragging");
-    this.createDragImageFrom(target, e);
-  }
-
-  private onConchoDragOver(e: DragEvent) {
-    e.preventDefault();
-  }
-
-  private onConchoDrop(e: DragEvent) {
-    e.preventDefault();
-    const target = e.currentTarget as HTMLElement | null;
-    if (!target) return;
-
-    const from = this.draggingConchoIndex;
-    const to = Number(target.dataset.index);
-    if (from == null || from === to) return;
-
-    const updated = [...this.conchos];
-    const [moved] = updated.splice(from, 1);
-    updated.splice(to, 0, moved);
-    this.conchos = updated;
-
-    this.dispatchEvent(new CustomEvent("reorder-conchos", {
-      detail: { fromIndex: from, toIndex: to },
-      bubbles: true,
-      composed: true, 
-    }));
-
-    this.draggingConchoIndex = null;
-  }
-
-  private onConchoDragEnd(e: DragEvent) {
-    const target = e.currentTarget as HTMLElement | null;
-    if (target) {
-      target.classList.remove("dragging");
-    }
-    this.draggingConchoIndex = null;
-  }
-
-  private createDragImageFrom(target: HTMLElement, e: DragEvent) {
-    if (!e.dataTransfer) return;
-
-    const img = target.querySelector("img") as HTMLImageElement | null;
-    if (!img) return;
-
-    const rect = img.getBoundingClientRect();
-    const scale = 1.2;
-
-    const dragImg = img.cloneNode(true) as HTMLImageElement;
-    dragImg.style.opacity = "0.85";
-    dragImg.style.pointerEvents = "none";
-    dragImg.style.position = "absolute";
-    dragImg.style.top = "-9999px";
-    dragImg.style.left = "-9999px";
-
-    const width = rect.width * scale;
-    const height = rect.height * scale;
-
-    dragImg.style.width = `${width}px`;
-    dragImg.style.height = `${height}px`;
-
-    document.body.appendChild(dragImg);
-
-    e.dataTransfer.setDragImage(dragImg, width / 2, height / 2);
-
-    requestAnimationFrame(() => {
-      if (dragImg.parentNode) {
-        dragImg.parentNode.removeChild(dragImg);
-      }
-    });
-  }
-
-
-
 
   protected override willUpdate(changed: PropertyValues) {
-  if (changed.has("base") && this.base) cacheImage(this.base);
-}
+    if (changed.has("base") && this.base) cacheImage(this.base);
+  }
 
   override render() {
     // TODO: Render the belt base, with transparent edges cropped out, to a canvas
     return html`
       <canvas
-  id="base"
-  aria-hidden="true"
-  ${ref((el?: Element) => {
-    if (!el) return;
-    assertInstanceOf(el, HTMLCanvasElement);
-    this._baseCanvas = el;
-    // kick a render once the element exists
-    queueMicrotask(() => this.renderBeltBase());
-  })}
-></canvas>
+        id="base"
+        aria-hidden="true"
+        ${ref((el?: Element) => {
+          if (!el) return;
+          assertInstanceOf(el, HTMLCanvasElement);
+          this.#baseCanvas = el;
+          // kick a render once the element exists
+          queueMicrotask(() => this.renderBeltBase());
+        })}
+      ></canvas>
       <img id="buckle" class="center-vertically" src=${this.buckle ?? ""} aria-hidden="true" />
       <div id="loops" class="center-vertically">
         ${this.loops.map(
@@ -401,35 +267,163 @@ protected override updated(changed: PropertyValues) {
   }
 
   private async renderBeltBase() {
-    console.debug("renderBeltBase()", { hasCanvas: !!this._baseCanvas, base: this.base });
+    console.debug("renderBeltBase()", { hasCanvas: !!this.#baseCanvas, base: this.base });
 
-  const canvas = this._baseCanvas;
-  if (!canvas || !this.base) return;
+    const canvas = this.#baseCanvas;
+    if (!canvas || !this.base) return;
 
-  try {
-    const img = await cacheImage(this.base);
-    const cropped = await cropToContents(img, img.naturalWidth, img.naturalHeight);
+    try {
+      const img = await cacheImage(this.base);
+      const cropped = await cropToContents(img, img.naturalWidth, img.naturalHeight);
 
-    await new Promise(requestAnimationFrame); // ensure layout is ready
-    const cssWidth = Math.floor(canvas.getBoundingClientRect().width) || 1;
+      await new Promise(requestAnimationFrame); // ensure layout is ready
+      const cssWidth = Math.floor(canvas.getBoundingClientRect().width) || 1;
 
-    const aspect = cropped.height / cropped.width;
-    const cssHeight = Math.max(1, Math.round(cssWidth * aspect));
+      const aspect = cropped.height / cropped.width;
+      const cssHeight = Math.max(1, Math.round(cssWidth * aspect));
 
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.round(cssWidth * dpr);
-    canvas.height = Math.round(cssHeight * dpr);
+      const dpr = self.devicePixelRatio || 1;
+      canvas.width = Math.round(cssWidth * dpr);
+      canvas.height = Math.round(cssHeight * dpr);
 
-    const ctx = canvas.getContext("2d");
-    assert(ctx);
+      const ctx = canvas.getContext("2d");
+      assert(ctx);
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, cssWidth, cssHeight);
-    ctx.drawImage(cropped, 0, 0, cssWidth, cssHeight);
-  } catch (e) {
-    console.error("renderBeltBase failed:", e);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, cssWidth, cssHeight);
+      ctx.drawImage(cropped, 0, 0, cssWidth, cssHeight);
+    } catch (e) {
+      console.error("renderBeltBase failed:", e);
+    }
   }
-}
+
+  // ---------- DRAG HANDLERS ----------
+  private onLoopDragStart(e: DragEvent) {
+    const target = e.currentTarget as HTMLElement | null;
+    if (!target || !e.dataTransfer) return;
+
+    this.draggingLoopIndex = Number(target.dataset.index);
+    e.dataTransfer.setData("text/plain", "loop");
+    e.dataTransfer.effectAllowed = "move";
+
+    target.classList.add("dragging");
+    this.createDragImageFrom(target, e);
+  }
+
+  private onLoopDragOver(e: DragEvent) {
+    e.preventDefault();
+  }
+
+  private onLoopDrop(e: DragEvent) {
+    e.preventDefault();
+    const target = e.currentTarget as HTMLElement | null;
+    if (!target) return;
+
+    const from = this.draggingLoopIndex;
+    const to = Number(target.dataset.index);
+    if (from == null || from === to) return;
+
+    const updated = [...this.loops];
+    const [moved] = updated.splice(from, 1);
+    updated.splice(to, 0, moved);
+    this.loops = updated;
+
+    this.dispatchEvent(new CustomEvent("reorder-loops", {
+      detail: { fromIndex: from, toIndex: to },
+      bubbles: true,
+      composed: true,
+    }));
+
+    this.draggingLoopIndex = null;
+  }
+
+  private onLoopDragEnd(e: DragEvent) {
+    const target = e.currentTarget as HTMLElement | null;
+    if (target) {
+      target.classList.remove("dragging");
+    }
+    this.draggingLoopIndex = null;
+  }
+
+  private onConchoDragStart(e: DragEvent) {
+    const target = e.currentTarget as HTMLElement | null;
+    if (!target || !e.dataTransfer) return;
+
+    this.draggingConchoIndex = Number(target.dataset.index);
+    e.dataTransfer.setData("text/plain", "concho");
+    e.dataTransfer.effectAllowed = "move";
+
+    target.classList.add("dragging");
+    this.createDragImageFrom(target, e);
+  }
+
+  private onConchoDragOver(e: DragEvent) {
+    e.preventDefault();
+  }
+
+  private onConchoDrop(e: DragEvent) {
+    e.preventDefault();
+    const target = e.currentTarget as HTMLElement | null;
+    if (!target) return;
+
+    const from = this.draggingConchoIndex;
+    const to = Number(target.dataset.index);
+    if (from == null || from === to) return;
+
+    const updated = [...this.conchos];
+    const [moved] = updated.splice(from, 1);
+    updated.splice(to, 0, moved);
+    this.conchos = updated;
+
+    this.dispatchEvent(new CustomEvent("reorder-conchos", {
+      detail: { fromIndex: from, toIndex: to },
+      bubbles: true,
+      composed: true,
+    }));
+
+    this.draggingConchoIndex = null;
+  }
+
+  private onConchoDragEnd(e: DragEvent) {
+    const target = e.currentTarget as HTMLElement | null;
+    if (target) {
+      target.classList.remove("dragging");
+    }
+    this.draggingConchoIndex = null;
+  }
+
+  private createDragImageFrom(target: HTMLElement, e: DragEvent) {
+    if (!e.dataTransfer) return;
+
+    const img = target.querySelector("img") as HTMLImageElement | null;
+    if (!img) return;
+
+    const rect = img.getBoundingClientRect();
+    const scale = 1.2;
+
+    const dragImg = img.cloneNode(true) as HTMLImageElement;
+    dragImg.style.opacity = "0.85";
+    dragImg.style.pointerEvents = "none";
+    dragImg.style.position = "absolute";
+    dragImg.style.top = "-9999px";
+    dragImg.style.left = "-9999px";
+
+    const width = rect.width * scale;
+    const height = rect.height * scale;
+
+    dragImg.style.width = `${width}px`;
+    dragImg.style.height = `${height}px`;
+
+    document.body.appendChild(dragImg);
+
+    e.dataTransfer.setDragImage(dragImg, width / 2, height / 2);
+
+    requestAnimationFrame(() => {
+      if (dragImg.parentNode) {
+        dragImg.parentNode.removeChild(dragImg);
+      }
+    });
+  }
 }
 
 declare global {
