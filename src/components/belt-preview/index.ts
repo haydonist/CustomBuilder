@@ -275,23 +275,21 @@ export default class BeltPreview extends LitElement {
     try {
       const img = await cacheImage(this.base);
       const cropped = await cropToContents(img, img.naturalWidth, img.naturalHeight);
-
-      await new Promise(requestAnimationFrame); // ensure layout is ready
-      const cssWidth = Math.floor(canvas.getBoundingClientRect().width) || 1;
-
       const aspect = cropped.height / cropped.width;
-      const cssHeight = Math.max(1, Math.round(cssWidth * aspect));
 
+      // Ensure layout is ready
+      await new Promise(requestAnimationFrame);
+      const width = Math.floor(canvas.getBoundingClientRect().width) || 1;
+      const height = Math.max(1, Math.round(width * aspect));
       const dpr = self.devicePixelRatio || 1;
-      canvas.width = Math.round(cssWidth * dpr);
-      canvas.height = Math.round(cssHeight * dpr);
+
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
 
       const ctx = canvas.getContext("2d");
-      assert(ctx);
-
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, cssWidth, cssHeight);
-      ctx.drawImage(cropped, 0, 0, cssWidth, cssHeight);
+      assert(ctx, "Could not acquire 2D canvas context!");
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(cropped, 0, 0, width, height);
     } catch (e) {
       console.error("renderBeltBase failed:", e);
     }
