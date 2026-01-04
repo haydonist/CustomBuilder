@@ -687,25 +687,13 @@ export class CustomBeltWizard extends LitElement {
             <belt-preview
               class="step-${this.wizard.stepIndex}"
               ${ref(this.preview)}
-              base="${getImageAt(this.beltBase, 0)}"
+              base="${getImageAt(this.beltBase, 1) ?? getImageAt(this.beltBase, 0) ?? ""}"
               buckle="${buckleImage ?? ""}"
               tip="${this.beltTip ? getImageAt(this.beltTip, 0) : undefined}"
-              @reorder-loops="${(
-                e: CustomEvent<{ fromIndex: number; toIndex: number }>,
-              ) =>
-                this.handleReorder(
-                  "loop",
-                  e.detail.fromIndex,
-                  e.detail.toIndex,
-                )}"
-              @reorder-conchos="${(
-                e: CustomEvent<{ fromIndex: number; toIndex: number }>,
-              ) =>
-                this.handleReorder(
-                  "concho",
-                  e.detail.fromIndex,
-                  e.detail.toIndex,
-                )}"
+              @reorder-loops="${(e: CustomEvent<{ fromIndex: number; toIndex: number }>) =>
+                this.handleReorder("loop", e.detail.fromIndex, e.detail.toIndex)}"
+              @reorder-conchos="${(e: CustomEvent<{ fromIndex: number; toIndex: number }>) =>
+                this.handleReorder("concho", e.detail.fromIndex, e.detail.toIndex)}"
               @remove-loop="${(e: CustomEvent<{ index: number }>) =>
                 this.removeItem("loop", e.detail.index)}"
               @remove-concho="${(e: CustomEvent<{ index: number }>) =>
