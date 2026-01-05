@@ -176,7 +176,6 @@ belt-wizard {
   flex-grow: 1;
   justify-content: space-between;
   margin: 0 auto;
-  margin-block-start: 1rem;
   max-width: 1260px;
 }
 #stepper:before {
@@ -242,6 +241,15 @@ belt-wizard {
 belt-wizard section.step h2 {
   margin-block-start: 0;
   margin-block-end: 0.5em;
+}
+
+/* Belt Preview */
+belt-wizard > header {
+  position: sticky;
+  top: 0;
+  padding-block-start: 1rem;
+  background: var(--belt-wizard-background-color);
+  z-index: 5;
 }
 
 /* Belt Preview Animation */

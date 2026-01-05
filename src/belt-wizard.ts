@@ -1,6 +1,7 @@
 import { delay } from "@std/async";
 import { html, LitElement, PropertyValues } from "lit";
 import { customElement, eventOptions, state } from "lit/decorators.js";
+import { classMap } from 'lit/directives/class-map.js';
 import { createRef, Ref, ref } from "lit/directives/ref.js";
 
 // ===============
@@ -531,48 +532,50 @@ export class CustomBeltWizard extends LitElement {
     const buckleImage = this.buckleVariantImage ?? (this.beltBuckle ? getImageAt(this.beltBuckle, 0) : undefined);
 
     return html`
-      <section id="stepper">
-        ${this.wizard.steps.map(
-          (_, i) =>
-            html`
-              <button
-                class="step"
-                ?disabled="${this.wizard.stepIndex === i}"
-                title="${`Step ${i + 1} of ${this.wizard.steps.length}: ${this.wizard.steps[i].title}`}"
-                @click="${() => this.wizard.goTo(i)}"
-              ></button>
+      <header>
+        <section id="stepper">
+          ${this.wizard.steps.map(
+            (_, i) =>
+              html`
+                <button
+                  class="step"
+                  ?disabled="${this.wizard.stepIndex === i}"
+                  title="${`Step ${i + 1} of ${this.wizard.steps.length}: ${this.wizard.steps[i].title}`}"
+                  @click="${() => this.wizard.goTo(i)}"
+                ></button>
+              `
+          )}
+        </section>
+        <section id="stepHeading" class="row">
+          <div id="stepTitle" class="step-title step-enter-${this.wizard.stepIndex}">
+            <h2 class="heading-4">${currentStep.title}</h2>
+            ${currentStep.subtitle ? html` <p class="subtitle">${currentStep.subtitle}</p> ` : null}
+          </div>
+
+          ${currentStep.shortcut && html` <div id="stepShortcut">${renderView(currentStep.shortcut)}</div> `}
+        </section>
+
+        ${this.beltBase
+          ? html`
+              <section id="preview" class=${classMap({ "preview-enter": this.firstBaseSelected })}>
+                <belt-preview
+                  class="step-${this.wizard.stepIndex}"
+                  ${ref(this.preview)}
+                  base="${getImageAt(this.beltBase, 1) ?? getImageAt(this.beltBase, 0) ?? ""}"
+                  buckle="${buckleImage ?? ""}"
+                  tip="${this.beltTip ? getImageAt(this.beltTip, 0) : undefined}"
+                  @reorder-loops="${(e: CustomEvent<{ fromIndex: number; toIndex: number }>) =>
+                    this.handleReorder("loop", e.detail.fromIndex, e.detail.toIndex)}"
+                  @reorder-conchos="${(e: CustomEvent<{ fromIndex: number; toIndex: number }>) =>
+                    this.handleReorder("concho", e.detail.fromIndex, e.detail.toIndex)}"
+                  @remove-loop="${(e: CustomEvent<{ index: number }>) => this.removeItem("loop", e.detail.index)}"
+                  @remove-concho="${(e: CustomEvent<{ index: number }>) => this.removeItem("concho", e.detail.index)}"
+                >
+                </belt-preview>
+              </section>
             `
-        )}
-      </section>
-      <section id="stepHeading" class="row">
-        <div id="stepTitle" class="step-title step-enter-${this.wizard.stepIndex}">
-          <h2 class="heading-4">${currentStep.title}</h2>
-          ${currentStep.subtitle ? html` <p class="subtitle">${currentStep.subtitle}</p> ` : null}
-        </div>
-
-        ${currentStep.shortcut && html` <div id="stepShortcut">${renderView(currentStep.shortcut)}</div> `}
-      </section>
-
-      ${this.beltBase
-        ? html`
-            <section id="preview" class="${this.firstBaseSelected ? "preview-enter" : ""}" style="position: sticky">
-              <belt-preview
-                class="step-${this.wizard.stepIndex}"
-                ${ref(this.preview)}
-                base="${getImageAt(this.beltBase, 1) ?? getImageAt(this.beltBase, 0) ?? ""}"
-                buckle="${buckleImage ?? ""}"
-                tip="${this.beltTip ? getImageAt(this.beltTip, 0) : undefined}"
-                @reorder-loops="${(e: CustomEvent<{ fromIndex: number; toIndex: number }>) =>
-                  this.handleReorder("loop", e.detail.fromIndex, e.detail.toIndex)}"
-                @reorder-conchos="${(e: CustomEvent<{ fromIndex: number; toIndex: number }>) =>
-                  this.handleReorder("concho", e.detail.fromIndex, e.detail.toIndex)}"
-                @remove-loop="${(e: CustomEvent<{ index: number }>) => this.removeItem("loop", e.detail.index)}"
-                @remove-concho="${(e: CustomEvent<{ index: number }>) => this.removeItem("concho", e.detail.index)}"
-              >
-              </belt-preview>
-            </section>
-          `
-        : null}
+          : null}
+      </header>
 
       <section id="${currentStep.id}" class="step ${this.firstBaseSelected ? "step-shifted" : ""}">
         <div class="step-content step-enter-${this.wizard.stepIndex}">
