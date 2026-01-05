@@ -70,16 +70,23 @@ export class CustomBeltWizard extends LitElement {
 
   private variantSelection = new Map<string, string>();
 
-  private getVariantKey(kind: VariantKind, productId: string): string {
-    return `${kind}:${productId}`;
+  constructor() {
+    super();
+
+    // Update the view when the wizard's step changes
+    this.wizard.changed.subscribe(() => this.requestUpdate());
+
+    this.updateProducts();
   }
 
-  private isSetProduct(product: Product | null): boolean {
-    return !!product?.tags?.some((t) => t.toLowerCase() === "set");
+  /** Disable the shadow DOM for this root-level component. */
+  // See https://stackoverflow.com/a/55213037/1363247
+  protected override createRenderRoot() {
+    return this;
   }
 
   private get hasSetSelected(): boolean {
-    return this.isSetProduct(this.beltBuckle);
+    return isSetProduct(this.beltBuckle);
   }
 
   private shouldShowCollectionFilter(stepId: string): boolean {
@@ -119,7 +126,7 @@ export class CustomBeltWizard extends LitElement {
 
       // keep your "Show Sets" behavior: filter by tag "set"
       if (!this.showBuckleSets) {
-        items = items.filter((p) => !this.isSetProduct(p));
+        items = items.filter((p) => !isSetProduct(p));
       }
       return items;
     }
@@ -444,21 +451,6 @@ export class CustomBeltWizard extends LitElement {
     this.applySelectionToPreview();
   }
 
-  constructor() {
-    super();
-
-    // Update the view when the wizard's step changes
-    this.wizard.changed.subscribe(() => this.requestUpdate());
-
-    this.updateProducts();
-  }
-
-  /** Disable the shadow DOM for this root-level component. */
-  // See https://stackoverflow.com/a/55213037/1363247
-  protected override createRenderRoot() {
-    return this;
-  }
-
   protected override updated(changed: PropertyValues): void {
     // Ensure the checkout component has the latest belt data
     if (this.checkout.value) {
@@ -761,7 +753,7 @@ export class CustomBeltWizard extends LitElement {
       const hideBuckleSets = variantKind === "buckle" && !this.showBuckleSets;
       const visibleProducts = this.filterProductsBySelectedCollections(
         stepId,
-        hideBuckleSets ? products.filter((p) => !this.isSetProduct(p)) : products,
+        hideBuckleSets ? products.filter((p) => !isSetProduct(p)) : products,
       );
       const groups = this.groupProductsByCollection(visibleProducts);
 
@@ -786,7 +778,7 @@ export class CustomBeltWizard extends LitElement {
                     <span
                       class="option thumbnail ${selected ? "selected" : ""}"
                       data-kind="${variantKind}"
-                      data-is-set="${variantKind === "buckle" && this.isSetProduct(p) ? "true" : "false"}"
+                      data-is-set="${variantKind === "buckle" && isSetProduct(p) ? "true" : "false"}"
                       @click="${this.handleCardClick(variantKind, p, hasVariants, () => {
                         this.ensureSelection();
 
@@ -977,7 +969,7 @@ export class CustomBeltWizard extends LitElement {
 
     // Buckle image: normal buckles use index 0, sets use index 1
     if (this.beltBuckle) {
-      if (this.isSetProduct(this.beltBuckle)) {
+      if (isSetProduct(this.beltBuckle)) {
         this.buckleVariantImage =
           getImageAt(this.beltBuckle, 1, { fallbackToFirst: false }) ?? getImageAt(this.beltBuckle, 0);
       } else if (this.selection?.has("buckleVariant")) {
@@ -1051,7 +1043,7 @@ export class CustomBeltWizard extends LitElement {
 
     this.beltTip = beltTips.find((b) => b.id === this.selection!.get("tip")) ?? null;
 
-    if (this.beltBuckle && this.isSetProduct(this.beltBuckle) && this.preview.value) {
+    if (this.beltBuckle && isSetProduct(this.beltBuckle) && this.preview.value) {
       const loopImg = getImageAt(this.beltBuckle, 2, {
         fallbackToFirst: false,
       });
@@ -1065,7 +1057,7 @@ export class CustomBeltWizard extends LitElement {
   }
 
   private renderVariantPopup(kind: VariantKind, product: Product): HTMLTemplateResult | null {
-    const key = this.getVariantKey(kind, product.id);
+    const key = getVariantKey(kind, product.id);
     if (this.activeVariantKey !== key) return null;
 
     const variants = Array.isArray(product.variants) ? product.variants : [];
@@ -1121,7 +1113,7 @@ export class CustomBeltWizard extends LitElement {
       if (hasVariants) {
         ev.preventDefault();
         ev.stopPropagation();
-        const key = this.getVariantKey(kind, product.id);
+        const key = getVariantKey(kind, product.id);
         this.activeVariantKey = this.activeVariantKey === key ? null : key;
         this.requestUpdate();
         return;
@@ -1134,7 +1126,7 @@ export class CustomBeltWizard extends LitElement {
 
   private handleVariantSelect(kind: VariantKind, product: Product, variant: ProductVariant) {
     this.ensureSelection();
-    const key = this.getVariantKey(kind, product.id);
+    const key = getVariantKey(kind, product.id);
     this.variantSelection.set(key, variant.id);
 
     // FIXME: This doesn't work when the user selects multiple variants
@@ -1361,3 +1353,11 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelector("belt-wizard")?.removeAttribute("hidden");
   });
 });
+
+function getVariantKey(kind: VariantKind, productId: string): string {
+  return `${kind}:${productId}`;
+}
+
+function isSetProduct(product: Product | null): boolean {
+  return !!product?.tags?.some((t) => t.toLowerCase() === "set");
+}
