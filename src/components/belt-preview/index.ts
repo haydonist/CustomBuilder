@@ -204,7 +204,7 @@ export default class BeltPreview extends LitElement {
           if (!el) return;
           assertInstanceOf(el, HTMLCanvasElement);
           this.#baseCanvas = el;
-          // kick a render once the element exists
+          // Render at the end of this event loop
           queueMicrotask(() => this.renderBeltBase());
         })}
       ></canvas>
@@ -289,7 +289,7 @@ export default class BeltPreview extends LitElement {
       const ctx = canvas.getContext("2d");
       assert(ctx, "Could not acquire 2D canvas context!");
       ctx.clearRect(0, 0, width, height);
-      ctx.drawImage(cropped, 0, 0, width, height);
+      ctx.drawImage(cropped, 0, 0, width * dpr, height * dpr);
     } catch (e) {
       console.error("renderBeltBase failed:", e);
     }
