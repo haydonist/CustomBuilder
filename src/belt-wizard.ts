@@ -200,7 +200,7 @@ export class CustomBeltWizard extends LitElement {
       return;
     }
     if (stepId === "conchos") {
-      this.buildMultiSelectStep("concho", this.beltData[3] ?? [], 5);
+      this.buildMultiSelectStep("concho", this.beltData[3] ?? [], 9);
       return;
     }
     if (stepId === "tip") {
@@ -575,7 +575,7 @@ export class CustomBeltWizard extends LitElement {
         ? []
         : this.getSelectedMultiVariantIds("loop", 2);
 
-      checkout.conchosVariantIds = this.getSelectedMultiVariantIds("concho", 5);
+      checkout.conchosVariantIds = this.getSelectedMultiVariantIds("concho", 9);
     }
     if (changed.has("showCollectionFilter")) {
       if (this.showCollectionFilter) {
@@ -687,7 +687,7 @@ export class CustomBeltWizard extends LitElement {
             <belt-preview
               class="step-${this.wizard.stepIndex}"
               ${ref(this.preview)}
-              base="${getImageAt(this.beltBase, 0)}"
+              base="${getImageAt(this.beltBase, 1)}"
               buckle="${buckleImage ?? ""}"
               tip="${this.beltTip ? getImageAt(this.beltTip, 0) : undefined}"
               @reorder-loops="${(
@@ -724,7 +724,17 @@ export class CustomBeltWizard extends LitElement {
           ${this.shouldShowCollectionFilter(currentStep.id)
             ? html`
               <div class="step-tools">
-                ${currentStep.id === "buckle"
+                ${currentStep.id === "conchos"
+                  ? html`
+                    <div class="concho-helper-text">
+                      <p>
+                        <strong>Our Recommendation:</strong> Using the same concho in sets of 5, 7,
+                        or 9 usually looks best and qualifies for a discount. Other quantities or
+                        mixing different conchos can end up looking unpolished.
+                      </p>
+                    </div>
+                  `
+                  : null} ${currentStep.id === "buckle"
                   ? html`
                     <label class="switch">
                       <input
@@ -942,7 +952,9 @@ export class CustomBeltWizard extends LitElement {
       const groups = this.groupProductsByCollection(visibleProducts);
 
       return html`
-        ${Array.from(groups.entries()).map(([collectionTitle, items]) =>
+        ${Array.from(groups.entries()).map((
+          [collectionTitle, items],
+        ) =>
           html`
             <div>
               <h3 class="collection-title">${collectionTitle}</h3>
@@ -984,7 +996,9 @@ export class CustomBeltWizard extends LitElement {
                             }
                           }
 
-                          if (variantKind === "tip" && this.hasSetSelected()) {
+                          if (
+                            variantKind === "tip" && this.hasSetSelected()
+                          ) {
                             this.resetBuckleLoopsAndTip();
                           }
 
@@ -1032,13 +1046,17 @@ export class CustomBeltWizard extends LitElement {
       const groups = this.groupProductsByCollection(filteredProducts);
 
       return html`
-        ${Array.from(groups.entries()).map(([collectionTitle, items]) =>
+        ${Array.from(groups.entries()).map((
+          [collectionTitle, items],
+        ) =>
           html`
             <div>
               <h3 class="collection-title">${collectionTitle}</h3>
               <div class="row wrap gap-medium">
                 ${items.map((p: any) => {
-                  const currentProducts = this.selection?.getAll(variantKind) as
+                  const currentProducts = this.selection?.getAll(
+                    variantKind,
+                  ) as
                     | string[]
                     | undefined;
 
@@ -1113,7 +1131,7 @@ export class CustomBeltWizard extends LitElement {
       this.buckleChoices = [...beltSets, ...beltBuckles],
     );
     this.buildMultiSelectStep("loop", beltLoops, 2);
-    this.buildMultiSelectStep("concho", beltConchos, 5);
+    this.buildMultiSelectStep("concho", beltConchos, 9);
     this.buildSingleSelectStep("tip", beltTips);
 
     const sizeStep = this.wizard.find("size")!;
@@ -1190,6 +1208,11 @@ export class CustomBeltWizard extends LitElement {
       this.firstBaseSelected = true;
     }
 
+    // Update preview with second image (index 1) for base
+    if (this.preview.value && this.beltBase) {
+      this.preview.value.base = getImageAt(this.beltBase, 1);
+    }
+
     // BUCKLE
     if (this.selection?.has("buckle")) {
       const id = this.selection!.get("buckle");
@@ -1259,13 +1282,13 @@ export class CustomBeltWizard extends LitElement {
       }
     }
 
-    // CONCHOS: allow duplicates, max 5 total
+    // CONCHOS: allow duplicates, max 9 total
     if (this.selection?.has("concho")) {
       const conchoIds = this.selection!.getAll("concho") as string[];
       const conchoVariantIds =
         this.selection!.getAll("conchoVariant") as string[] ?? [];
 
-      const limitedConchoIds = conchoIds.slice(0, 5);
+      const limitedConchoIds = conchoIds.slice(0, 9);
       const limitedConchoVariantIds = conchoVariantIds.slice(
         0,
         limitedConchoIds.length,
@@ -1352,6 +1375,7 @@ export class CustomBeltWizard extends LitElement {
     return html`
       <div
         class="variant-popup"
+        data-kind="${kind}"
         @click="${(e: Event) => e.stopPropagation()}"
       >
         <div class="variant-popup-grid">
@@ -1426,14 +1450,17 @@ export class CustomBeltWizard extends LitElement {
     }
 
     const imgUrl = variant.image?.url ??
-      (variant.images?.[0]?.url ?? getImageAt(product, 0));
+      (variant.images?.[1]?.url ?? getImageAt(product, 0));
 
     switch (kind) {
       case "base": {
         this.selection!.set("base", product.id);
         this.beltBase = product;
         if (this.preview.value) {
-          this.preview.value.base = imgUrl;
+          // For base, use variant image or fallback to product's second image (index 1)
+          const baseImgUrl = variant.image?.url ??
+            (variant.images?.[1]?.url ?? getImageAt(product, 1));
+          this.preview.value.base = baseImgUrl;
         }
         break;
       }
@@ -1480,7 +1507,7 @@ export class CustomBeltWizard extends LitElement {
       }
       case "concho": {
         const totalConchos = this.getMultiTotal("concho");
-        if (totalConchos >= 5) {
+        if (totalConchos >= 9) {
           break;
         }
 
