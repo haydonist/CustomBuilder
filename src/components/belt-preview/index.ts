@@ -422,6 +422,17 @@ export default class BeltPreview extends LitElement {
       }
     });
   }
+
+  private handleRemoveClick(kind: "loop" | "concho", index: number, e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    this.dispatchEvent(new CustomEvent(`remove-${kind}`, {
+      detail: { index },
+      bubbles: true,
+      composed: true,
+    }));
+  }
 }
 
 declare global {
