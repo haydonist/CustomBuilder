@@ -530,6 +530,28 @@ export class CustomBeltWizard extends LitElement {
 
     const currentStep = this.wizard.currentStep;
     const buckleImage = this.buckleVariantImage ?? (this.beltBuckle ? getImageAt(this.beltBuckle, 0) : undefined);
+    const beltPreview = this.beltBase ? html`
+        <section id="preview" class=${classMap({ "preview-enter": this.firstBaseSelected })}>
+          <belt-preview
+            class="step-${this.wizard.stepIndex}"
+            ${ref(this.preview)}
+            base="${getImageAt(this.beltBase, 1) ?? getImageAt(this.beltBase, 0) ?? ""}"
+            buckle="${buckleImage ?? ""}"
+            tip="${this.beltTip ? getImageAt(this.beltTip, 0) : undefined}"
+            @reorder-loops="${(e: CustomEvent<{ fromIndex: number; toIndex: number }>) =>
+              this.handleReorder("loop", e.detail.fromIndex, e.detail.toIndex)}"
+            @reorder-conchos="${(e: CustomEvent<{ fromIndex: number; toIndex: number }>) =>
+              this.handleReorder("concho", e.detail.fromIndex, e.detail.toIndex)}"
+            @remove-loop="${(e: CustomEvent<{ index: number }>) => this.removeItem("loop", e.detail.index)}"
+            @remove-concho="${(e: CustomEvent<{ index: number }>) => this.removeItem("concho", e.detail.index)}"
+          >
+          </belt-preview>
+        </section>
+      ` : null;
+
+    const tools = this.shouldShowCollectionFilter(currentStep.id)
+      ? this.renderFilterTools(currentStep.id)
+      : null;
 
     return html`
       <header>
@@ -555,26 +577,8 @@ export class CustomBeltWizard extends LitElement {
           ${currentStep.shortcut && html` <div id="stepShortcut">${renderView(currentStep.shortcut)}</div> `}
         </section>
 
-        ${this.beltBase
-          ? html`
-              <section id="preview" class=${classMap({ "preview-enter": this.firstBaseSelected })}>
-                <belt-preview
-                  class="step-${this.wizard.stepIndex}"
-                  ${ref(this.preview)}
-                  base="${getImageAt(this.beltBase, 1) ?? getImageAt(this.beltBase, 0) ?? ""}"
-                  buckle="${buckleImage ?? ""}"
-                  tip="${this.beltTip ? getImageAt(this.beltTip, 0) : undefined}"
-                  @reorder-loops="${(e: CustomEvent<{ fromIndex: number; toIndex: number }>) =>
-                    this.handleReorder("loop", e.detail.fromIndex, e.detail.toIndex)}"
-                  @reorder-conchos="${(e: CustomEvent<{ fromIndex: number; toIndex: number }>) =>
-                    this.handleReorder("concho", e.detail.fromIndex, e.detail.toIndex)}"
-                  @remove-loop="${(e: CustomEvent<{ index: number }>) => this.removeItem("loop", e.detail.index)}"
-                  @remove-concho="${(e: CustomEvent<{ index: number }>) => this.removeItem("concho", e.detail.index)}"
-                >
-                </belt-preview>
-              </section>
-            `
-          : null}
+        ${beltPreview}
+        ${tools}
       </header>
 
       <section id="${currentStep.id}" class=${classMap({
@@ -582,111 +586,6 @@ export class CustomBeltWizard extends LitElement {
         "step-shifted": this.firstBaseSelected
       })}>
         <div class="step-content step-enter-${this.wizard.stepIndex}">
-          ${this.shouldShowCollectionFilter(currentStep.id)
-            ? html`
-                <div class="step-tools">
-                  ${currentStep.id === "buckle"
-                    ? html`
-                        <label class="switch">
-                          <input
-                            type="checkbox"
-                            .checked="${this.showBuckleSets}"
-                            @change="${(e: Event) => {
-                              this.showBuckleSets = (e.target as HTMLInputElement).checked;
-                              this.buildSingleSelectStep("buckle", this.buckleChoices);
-                              this.requestUpdate();
-                            }}"
-                          />
-                          <span class="switch-track" aria-hidden="true">
-                            <span class="switch-thumb" aria-hidden="true"></span>
-                          </span>
-                          <span class="switch-label">Show Sets</span>
-                        </label>
-                      `
-                    : null}
-
-                  <div class="filter-wrap" ${ref(this.filterWrap)}>
-                    <button
-                      type="button"
-                      class="filter-btn"
-                      aria-haspopup="dialog"
-                      aria-expanded="${this.showCollectionFilter ? "true" : "false"}"
-                      @click="${(e: Event) => {
-                        e.stopPropagation();
-                        this.showCollectionFilter = !this.showCollectionFilter;
-                      }}"
-                    >
-                      <span class="filter-icon" aria-hidden="true">
-                        <span class="bar bar-1"></span>
-                        <span class="bar bar-2"></span>
-                        <span class="bar bar-3"></span>
-                      </span>
-                    </button>
-
-                    ${this.showCollectionFilter
-                      ? html`
-                          <div
-                            class="filter-popover"
-                            role="dialog"
-                            aria-modal="false"
-                            @click="${(e: Event) => e.stopPropagation()}"
-                          >
-                            <div class="filter-popover-header">
-                              <div class="filter-popover-title">Filter</div>
-                              <button
-                                type="button"
-                                class="filter-popover-close"
-                                @click="${() => (this.showCollectionFilter = false)}"
-                                aria-label="Close"
-                              >
-                                ×
-                              </button>
-                            </div>
-
-                            <div class="filter-popover-body">
-                              ${(() => {
-                                const stepId = this.wizard.currentStep.id;
-                                const filterKey = this.getFilterStepKey(stepId);
-                                if (!filterKey) return null;
-
-                                const collections = this.getAllCollectionsForStep(stepId);
-                                const selected = new Set(this.getSelectedCollectionsForStep(stepId));
-
-                                if (collections.length === 0) {
-                                  return html` <div>No collections found for this step.</div> `;
-                                }
-
-                                return html`
-                                  <div class="filter-list" role="listbox" aria-multiselectable="true">
-                                    ${collections.map((title) => {
-                                      const isSelected = selected.has(title);
-
-                                      return html`
-                                        <button
-                                          type="button"
-                                          class="filter-item ${isSelected ? "is-selected" : ""}"
-                                          aria-pressed="${isSelected ? "true" : "false"}"
-                                          @click="${() => {
-                                            this.toggleCollectionFilter(stepId, title);
-                                            this.rebuildStepForFilter(stepId);
-                                            this.requestUpdate();
-                                          }}"
-                                        >
-                                          <span class="filter-item-title">${title}</span>
-                                        </button>
-                                      `;
-                                    })}
-                                  </div>
-                                `;
-                              })()}
-                            </div>
-                          </div>
-                        `
-                      : null}
-                  </div>
-                </div>
-              `
-            : null}
 
           <form
             ${ref(this.form)}
@@ -751,6 +650,107 @@ export class CustomBeltWizard extends LitElement {
 
     const btn = checkoutEl.shadowRoot?.querySelector("button.btn.primary") as HTMLButtonElement | null;
     btn?.click();
+  }
+
+  private renderFilterTools(stepId: string) {
+    return html`
+      <div class="step-tools">
+        ${stepId === "buckle"
+          ? html`
+              <label class="switch">
+                <input
+                  type="checkbox"
+                  .checked="${this.showBuckleSets}"
+                  @change="${(e: Event) => {
+                    this.showBuckleSets = (e.target as HTMLInputElement).checked;
+                    this.buildSingleSelectStep("buckle", this.buckleChoices);
+                    this.requestUpdate();
+                  }}"
+                />
+                <span class="switch-track" aria-hidden="true">
+                  <span class="switch-thumb" aria-hidden="true"></span>
+                </span>
+                <span class="switch-label">Show Sets</span>
+              </label>
+            `
+          : null}
+
+        <div class="filter-wrap" ${ref(this.filterWrap)}>
+          <button
+            type="button"
+            class="filter-btn"
+            aria-haspopup="dialog"
+            aria-expanded="${this.showCollectionFilter ? "true" : "false"}"
+            @click="${(e: Event) => {
+              e.stopPropagation();
+              this.showCollectionFilter = !this.showCollectionFilter;
+            }}"
+          >
+            <span class="filter-icon" aria-hidden="true">
+              <span class="bar bar-1"></span>
+              <span class="bar bar-2"></span>
+              <span class="bar bar-3"></span>
+            </span>
+          </button>
+
+              <div
+                class="filter-popover"
+                role="dialog"
+                aria-modal="false"
+                @click="${(e: Event) => e.stopPropagation()}"
+              >
+                <div class="filter-popover-header">
+                  <div class="filter-popover-title">Filter</div>
+                  <button
+                    type="button"
+                    class="filter-popover-close"
+                    @click="${() => (this.showCollectionFilter = false)}"
+                    aria-label="Close"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div class="filter-popover-body">
+                  ${(() => {
+                    const filterKey = this.getFilterStepKey(stepId);
+                    if (!filterKey) return null;
+
+                    const collections = this.getAllCollectionsForStep(stepId);
+                    const selected = new Set(this.getSelectedCollectionsForStep(stepId));
+
+                    if (collections.length === 0) {
+                      return html` <div>No collections found for this step.</div> `;
+                    }
+
+                    return html`
+                      <div class="filter-list" role="listbox" aria-multiselectable="true">
+                        ${collections.map((title) => {
+                          const isSelected = selected.has(title);
+
+                          return html`
+                            <button
+                              type="button"
+                              class="filter-item ${isSelected ? "is-selected" : ""}"
+                              aria-pressed="${isSelected ? "true" : "false"}"
+                              @click="${() => {
+                                this.toggleCollectionFilter(stepId, title);
+                                this.rebuildStepForFilter(stepId);
+                                this.requestUpdate();
+                              }}"
+                            >
+                              <span class="filter-item-title">${title}</span>
+                            </button>
+                          `;
+                        })}
+                      </div>
+                    `;
+                  })()}
+                </div>
+              </div>
+        </div>
+      </div>
+    `;
   }
 
   private beltData: Product[][] = [];
@@ -929,10 +929,9 @@ export class CustomBeltWizard extends LitElement {
 
     this.loading = false;
   }
+
   private ensureSelection() {
-    if (!this.selection) {
-      this.selection = new FormData();
-    }
+    if (!this.selection) this.selection = new FormData();
   }
 
   private applySelectionToPreview() {
