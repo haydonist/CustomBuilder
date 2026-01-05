@@ -938,24 +938,11 @@ export class CustomBeltWizard extends LitElement {
   private applySelectionToPreview() {
     const [beltBases, _beltBuckles, beltLoops, beltConchos, beltTips, _beltSizes, _beltSets] = this.beltData;
 
-    const hadBaseBefore = !!this.beltBase;
-
     // BASE
-    if (this.selection?.has("base")) {
-      this.beltBase = beltBases.find((b) => b.id === this.selection!.get("base")) ?? null;
-    } else {
-      this.beltBase = null;
-    }
-
+    const hadBaseBefore = !!this.beltBase;
+    this.beltBase = beltBases.find((b) => b.id === this.selection!.get("base")) ?? null;
     const hasBaseNow = !!this.beltBase;
-    if (!hadBaseBefore && hasBaseNow) {
-      this.firstBaseSelected = true;
-    }
-
-    // Update preview with second image (index 1) for base
-    if (this.preview.value && this.beltBase) {
-      this.preview.value.base = getImageAt(this.beltBase, 1) ?? getImageAt(this.beltBase, 0);
-    }
+    if (!hadBaseBefore && hasBaseNow) this.firstBaseSelected = true;
 
     // BUCKLE
     if (this.selection?.has("buckle")) {
@@ -1040,6 +1027,8 @@ export class CustomBeltWizard extends LitElement {
       if (!this.selection?.has("loop")) this.preview.value.loops = loopImg ? [loopImg] : [];
       if (!this.selection?.has("tip")) this.preview.value.tip = tipImg ?? null;
     }
+
+    this.requestUpdate();
   }
 
   private renderVariantPopup(kind: VariantKind, product: Product): ReturnType<typeof html> | null {
