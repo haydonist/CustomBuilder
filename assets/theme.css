@@ -248,6 +248,10 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   outline-offset: 2px;
 }
 
+.variant-popup[data-kind="base"] .variant-swatch img {
+  scale: 1;
+}
+
 .collection-title {
   font-size: 2rem;
   margin-bottom: 0;
@@ -396,11 +400,6 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   font-size: 12px;
   font-weight: 600;
   pointer-events: none;
-}
-/* In summary view, float the count badge just outside the top-right corner */
-.option.thumbnail.summary .option-count {
-  top: -5px;
-  right: -12px;
 }
 
 .option.thumbnail .variant-swatch .option-count {
@@ -883,4 +882,23 @@ belt-wizard #summary .summary-complete {
 
 .filter-item-title {
   display: block;
+}
+
+.concho-helper-text {
+  padding: 0.5rem 1rem;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-left: 4px solid var(--color-primary, #333);
+  border-radius: 4px;
+  margin-right: auto;
+  max-width: 500px;
+}
+
+.concho-helper-text p {
+  margin: 0;
+  font-size: 14px;
+  color: inherit;
+}
+
+.concho-helper-text strong {
+  font-weight: 600;
 }
