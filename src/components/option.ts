@@ -105,32 +105,3 @@ export function thumbnailOption(
     </span>
   `;
 }
-
-export function colorChipOption(
-  id: string,
-  color: string,
-  name: string,
-  value: unknown,
-  label: string,
-  options?: { onClick?: EventHandler; class?: string },
-) {
-  return html`
-    <span class="option color-chip ${options?.class ?? ""}" @click="${options
-      ?.onClick}">
-      <input
-        id="${id}"
-        class="sr-only"
-        type="radio"
-        name="${name}"
-        value="${value}"
-      />
-      <label for="${id}" class="column">
-        <span
-          class="selection-indicator ${options?.class ?? ""}"
-          style="background-color: ${color};"
-        ></span>
-        <span class="label">${label}</span>
-      </label>
-    </span>
-  `;
-}

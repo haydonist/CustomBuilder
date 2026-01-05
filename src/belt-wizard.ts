@@ -14,8 +14,7 @@ import "./components/belt-preview/index.js";
 import { getImageAt, Product, ProductVariant, queryProducts } from "./api/index.ts";
 import BeltCheckout from "./components/belt-checkout.ts";
 import BeltPreview from "./components/belt-preview/index.ts";
-import { colorChipOption, textOption, thumbnailOption } from "./components/option.ts";
-import { beltColors } from "./models/belts.ts";
+import { textOption, thumbnailOption } from "./components/option.ts";
 import Wizard, { renderView } from "./models/wizard/index.ts";
 import { formatMoney } from "./utils.ts";
 
@@ -208,21 +207,6 @@ export class CustomBeltWizard extends LitElement {
 
     if (nextIndex < steps.length) this.wizard.goTo(nextIndex);
   }
-
-  // TODO: Integrate belt variants as a new step after belt size selection
-  readonly colorStep = {
-    id: "color",
-    title: "Choose a Belt Color",
-    view: html`
-      <div class="row gap-medium">
-        ${beltColors.map((c) =>
-          colorChipOption(c.id, c.color, "color", c.id, c.name, {
-            onClick: this.submitStep,
-          }),
-        )}
-      </div>
-    `,
-  };
 
   @state()
   wizard = new Wizard([
