@@ -71,6 +71,21 @@ export class CustomBeltWizard extends LitElement {
 
   private variantSelection = new Map<string, string>();
 
+  constructor() {
+    super();
+
+    // Update the view when the wizard's step changes
+    this.wizard.changed.subscribe(() => this.requestUpdate());
+
+    this.updateProducts();
+  }
+
+  /** Disable the shadow DOM for this root-level component. */
+  // See https://stackoverflow.com/a/55213037/1363247
+  protected override createRenderRoot() {
+    return this;
+  }
+
   private getVariantKey(kind: VariantKind, productId: string): string {
     return `${kind}:${productId}`;
   }
@@ -511,21 +526,6 @@ export class CustomBeltWizard extends LitElement {
     variants.forEach((vId) => this.selection!.append(variantKey, vId));
 
     this.applySelectionToPreview();
-  }
-
-  constructor() {
-    super();
-
-    // Update the view when the wizard's step changes
-    this.wizard.changed.subscribe(() => this.requestUpdate());
-
-    this.updateProducts();
-  }
-
-  /** Disable the shadow DOM for this root-level component. */
-  // See https://stackoverflow.com/a/55213037/1363247
-  protected override createRenderRoot() {
-    return this;
   }
 
   protected override updated(changed: PropertyValues): void {
