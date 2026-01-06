@@ -12,12 +12,7 @@ import { formatMoney } from "./utils.ts";
 import "./components/belt-checkout.js";
 import "./components/belt-preview/index.js";
 
-import {
-  getImageAt,
-  Product,
-  ProductVariant,
-  queryProducts,
-} from "./api/index.ts";
+import { getImageAt, Product, ProductVariant, queryProducts } from "./api/index.ts";
 import BeltCheckout from "./components/belt-checkout.ts";
 import BeltPreview from "./components/belt-preview/index.ts";
 import { textOption, thumbnailOption } from "./components/option.ts";
@@ -41,6 +36,9 @@ export class CustomBeltWizard extends LitElement {
   private filterWrap: Ref<HTMLDivElement> = createRef();
 
   private shouldAdvance = false;
+
+  private pages: PageInfo[] = [];
+  private beltData: Product[][] = [];
 
   @state()
   private loading = false;
@@ -730,7 +728,12 @@ export class CustomBeltWizard extends LitElement {
       const baseWidth = this.beltBase?.tags?.find((t) => t.endsWith("mm"));
       const widthFilter = baseWidth ? ` AND tag:${baseWidth}` : "";
 
-      const [beltBuckles, beltSets, beltLoops, beltTips] = await Promise.all([
+      const [
+        { products: beltBuckles },
+        { products: beltSets },
+        { products: beltLoops },
+        { products: beltTips }
+      ] = await Promise.all([
         queryProducts(`tag:buckle${widthFilter}`),
         queryProducts(`tag:set${widthFilter}`),
         queryProducts(`tag:Loop${widthFilter}`),
@@ -873,8 +876,6 @@ export class CustomBeltWizard extends LitElement {
       </div>
     `;
   }
-
-  private beltData: Product[][] = [];
 
   private buildSingleSelectStep(variantKind: VariantKind, products: Product[]) {
     const buildStep = this.wizard.find(variantKind.toString())!;
@@ -1085,14 +1086,14 @@ export class CustomBeltWizard extends LitElement {
     this.loading = true;
 
     const [
-      beltBases,
-      beltBuckles,
-      beltLoops,
-      beltConchos,
-      beltTips,
-      beltSizes,
-      beltSets,
-    ] = (this.beltData = await Promise.all([
+      { page: basePage, products: beltBases },
+      { page: bucklePage, products: beltBuckles },
+      { page: loopPage, products: beltLoops },
+      { page: conchoPage, products: beltConchos },
+      { page: tipPage, products: beltTips },
+      { page: sizePage, products: beltSizes },
+      { page: setPage, products: beltSets },
+    ] = await Promise.all([
       queryProducts("tag:Belt Strap"),
       queryProducts(`tag:buckle`),
       queryProducts(`tag:Loop`),
@@ -1100,7 +1101,9 @@ export class CustomBeltWizard extends LitElement {
       queryProducts(`tag:tip`),
       queryProducts("tag:size"),
       queryProducts("tag:Set"),
-    ]));
+    ]);
+    this.pages = [basePage, bucklePage, loopPage, conchoPage, tipPage, sizePage, setPage];
+    this.beltData = [beltBases, beltBuckles, beltLoops, beltConchos, beltTips, beltSizes, beltSets];
 
     this.beltData[1] = this.buckleChoices;
 

@@ -19,8 +19,12 @@ export const shopQuery = `
 `;
 
 const productQuery = `
-  query ProductQuery($query: String) {
-    products(first: 20, query: $query) {
+  query ProductQuery($query: String!, $after: String) {
+    products(first: 20, query: $query, after: $after) {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
       edges {
         node {
           id
@@ -88,6 +92,11 @@ const productQuery = `
   }
 `;
 
+export interface PageInfo {
+  endCursor: string;
+  hasNextPage: boolean;
+}
+
 export interface MoneyV2 {
   amount: string;
   currencyCode: string;
@@ -132,9 +141,12 @@ export interface Product {
 
 export async function queryProducts(
   query: string,
-  { prefetchImages }: { prefetchImages: boolean } = { prefetchImages: true },
+  { after, prefetchImages }: { after?: string, prefetchImages: boolean } = { prefetchImages: true },
 ): Promise<Product[]> {
-  const resp = await client.request(productQuery, { variables: { query } });
+  const resp = await client.request(productQuery, { variables: {
+    query,
+    after: after ?? null
+  }});
   if (resp.errors) throw new Error(JSON.stringify(resp.errors));
 
   if (prefetchImages) {
@@ -155,7 +167,8 @@ export async function queryProducts(
     );
   }
 
-  return resp.data.products.edges.map(({ node: product }: any) => ({
+  const page: PageInfo = resp.data.products.pageInfo;
+  const products = resp.data.products.edges.map(({ node: product }: any) => ({
     id: product.id,
     title: product.title,
     tags: product.tags,
@@ -178,6 +191,7 @@ export async function queryProducts(
       quantityAvailable: v.quantityAvailable,
     })),
   }));
+  return { page, products };
 }
 
 export function totalProductQuantity(product: Product): number | null {
