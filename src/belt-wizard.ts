@@ -43,6 +43,8 @@ export class CustomBeltWizard extends LitElement {
   @state()
   private loading = false;
   @state()
+  private loadingPage = false;
+  @state()
   private beltBase: Product | null = null;
   @state()
   private beltBuckle: Product | null = null;
@@ -82,6 +84,23 @@ export class CustomBeltWizard extends LitElement {
   // See https://stackoverflow.com/a/55213037/1363247
   protected override createRenderRoot() {
     return this;
+  }
+
+  private infiniteScrollObserver = new IntersectionObserver(entries => {
+    const isHidden = document.querySelector("belt-wizard")?.hasAttribute("hidden") ?? true;
+    if (isHidden) return;
+    if (entries.some(entry => entry.isIntersecting) && !this.loadingPage)
+      this.loadNextPage();
+  });
+
+  protected override connectedCallback() {
+    super.connectedCallback();
+    this.infiniteScrollObserver.observe(document.getElementById("scrollToken"));
+  }
+
+  protected override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.infiniteScrollObserver.disconnect();
   }
 
   private getVariantKey(kind: VariantKind, productId: string): string {
@@ -419,11 +438,12 @@ export class CustomBeltWizard extends LitElement {
     return map;
   }
 
-  private handleReorder(
-    kind: "loop" | "concho",
-    fromIndex: number,
-    toIndex: number,
-  ) {
+  private handleScroll() {
+    const height = document.documentElement.scrollHeight;
+    document.body.scrollTop
+  }
+
+  private handleReorder(kind: "loop" | "concho", fromIndex: number, toIndex: number) {
     if (fromIndex === toIndex) return;
 
     if (kind === "loop") {
@@ -441,11 +461,7 @@ export class CustomBeltWizard extends LitElement {
     this.applySelectionToPreview();
   }
 
-  private reorderFormDataMulti(
-    kind: "loop" | "concho",
-    from: number,
-    to: number,
-  ) {
+  private reorderFormDataMulti(kind: "loop" | "concho", from: number, to: number) {
     if (!this.selection) return;
 
     const ids = this.selection.getAll(kind) as string[];
@@ -561,10 +577,7 @@ export class CustomBeltWizard extends LitElement {
     }
   }
 
-  private getSelectedSingleVariantId(
-    kind: "base" | "buckle" | "tip",
-    product: Product | null,
-  ): string | undefined {
+  private getSelectedSingleVariantId(kind: "base" | "buckle" | "tip", product: Product | null): string | undefined {
     if (!product) return undefined;
 
     const candidate =
@@ -580,10 +593,7 @@ export class CustomBeltWizard extends LitElement {
     return fallback;
   }
 
-  private getSelectedMultiVariantIds(
-    kind: "loop" | "concho",
-    max: number,
-  ): string[] {
+  private getSelectedMultiVariantIds(kind: "loop" | "concho", max: number): string[] {
     const selectedProducts = kind === "loop"
       ? this.beltLoops
       : this.beltConchos;
@@ -607,11 +617,7 @@ export class CustomBeltWizard extends LitElement {
   }
 
   override render() {
-    if (this.loading) {
-      return html`
-        <div>Loading...</div>
-      `;
-    }
+    if (this.loading) return html`<div>Loading...</div>`;
 
     const currentStep = this.wizard.currentStep;
     const buckleImage = this.buckleVariantImage ??
@@ -1011,11 +1017,7 @@ export class CustomBeltWizard extends LitElement {
     };
   }
 
-  private buildMultiSelectStep(
-    variantKind: VariantKind,
-    products: Product[],
-    maxCount: number,
-  ) {
+  private buildMultiSelectStep(variantKind: VariantKind, products: Product[], maxCount: number) {
     const step = this.wizard.find(variantKind + "s")!;
     step.view = () => {
       const stepId = variantKind === "loop"
@@ -1023,10 +1025,7 @@ export class CustomBeltWizard extends LitElement {
         : variantKind === "concho"
         ? "conchos"
         : `${variantKind}s`;
-      const filteredProducts = this.filterProductsBySelectedCollections(
-        stepId,
-        products,
-      );
+      const filteredProducts = this.filterProductsBySelectedCollections(stepId, products);
       const groups = this.groupProductsByCollection(filteredProducts);
 
       return html`
@@ -1108,10 +1107,7 @@ export class CustomBeltWizard extends LitElement {
     this.beltData[1] = this.buckleChoices;
 
     this.buildSingleSelectStep("base", beltBases);
-    this.buildSingleSelectStep(
-      "buckle",
-      this.buckleChoices = [...beltSets, ...beltBuckles],
-    );
+    this.buildSingleSelectStep("buckle", this.buckleChoices = [...beltSets, ...beltBuckles]);
     this.buildMultiSelectStep("loop", beltLoops, 2);
     this.buildMultiSelectStep("concho", beltConchos, 9);
     this.buildSingleSelectStep("tip", beltTips);
@@ -1156,6 +1152,67 @@ export class CustomBeltWizard extends LitElement {
       `;
 
     this.loading = false;
+  }
+
+  private async loadNextPage() {
+    this.loadingPage = true;
+
+    let page: PageInfo;
+    console.log("New page ahoy!", this.wizard.currentStep.id);
+    switch (this.wizard.currentStep.id) {
+      case "base":
+        page = this.pages[0];
+        if (!page.hasNextPage) break;
+        const { page: nextBeltPage, products: bases } = await queryProducts("tag:Belt Strap", {
+          after: page.endCursor,
+        });
+        this.pages[0] = nextBeltPage;
+        this.beltData[0] = this.beltData[0].concat(bases);
+        this.buildSingleSelectStep("base", this.beltData[0]);
+        break;
+      case "buckle":
+        page = this.pages[1];
+        if (!page.hasNextPage) break;
+        const { page: nextBucklePage, products: buckles } = await queryProducts("tag:buckle", {
+          after: page.endCursor,
+        });
+        this.pages[1] = nextBucklePage;
+        this.beltData[1] = this.beltData[1].concat(buckles);
+        this.buildSingleSelectStep("buckle", this.buckleChoices = this.buckleChoices.concat(buckles));
+        break;
+      case "loops":
+        page = this.pages[2];
+        if (!page.hasNextPage) break;
+        const { page: nextLoopPage, products: loops } = await queryProducts("tag:Loop", {
+          after: page.endCursor,
+        });
+        this.pages[2] = nextLoopPage;
+        this.beltData[2] = this.beltData[2].concat(loops);
+        this.buildMultiSelectStep("loop", this.beltData[2], 2);
+        break;
+      case "conchos":
+        page = this.pages[3];
+        if (!page.hasNextPage) break;
+        const { page: nextConchoPage, products: conchos } = await queryProducts("tag:concho", {
+          after: page.endCursor,
+        });
+        this.pages[3] = nextConchoPage;
+        this.beltData[3] = this.beltData[3].concat(conchos);
+        this.buildMultiSelectStep("concho", this.beltData[3], 9);
+        break;
+      case "tip":
+        page = this.pages[4];
+        if (!page.hasNextPage) break;
+        const { page: nextTipPage, products: tips } = await queryProducts("tag:tip", {
+          after: page.endCursor,
+        });
+        this.pages[4] = nextTipPage;
+        this.beltData[4] = this.beltData[4].concat(tips);
+        this.buildSingleSelectStep("tip", this.beltData[4]);
+        break;
+    }
+
+    this.loadingPage = false;
   }
 
   private ensureSelection() {
@@ -1377,11 +1434,7 @@ export class CustomBeltWizard extends LitElement {
     };
   }
 
-  private handleVariantSelect(
-    kind: VariantKind,
-    product: Product,
-    variant: ProductVariant,
-  ) {
+  private handleVariantSelect(kind: VariantKind, product: Product, variant: ProductVariant) {
     this.ensureSelection();
     const key = this.getVariantKey(kind, product.id);
     this.variantSelection.set(key, variant.id);
@@ -1470,10 +1523,7 @@ export class CustomBeltWizard extends LitElement {
     return (this.selection.getAll(kind) as string[]).length;
   }
 
-  private getVariantCountsForProduct(
-    kind: "loop" | "concho",
-    productId: string,
-  ): Record<string, number> {
+  private getVariantCountsForProduct(kind: "loop" | "concho", productId: string): Record<string, number> {
     const counts: Record<string, number> = {};
     if (!this.selection) return counts;
 
@@ -1492,16 +1542,11 @@ export class CustomBeltWizard extends LitElement {
     return counts;
   }
 
-  private toggleSelection(
-    variantKind: VariantKind,
-    selectionId: string,
-    maxCount: number,
-  ) {
+  private toggleSelection(variantKind: VariantKind, selectionId: string, maxCount: number) {
     this.ensureSelection();
 
-    if (variantKind === "loop" && this.hasSetSelected()) {
+    if (variantKind === "loop" && this.hasSetSelected())
       this.resetBuckleLoopsAndTip();
-    }
 
     // WTF is this? Why so convoluted?
     let current = (this.selection!.getAll(variantKind) as string[]) ?? [];

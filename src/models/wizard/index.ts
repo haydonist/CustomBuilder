@@ -24,9 +24,7 @@ export interface Step {
   };
 }
 
-export function renderView(
-  view: LitElement | HTMLTemplateResult | HTMLRenderFn,
-) {
+export function renderView(view: LitElement | HTMLTemplateResult | HTMLRenderFn) {
   if (view instanceof LitElement) {
     return html`
       ${view}
