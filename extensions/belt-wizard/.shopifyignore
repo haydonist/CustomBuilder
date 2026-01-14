@@ -1,0 +1,4 @@
+src/
+assets/favicon.ico
+*.map
+.DS_Store

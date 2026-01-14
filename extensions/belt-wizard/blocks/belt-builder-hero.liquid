@@ -1,0 +1,194 @@
+{% comment %}
+  Belt Builder Section with Hero
+{% endcomment %}
+
+{% liquid
+  assign heading = block.settings.heading_text | default: 'BeltMaster'
+  assign subheading = block.settings.subheading_text | default: 'Build Your Own Custom Belt'
+  assign button_text = block.settings.button_text | default: 'Get Started'
+  assign show_jumbotron = block.settings.show_jumbotron | default: true
+%}
+
+<div
+  class="belt-builder"
+  {{ block.shopify_attributes }}
+  data-belt-builder
+>
+  {% if show_jumbotron %}
+    <section
+      class="belt-builder-hero"
+      data-jumbotron
+    >
+      <div class="belt-builder-hero-content">
+        <h1 class="belt-builder-heading heading-5 uppercase">{{ heading }}</h1>
+        <h2 class="belt-builder-subheading">{{ subheading }}</h2>
+        <p>Craft your own belt with premium leather and the buckle of your choice.</p>
+
+        <button
+          type="button"
+          class="belt-builder-btn btn primary"
+          data-get-started
+        >
+          {{ button_text }}
+        </button>
+      </div>
+    </section>
+  {% endif %}
+
+  <belt-wizard
+    data-belt-wizard
+    hidden
+    sizing-chart-src="{{ 'belts/sizing-chart.png' | asset_url }}"
+    looped-belt-src="{{ 'belts/looped-belt.png' | asset_url }}"
+  ></belt-wizard>
+</div>
+
+<script src="{{ 'belt-wizard.js' | asset_url }}" defer></script>
+
+<style>
+  .belt-builder {
+  width: 100vw;
+  min-height: 80vh;
+  margin: 0;
+  padding: 0;
+  background-color: #291c12;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* Hero styling */
+.belt-builder-jumbotron {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4rem 2rem;
+  background: linear-gradient(135deg, #291c12 0%, #2d2d2d 100%);
+  z-index: 2;
+  border-radius: 8px;
+  min-height: 80vh;
+}
+
+.belt-builder-heading {
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+  color: #ad8e76;
+  margin-bottom: 0.5rem;
+}
+
+.belt-builder-subheading {
+  font-size: 2.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #ad8e76;
+  font-family: "Times New Roman", serif;
+}
+
+.belt-builder-btn {
+  background-color: #8b5e3c;
+  color: #fff;
+  border: none;
+  padding: 12px 22px;
+  font-size: 1rem;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.belt-builder-btn:hover {
+  background-color: #7a4f31;
+}
+
+/* Wizard takes the same space */
+belt-wizard {
+  inset: 0;
+  min-height: 80vh;
+  width: 100%;
+  display: block;
+  background-color: #291c12;
+}
+
+/* SINGLE source of truth for visibility */
+[hidden] {
+  display: none !important;
+}
+
+
+</style>
+
+<script>
+  console.log('[Belt Wizard Hero] Script loaded');
+  document.addEventListener('DOMContentLoaded', () => {
+    const button = document.querySelector('[data-get-started]');
+    const hero   = document.querySelector('[data-jumbotron]');
+    const wizard = document.querySelector('[data-belt-wizard]');
+
+    if (!button || !wizard) return;
+
+    button.addEventListener('click', () => {
+      console.log('[Belt Builder] Get Started clicked');
+
+      hero?.setAttribute('hidden', '');
+      wizard.removeAttribute('hidden');
+    });
+  
+    // Check if web component is defined
+    if (customElements.get('belt-wizard')) {
+      console.log('[Belt Wizard Hero] Web component is registered');
+    } else {
+      console.error('[Belt Wizard Hero] Web component NOT registered');
+    }
+    
+    // Force remove padding from all parent containers
+    const wrapper = document.querySelector('.belt-builder');
+    if (wrapper) {
+      let parent = wrapper.parentElement;
+      let depth = 0;
+      while (parent && depth < 10) {
+        parent.style.paddingLeft = '0';
+        parent.style.paddingRight = '0';
+        parent.style.marginLeft = '0';
+        parent.style.marginRight = '0';
+        parent.style.maxWidth = 'none';
+        console.log('[Belt Wizard Hero] Removed padding from parent:', parent.className || parent.tagName);
+        parent = parent.parentElement;
+        depth++;
+      }
+    }
+  });
+</script>
+
+{% schema %}
+{
+  "name": "Belt Builder (Hero)",
+  "target": "section",
+  "stylesheet": "belt-wizard.css",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading_text",
+      "label": "Heading Text",
+      "default": "BeltMaster"
+    },
+    {
+      "type": "text",
+      "id": "subheading_text",
+      "label": "Subheading Text",
+      "default": "Build Your Own Custom Belt"
+    },
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Button Text",
+      "default": "Get Started"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_jumbotron",
+      "label": "Show Hero Section",
+      "default": true
+    }
+  ]
+}
+{% endschema %}

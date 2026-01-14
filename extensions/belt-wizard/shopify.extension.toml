@@ -1,0 +1,29 @@
+# Theme App Extension Configuration
+# This extension embeds the Belt Builder wizard into Shopify storefronts
+name = "belt-wizard"
+type = "theme"
+uid = "97ef57c2-1d4d-af6f-17eb-055a50b6690938c9e60b"
+
+
+  [capabilities]
+  # Allow app blocks in the theme editor
+  app_block = true
+
+  [settings]
+    [[settings.fields]]
+    key = "heading_text"
+    type = "single_line_text_field"
+    name = "Heading Text"
+    description = "Main heading displayed above the belt builder"
+
+    [[settings.fields]]
+    key = "subheading_text"
+    type = "single_line_text_field"
+    name = "Subheading Text"
+    description = "Subheading text below the main heading"
+
+    [[settings.fields]]
+    key = "button_text"
+    type = "single_line_text_field"
+    name = "Button Text"
+    description = "Text for the Get Started button"
