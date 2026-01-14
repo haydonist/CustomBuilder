@@ -1,4 +1,4 @@
-import client from "./index.js";
+import client from "./index.ts";
 
 type CartLineInput = {
   merchandiseId: string; // ProductVariant id (gid://shopify/ProductVariant/...)

@@ -1,5 +1,5 @@
 import { html, LitElement, PropertyValues } from "lit";
-import { customElement, eventOptions, state } from "lit/decorators.js";
+import { customElement, eventOptions, property, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import { createRef, Ref, ref } from "lit/directives/ref.js";
 import { delay, formatMoney } from "./utils.ts";
@@ -8,8 +8,8 @@ import { delay, formatMoney } from "./utils.ts";
 // Custom Elements
 // ===============
 // NOTE: Do NOT remove these, otherwise custom element decorators are not executed and they will break!
-import "./components/belt-checkout.js";
-import "./components/belt-preview/index.js";
+import "./components/belt-checkout.ts";
+import "./components/belt-preview/index.ts";
 
 import {
   getImageAt,
@@ -33,6 +33,12 @@ type VariantKind = "base" | "buckle" | "loop" | "concho" | "tip";
 
 @customElement("belt-wizard")
 export class CustomBeltWizard extends LitElement {
+  @property({ type: String, attribute: 'sizing-chart-src' })
+  sizingChartSrc = '';
+  
+  @property({ type: String, attribute: 'looped-belt-src' })
+  loopedBeltSrc = '';
+  
   private selection: FormData | null = null;
   private form: Ref<HTMLFormElement> = createRef();
   private preview: Ref<BeltPreview> = createRef();
@@ -83,6 +89,8 @@ export class CustomBeltWizard extends LitElement {
 
     this.updateProducts();
     console.log("initialized belt-wizard constructor");
+    console.log("sizingChartSrc:", this.sizingChartSrc);
+    console.log("loopedBeltSrc:", this.loopedBeltSrc);
     console.log(this);
   }
 
@@ -103,7 +111,9 @@ export class CustomBeltWizard extends LitElement {
 
   protected override connectedCallback() {
     super.connectedCallback();
-    this.infiniteScrollObserver.observe(document.getElementById("scrollToken"));
+    console.log('[Belt Wizard] connectedCallback - sizingChartSrc:', this.sizingChartSrc);
+    console.log('[Belt Wizard] connectedCallback - loopedBeltSrc:', this.loopedBeltSrc);
+    this.infiniteScrollObserver.observe(document.getElementById("scrollToken")!);
   }
 
   protected override disconnectedCallback() {
@@ -298,12 +308,16 @@ export class CustomBeltWizard extends LitElement {
         <div class="row wrap gap-medium"></div>
         <img
           id="sizingChart"
-          src="/assets/belts/sizing-chart.png"
+          src="${this.sizingChartSrc}"
           alt="Perfect belt sizing chart"
+          @load="${() => console.log('[Belt Wizard] Sizing chart loaded:', this.sizingChartSrc)}"
+          @error="${() => console.error('[Belt Wizard] Sizing chart failed to load:', this.sizingChartSrc)}"
+          style="max-width: 100%; height: auto; display: ${this.sizingChartSrc ? 'block' : 'none'};"
         />
+        ${!this.sizingChartSrc ? html`<p style="color: red;">Sizing chart src not set!</p>` : ''}
       `,
       background: {
-        image: "url(/assets/belts/looped-belt.png)",
+        image: `url(${this.loopedBeltSrc})`,
         size: { default: "50vw", desktop: "33vw" },
       },
     },
@@ -796,10 +810,10 @@ export class CustomBeltWizard extends LitElement {
         { products: beltLoops },
         { products: beltTips },
       ] = await Promise.all([
-        queryProducts(`tag:buckle${widthFilter}`),
-        queryProducts(`tag:set${widthFilter}`),
-        queryProducts(`tag:Loop${widthFilter}`),
-        queryProducts(`tag:tip${widthFilter}`),
+        queryProducts(`tag:buckle${widthFilter}`, { prefetchImages: false }),
+        queryProducts(`tag:set${widthFilter}`, { prefetchImages: false }),
+        queryProducts(`tag:Loop${widthFilter}`, { prefetchImages: false }),
+        queryProducts(`tag:tip${widthFilter}`, { prefetchImages: false }),
       ]);
 
       this.beltData[1] = this.buckleChoices = [...beltSets, ...beltBuckles];
@@ -1166,13 +1180,13 @@ export class CustomBeltWizard extends LitElement {
       { page: sizePage, products: beltSizes },
       { page: setPage, products: beltSets },
     ] = await Promise.all([
-      queryProducts("tag:Belt Strap"),
-      queryProducts(`tag:buckle`),
-      queryProducts(`tag:Loop`),
-      queryProducts("tag:concho"),
-      queryProducts(`tag:tip`),
-      queryProducts("tag:size"),
-      queryProducts("tag:Set"),
+      queryProducts("tag:Belt Strap", { prefetchImages: false }),
+      queryProducts(`tag:buckle`, { prefetchImages: false }),
+      queryProducts(`tag:Loop`, { prefetchImages: false }),
+      queryProducts("tag:concho", { prefetchImages: false }),
+      queryProducts(`tag:tip`, { prefetchImages: false }),
+      queryProducts("tag:size", { prefetchImages: false }),
+      queryProducts("tag:Set", { prefetchImages: false }),
     ]);
     this.pages = [
       basePage,
@@ -1237,7 +1251,7 @@ export class CustomBeltWizard extends LitElement {
           </div>
           <img
             id="sizingChart"
-            src="/assets/belts/sizing-chart.png"
+            src="${this.sizingChartSrc}"
             alt="Perfect belt sizing chart"
           />
         </div>
