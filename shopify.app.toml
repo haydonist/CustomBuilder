@@ -26,3 +26,8 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [ "https://example.com/api/auth" ]
+
+[app_proxy]
+url = "https://example.com"
+subpath = "custom-belt-builder"
+prefix = "apps"

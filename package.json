@@ -5,8 +5,10 @@
     "build": "vite build",
 
     "dev": "npm run build && shopify app dev",
+    "dev:db": "npx prisma generate && npx prisma db push",
 
     "deploy": "npm run build && shopify app deploy",
+    "deploy:db": "npx prisma migrate deploy",
 
     "generate": "shopify app generate",
     "config:link": "shopify app config link",
@@ -21,6 +23,8 @@
     "docker-start": "npm run setup && npm run start",
 
     "prisma": "prisma",
+    "prisma:studio": "npx prisma studio",
+    "prisma:migrate": "npx prisma migrate dev",
     "graphql-codegen": "graphql-codegen"
   },
   "type": "module",

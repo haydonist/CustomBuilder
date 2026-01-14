@@ -10,7 +10,7 @@ generator client {
 // See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
   provider = "sqlite"
-  url      = "file:dev.sqlite"
+  url      = "file:./dev.sqlite"
 }
 
 model Session {
@@ -31,4 +31,14 @@ model Session {
   emailVerified Boolean?  @default(false)
   refreshToken        String?
   refreshTokenExpires DateTime?
+}
+
+model AppSettings {
+  id              String   @id @default(uuid())
+  shop            String   @unique
+  backgroundColor String   @default("#291c12")
+  fontFamily      String   @default("Arial, sans-serif")
+  fontColor       String   @default("#ffffff")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

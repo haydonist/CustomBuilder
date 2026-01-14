@@ -51,7 +51,7 @@
   --old-gold-darkest: #3f3410;
 
   /* Backgrounds */
-  --belt-wizard-background-color: var(--potters-clay-darkest);
+  --belt-wizard-background-color: var(--belt-wizard-bg-color, var(--potters-clay-darkest));
 
   /* Sizes */
   --gap-small: 1rem;
@@ -75,6 +75,14 @@ body {
   font-optical-sizing: auto;
   font-weight: normal;
   font-style: normal;
+}
+
+belt-wizard {
+  background-color: var(--belt-wizard-bg-color, var(--potters-clay-darkest));
+  color: var(--belt-wizard-font-color, var(--neutral));
+  font-family: var(--belt-wizard-font-family, "Work Sans", sans-serif);
+  display: block;
+  min-height: 100vh;
 }
 
 h1, h2, h3, h4, h5, h6 {

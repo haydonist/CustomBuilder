@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import type {
   ActionFunctionArgs,
-  HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
 import { useLoaderData, useFetcher } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
+import type { HeadersFunction } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import prisma from "../db.server";
 
@@ -58,7 +58,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return { success: true, settings };
 };
 
-export default function Index() {
+export default function Settings() {
   const { settings } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();

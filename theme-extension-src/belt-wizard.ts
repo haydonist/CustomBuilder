@@ -9,7 +9,7 @@ import { delay, formatMoney } from "./utils.ts";
 // ===============
 // NOTE: Do NOT remove these, otherwise custom element decorators are not executed and they will break!
 import "./components/belt-checkout.ts";
-import "./components/belt-preview/index.ts";
+import "./components/belt-preview/index.ts"; 
 
 import {
   getImageAt,
@@ -17,6 +17,7 @@ import {
   ProductVariant,
   queryProducts,
 } from "./api/index.ts";
+import { fetchBeltWizardSettings, applySettingsToDOM } from "./api/settings.ts";
 import BeltCheckout from "./components/belt-checkout.ts";
 import BeltPreview from "./components/belt-preview/index.ts";
 import { textOption, thumbnailOption } from "./components/option.ts";
@@ -87,11 +88,28 @@ export class CustomBeltWizard extends LitElement {
     // Update the view when the wizard's step changes
     this.wizard.changed.subscribe(() => this.requestUpdate());
 
+    this.fetchAppSettings();
     this.updateProducts();
     console.log("initialized belt-wizard constructor");
     console.log("sizingChartSrc:", this.sizingChartSrc);
     console.log("loopedBeltSrc:", this.loopedBeltSrc);
     console.log(this);
+  }
+
+  private async fetchAppSettings() {
+    // Get shop domain from Shopify global object
+    const shop = (window as any).Shopify?.shop;
+    console.log('[Belt Wizard] Detected shop:', shop);
+    
+    if (!shop) {
+      console.warn('[Belt Wizard] Shop domain not found, using default settings');
+      const settings = await fetchBeltWizardSettings('');
+      applySettingsToDOM(settings);
+      return;
+    }
+
+    const settings = await fetchBeltWizardSettings(shop);
+    applySettingsToDOM(settings);
   }
 
   /** Disable the shadow DOM for this root-level component. */
@@ -1324,6 +1342,7 @@ export class CustomBeltWizard extends LitElement {
       case "tip":
         page = this.pages[4];
         if (!page.hasNextPage) break;
+
         const { page: nextTipPage, products: tips } = await queryProducts(
           "tag:tip",
           {
