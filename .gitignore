@@ -13,11 +13,8 @@ database.sqlite
 .env
 .env.*
 
-
-
-
-
 /extensions/*/dist
+/extensions/belt-wizard/assets
 
 # Ignore shopify files created during app dev
 .shopify/*

@@ -82,6 +82,8 @@ export class CustomBeltWizard extends LitElement {
     this.wizard.changed.subscribe(() => this.requestUpdate());
 
     this.updateProducts();
+    console.log("initialized belt-wizard constructor");
+    console.log(this);
   }
 
   /** Disable the shadow DOM for this root-level component. */

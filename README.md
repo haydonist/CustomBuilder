@@ -29,6 +29,13 @@ Press P to open the URL to your app. Once you click install, you can start devel
 ```shell
 npm run build
 ```
+Note: Every new build cleans previous build assets.
+
+### Clean App preview in Shopify
+
+```shell
+shopify app dev clean 
+```
 
 ## Deployment
 ```
@@ -36,14 +43,21 @@ npm run deploy
 ```
 Builds and deploys to shopify. Updates all distributions of the app (in all stores it's installed).
 
+## Intall app in target store and add to theme
+1. Go to [dev dashboard](https://dev.shopify.com/dashboard/130794858/apps).
+2. Select `custom-belt-builder`.
+3. Click `Install app` on left side.
+4. Select you target store from the list. NOTE: might need owner privileges, could encounter `The installation link for this app is invalid`.
+5. Verify in `Apps` in the shop admin view that it was installed.
+6. Add to theme as an app block.
+7. All debug info will display in debug console.
+
 ## Resources
 
 React Router:
-
 - [React Router docs](https://reactrouter.com/home)
 
 Shopify:
-
 - [Intro to Shopify apps](https://shopify.dev/docs/apps/getting-started)
 - [Shopify App React Router docs](https://shopify.dev/docs/api/shopify-app-react-router)
 - [Shopify CLI](https://shopify.dev/docs/apps/tools/cli)
@@ -51,7 +65,3 @@ Shopify:
 - [Polaris Web Components](https://shopify.dev/docs/api/app-home/polaris-web-components).
 - [App extensions](https://shopify.dev/docs/apps/app-extensions/list)
 - [Shopify Functions](https://shopify.dev/docs/api/functions)
-
-Internationalization:
-
-- [Internationalizing your app](https://shopify.dev/docs/apps/best-practices/internationalization/getting-started)
