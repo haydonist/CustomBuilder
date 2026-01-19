@@ -261,7 +261,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 }
 
 .collection-title {
-  font-size: 2rem;
+  font-size: 1.2rem;
   margin-bottom: 0;
 }
 
@@ -339,7 +339,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 }
 
 .option.thumbnail label span.label {
-  font-size: 18px;
+  font-size: .75rem;
   font-weight: 600;
   margin-bottom: 0.2rem;
 }
@@ -353,6 +353,8 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   display: inline-block;
   font-size: 24px;
   padding: 8px 3px;
+  letter-spacing: normal;
+  margin-bottom: 0;
 }
 
 .option:not(.text-only) input:checked + label .selection-indicator {
@@ -411,7 +413,8 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   inset: 0;
   opacity: 0;
   transition: opacity 300ms ease;
-  object-fit: contain;
+  height: 100%;
+  object-fit: cover;
 }
 
 .option.thumbnail[data-kind="base"]:hover .hover-image {

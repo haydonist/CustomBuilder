@@ -35,7 +35,7 @@ type VariantKind = "base" | "buckle" | "loop" | "concho" | "tip";
 @customElement("belt-wizard")
 export class CustomBeltWizard extends LitElement {
   @property({ type: String, attribute: 'sizing-chart-src' })
-  sizingChartSrc = '';
+  sizingChartSrc = 'https://cdn.shopify.com/s/files/1/0655/2856/1715/files/Beltmaster_Size_Guide_4-3.png?v=1768503345';
   
   @property({ type: String, attribute: 'looped-belt-src' })
   loopedBeltSrc = '';
@@ -57,6 +57,8 @@ export class CustomBeltWizard extends LitElement {
   private loadingPage = false;
   @state()
   private beltBase: Product | null = null;
+  @state()
+  private basePreviewImage: string | null = null;
   @state()
   private beltBuckle: Product | null = null;
   @state()
@@ -326,7 +328,7 @@ export class CustomBeltWizard extends LitElement {
         <div class="row wrap gap-medium"></div>
         <img
           id="sizingChart"
-          src="${this.sizingChartSrc}"
+          src="https://cdn.shopify.com/s/files/1/0655/2856/1715/files/Beltmaster_Size_Guide_4-3.png?v=1768503345"
           alt="Perfect belt sizing chart"
           @load="${() => console.log('[Belt Wizard] Sizing chart loaded:', this.sizingChartSrc)}"
           @error="${() => console.error('[Belt Wizard] Sizing chart failed to load:', this.sizingChartSrc)}"
@@ -718,10 +720,11 @@ export class CustomBeltWizard extends LitElement {
           <belt-preview
             class="step-${this.wizard.stepIndex}"
             ${ref(this.preview)}
-            base="${getImageAt(this.beltBase, 1) ??
-              getImageAt(this.beltBase, 0) ?? ""}"
-            buckle="${buckleImage ?? ""}"
-            tip="${this.beltTip ? getImageAt(this.beltTip, 0) : undefined}"
+            .base="${this.basePreviewImage ?? ""}"
+            .buckle="${buckleImage ?? ""}"
+            .tip="${this.beltTip ? getImageAt(this.beltTip, 0) : undefined}"
+            .buckleOnTop="${this.beltBuckle?.tags?.includes("top") ?? false}"
+            .isRangerCore="${this.beltBase?.tags?.includes("Ranger Core") ?? false}"
             @reorder-loops="${(
               e: CustomEvent<{ fromIndex: number; toIndex: number }>,
             ) =>
@@ -834,19 +837,31 @@ export class CustomBeltWizard extends LitElement {
         queryProducts(`tag:tip${widthFilter}`, { prefetchImages: false }),
       ]);
 
-      this.beltData[1] = this.buckleChoices = [...beltSets, ...beltBuckles];
-      this.beltData[2] = beltLoops;
-      this.beltData[4] = beltTips;
-      this.beltData[6] = beltSets;
+      // Apply client-side filter as a safety net to ensure only exact width matches
+      const filteredBuckles = this.filterProductsByWidth(beltBuckles, baseWidth);
+      const filteredSets = this.filterProductsByWidth(beltSets, baseWidth);
+      const filteredLoops = this.filterProductsByWidth(beltLoops, baseWidth);
+      const filteredTips = this.filterProductsByWidth(beltTips, baseWidth);
+
+      this.beltData[1] = this.buckleChoices = [...filteredSets, ...filteredBuckles];
+      this.beltData[2] = filteredLoops;
+      this.beltData[4] = filteredTips;
+      this.beltData[6] = filteredSets;
 
       console.debug(
         "Rebuilt buckle, set, loop, and tip steps based on base width:",
         baseWidth,
+        {
+          buckles: filteredBuckles.length,
+          sets: filteredSets.length,
+          loops: filteredLoops.length,
+          tips: filteredTips.length,
+        }
       );
 
       this.buildSingleSelectStep("buckle", this.buckleChoices);
-      this.buildMultiSelectStep("loop", beltLoops, 2);
-      this.buildSingleSelectStep("tip", beltTips);
+      this.buildMultiSelectStep("loop", filteredLoops, 2);
+      this.buildSingleSelectStep("tip", filteredTips);
     }
   }
   private triggerCheckoutFromShortcut(): void {
@@ -1198,7 +1213,7 @@ export class CustomBeltWizard extends LitElement {
       { page: sizePage, products: beltSizes },
       { page: setPage, products: beltSets },
     ] = await Promise.all([
-      queryProducts("tag:Belt Strap", { prefetchImages: false }),
+      queryProducts("tag:Belt Strap", { prefetchImages: true }),
       queryProducts(`tag:buckle`, { prefetchImages: false }),
       queryProducts(`tag:Loop`, { prefetchImages: false }),
       queryProducts("tag:concho", { prefetchImages: false }),
@@ -1269,8 +1284,9 @@ export class CustomBeltWizard extends LitElement {
           </div>
           <img
             id="sizingChart"
-            src="${this.sizingChartSrc}"
+            src="https://cdn.shopify.com/s/files/1/0655/2856/1715/files/Beltmaster_Size_Guide_4-3.png?v=1768503345"
             alt="Perfect belt sizing chart"
+            max-width="80%"
           />
         </div>
       `;
@@ -1282,7 +1298,9 @@ export class CustomBeltWizard extends LitElement {
     this.loadingPage = true;
 
     let page: PageInfo;
-    console.log("New page ahoy!", this.wizard.currentStep.id);
+    const baseWidth = this.beltBase?.tags?.find((t) => t.endsWith("mm"));
+    const widthFilter = baseWidth ? ` AND tag:${baseWidth}` : "";
+
     switch (this.wizard.currentStep.id) {
       case "base":
         page = this.pages[0];
@@ -1301,42 +1319,43 @@ export class CustomBeltWizard extends LitElement {
         page = this.pages[1];
         if (!page.hasNextPage) break;
         const { page: nextBucklePage, products: buckles } = await queryProducts(
-          "tag:buckle",
+          `tag:buckle${widthFilter}`,
           {
             after: page.endCursor,
           },
         );
+        const filteredBuckles = this.filterProductsByWidth(buckles, baseWidth);
         this.pages[1] = nextBucklePage;
-        this.beltData[1] = this.beltData[1].concat(buckles);
-        this.buildSingleSelectStep(
-          "buckle",
-          this.buckleChoices = this.buckleChoices.concat(buckles),
-        );
+        this.beltData[1] = this.beltData[1].concat(filteredBuckles);
+        this.buckleChoices = this.buckleChoices.concat(filteredBuckles);
+        this.buildSingleSelectStep("buckle", this.buckleChoices);
         break;
       case "loops":
         page = this.pages[2];
         if (!page.hasNextPage) break;
         const { page: nextLoopPage, products: loops } = await queryProducts(
-          "tag:Loop",
+          `tag:Loop${widthFilter}`,
           {
             after: page.endCursor,
           },
         );
+        const filteredLoops = this.filterProductsByWidth(loops, baseWidth);
         this.pages[2] = nextLoopPage;
-        this.beltData[2] = this.beltData[2].concat(loops);
+        this.beltData[2] = this.beltData[2].concat(filteredLoops);
         this.buildMultiSelectStep("loop", this.beltData[2], 2);
         break;
       case "conchos":
         page = this.pages[3];
         if (!page.hasNextPage) break;
         const { page: nextConchoPage, products: conchos } = await queryProducts(
-          "tag:concho",
+          `tag:concho${widthFilter}`,
           {
             after: page.endCursor,
           },
         );
+        const filteredConchos = this.filterProductsByWidth(conchos, baseWidth);
         this.pages[3] = nextConchoPage;
-        this.beltData[3] = this.beltData[3].concat(conchos);
+        this.beltData[3] = this.beltData[3].concat(filteredConchos);
         this.buildMultiSelectStep("concho", this.beltData[3], 9);
         break;
       case "tip":
@@ -1344,13 +1363,14 @@ export class CustomBeltWizard extends LitElement {
         if (!page.hasNextPage) break;
 
         const { page: nextTipPage, products: tips } = await queryProducts(
-          "tag:tip",
+          `tag:tip${widthFilter}`,
           {
             after: page.endCursor,
           },
         );
+        const filteredTips = this.filterProductsByWidth(tips, baseWidth);
         this.pages[4] = nextTipPage;
-        this.beltData[4] = this.beltData[4].concat(tips);
+        this.beltData[4] = this.beltData[4].concat(filteredTips);
         this.buildSingleSelectStep("tip", this.beltData[4]);
         break;
     }
@@ -1375,10 +1395,29 @@ export class CustomBeltWizard extends LitElement {
 
     // BASE
     const hadBaseBefore = !!this.beltBase;
+
     this.beltBase =
       beltBases.find((b) => b.id === this.selection!.get("base")) ?? null;
+
     const hasBaseNow = !!this.beltBase;
     if (!hadBaseBefore && hasBaseNow) this.firstBaseSelected = true;
+
+    // Base preview image MUST ALWAYS be the 2nd product image (index 1).
+    // If it doesn't exist, fall back to the 1st image (index 0).
+    this.basePreviewImage = this.beltBase
+      ? (getImageAt(this.beltBase, 1) ?? getImageAt(this.beltBase, 0))
+      : null;
+    console.log("[Base Preview]", {
+      baseId: this.beltBase?.id,
+      basePreviewImage: this.basePreviewImage,
+      img0: this.beltBase ? getImageAt(this.beltBase, 0) : null,
+      img1: this.beltBase ? getImageAt(this.beltBase, 1) : null,
+    });
+
+    // If preview element exists already, you *can* set it, but the binding will handle it anyway.
+    if (this.preview.value) {
+      this.preview.value.base = this.basePreviewImage;
+    }
 
     // BUCKLE
     if (this.selection?.has("buckle")) {
@@ -1406,6 +1445,10 @@ export class CustomBeltWizard extends LitElement {
       }
     } else {
       this.buckleVariantImage = null;
+    }
+    // Sync buckle to preview every time (base redraws can wipe layers)
+    if (this.preview.value) {
+      this.preview.value.buckle = this.buckleVariantImage ?? "";
     }
 
     // LOOPS: allow duplicates, max 2 total
@@ -1571,13 +1614,12 @@ export class CustomBeltWizard extends LitElement {
         this.requestUpdate();
         return;
       }
-
       // fallback: original behavior
       baseOnClick?.(ev);
     };
   }
 
-  private handleVariantSelect(
+  private async handleVariantSelect(
     kind: VariantKind,
     product: Product,
     variant: ProductVariant,
@@ -1597,17 +1639,17 @@ export class CustomBeltWizard extends LitElement {
 
     switch (kind) {
       case "base": {
+        // Keep variant selection for checkout purposes (SKU/variant id),
+        // but DO NOT use variant image for preview.
         this.selection!.set("base", product.id);
-        this.beltBase = product;
-        if (this.preview.value) {
-          // For base, use variant image or fallback to product's second image (index 1)
-          const baseImgUrl = variant.image?.url ??
-            (variant.image?.url ?? getImageAt(product, 1) ??
-              getImageAt(product, 0));
-          this.preview.value.base = baseImgUrl;
-        }
+        this.selection!.set("baseVariant", variant.id);
+
+        // Recompute everything from selection (including basePreviewImage from product images).
+        this.applySelectionToPreview();
+
         break;
       }
+
       case "buckle": {
         this.selection!.set("buckle", product.id);
         this.beltBuckle = product;
@@ -1636,7 +1678,7 @@ export class CustomBeltWizard extends LitElement {
         if (totalLoops >= 2) break;
         this.selection!.append("loop", product.id);
 
-        this.applySelectionToPreview();
+         this.applySelectionToPreview();
 
         if (this.preview.value) {
           const loopIds = this.selection!.getAll("loop") as string[];
@@ -1661,7 +1703,11 @@ export class CustomBeltWizard extends LitElement {
     this.activeVariantKey = null;
     this.requestUpdate();
 
-    if (kind !== "buckle" && kind !== "tip" && kind !== "base") return;
+    // Wait for the render to complete before syncing preview images
+    await this.updateComplete;
+    this.applySelectionToPreview();
+
+    if (kind !== "buckle" && kind !== "tip") return;
     this.submitStep();
   }
 
@@ -1746,6 +1792,20 @@ export class CustomBeltWizard extends LitElement {
     if (!product?.tags?.length) return null;
     const t = product.tags.find((tag) => tag.toLowerCase().endsWith("mm"));
     return t ?? null;
+  }
+
+  private filterProductsByWidth(products: Product[], requiredWidth: string | null): Product[] {
+    if (!requiredWidth) return products;
+    
+    return products.filter((p) => {
+      if (!p.tags?.length) return false;
+      
+      // Find all width tags (ending with "mm")
+      const widthTags = p.tags.filter((tag) => tag.toLowerCase().endsWith("mm"));
+      
+      // Product must have the required width AND only that width (no conflicting sizes)
+      return widthTags.includes(requiredWidth) && widthTags.length === 1;
+    });
   }
 
   private resetSelectionsForBaseWidthChange() {

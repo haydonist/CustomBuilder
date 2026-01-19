@@ -11,6 +11,8 @@ export default class BeltPreview extends LitElement {
   @property({ type: String }) base: string | null = null;
   @property({ type: String }) buckle: string | null = null;
   @property({ type: String }) tip: string | null = null;
+  @property({ type: Boolean }) buckleOnTop: boolean = false;
+  @property({ type: Boolean }) isRangerCore: boolean = false;
 
   @state() loops: string[] = [];
   @state() conchos: string[] = [];
@@ -187,16 +189,18 @@ export default class BeltPreview extends LitElement {
   `;
 
   protected override updated(changed: PropertyValues) {
+    if (changed.has("base")) console.debug("base changed to", this.base);
     if (changed.has("base")) this.renderBeltBase();
   }
+
 
   protected override willUpdate(changed: PropertyValues) {
     if (changed.has("base") && this.base) cacheImage(this.base);
   }
 
   override render() {
-    // TODO: Render the belt base, with transparent edges cropped out, to a canvas
     return html`
+    <div class="base-wrapper">
       <canvas
         id="base"
         aria-hidden="true"
@@ -207,9 +211,9 @@ export default class BeltPreview extends LitElement {
           // Render at the end of this event loop
           queueMicrotask(() => this.renderBeltBase());
         })}
-      ></canvas>
-      <img id="buckle" class="center-vertically" src=${this.buckle ?? ""} aria-hidden="true" />
-      <div id="loops" class="center-vertically">
+      ></canvas></div>
+      <img id="buckle" class="center-vertically" src=${this.buckle ?? ""} aria-hidden="true" style="z-index: ${this.buckleOnTop || this.isRangerCore ? '10' : '-1'}; left: ${this.isRangerCore ? '-2.8%' : '-5.8%'}" />
+      <div id="loops" class="center-vertically" style="left: ${this.isRangerCore ? '5.6%' : '2.6%'}">
         ${this.loops.map(
           (loop, index) => html`
             <div
@@ -275,7 +279,11 @@ export default class BeltPreview extends LitElement {
     try {
       const img = await cacheImage(this.base);
       const cropped = await cropToContents(img, img.naturalWidth, img.naturalHeight);
-      const aspect = cropped.height / cropped.width;
+      let aspect = cropped.height / cropped.width;
+      
+      // Scale down the aspect ratio by 25% to match other components
+      // This prevents the base from being 33% too tall
+      aspect *= 0.75;
 
       // Ensure layout is ready
       await new Promise(requestAnimationFrame);
@@ -290,6 +298,13 @@ export default class BeltPreview extends LitElement {
       assert(ctx, "Could not acquire 2D canvas context!");
       ctx.clearRect(0, 0, width, height);
       ctx.drawImage(cropped, 0, 0, width * dpr, height * dpr);
+      console.debug("draw", {
+        base: this.base,
+        rectW: canvas.getBoundingClientRect().width,
+        naturalW: img.naturalWidth,
+        naturalH: img.naturalHeight,
+      });
+
     } catch (e) {
       console.error("renderBeltBase failed:", e);
     }
@@ -444,11 +459,19 @@ declare global {
 const cachedImages: Record<string, Promise<HTMLImageElement>> = {};
 
 async function cacheImage(url: string): Promise<HTMLImageElement> {
-  if (Object.keys(cachedImages).includes(url)) return await cachedImages[url];
-  return cachedImages[url] = new Promise<HTMLImageElement>((resolve, reject) => {
+  if (cachedImages[url]) return cachedImages[url];
+
+  cachedImages[url] = new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.src = url;
-    img.decode().then(() => resolve(img)).catch(reject);
+    img.decode()
+      .then(() => resolve(img))
+      .catch((err) => {
+        delete cachedImages[url]; // allow retry next time
+        reject(err);
+      });
   });
+
+  return cachedImages[url];
 }
