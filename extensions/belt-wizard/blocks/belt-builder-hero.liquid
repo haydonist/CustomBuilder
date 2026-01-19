@@ -47,81 +47,81 @@
 
 <style>
   .belt-builder {
-  width: 100vw;
-  min-height: 80vh;
-  margin: 0;
-  padding: 0;
-  background-color: #291c12;
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
+    width: 100vw;
+    min-height: 80vh;
+    margin: 0;
+    padding: 0;
+    background-color: #291c12;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+  }
 
-/* Hero styling */
-.belt-builder-jumbotron {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 4rem 2rem;
-  background: linear-gradient(135deg, #291c12 0%, #2d2d2d 100%);
-  z-index: 2;
-  border-radius: 8px;
-  min-height: 80vh;
-}
+  /* Hero styling */
+  .belt-builder-jumbotron {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 4rem 2rem;
+    background: linear-gradient(135deg, #291c12 0%, #2d2d2d 100%);
+    z-index: 2;
+    border-radius: 8px;
+    min-height: 80vh;
+  }
 
-.belt-builder-heading {
-  font-size: 1rem;
-  letter-spacing: 0.2em;
-  color: #ad8e76;
-  margin-bottom: 0.5rem;
-}
+  .belt-builder-heading {
+    font-size: 1rem;
+    letter-spacing: 0.2em;
+    color: #ad8e76;
+    margin-bottom: 0.5rem;
+  }
 
-.belt-builder-subheading {
-  font-size: 2.5rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  color: #ad8e76;
-  font-family: "Times New Roman", serif;
-}
+  .belt-builder-subheading {
+    font-size: 2.5rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #ad8e76;
+    font-family: 'Times New Roman', serif;
+  }
 
-.belt-builder-btn {
-  background-color: #8b5e3c;
-  color: #fff;
-  border: none;
-  padding: 12px 22px;
-  font-size: 1rem;
-  font-weight: 700;
-  border-radius: 8px;
-  cursor: pointer;
-}
+  .belt-builder-btn {
+    background-color: #8b5e3c;
+    color: #fff;
+    border: none;
+    padding: 12px 22px;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: 8px;
+    cursor: pointer;
+  }
 
-.belt-builder-btn:hover {
-  background-color: #7a4f31;
-}
+  .belt-builder-btn:hover {
+    background-color: #7a4f31;
+  }
 
-/* Wizard takes the same space */
-belt-wizard {
-  inset: 0;
-  min-height: 80vh;
-  width: 100%;
-  display: block;
-  background-color: #291c12;
-}
+  /* Wizard takes the same space */
+  belt-wizard {
+    inset: 0;
+    min-height: 80vh;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: block;
+    background-color: #291c12;
+  }
 
-/* SINGLE source of truth for visibility */
-[hidden] {
-  display: none !important;
-}
-
-
+  /* SINGLE source of truth for visibility */
+  [hidden] {
+    display: none !important;
+  }
 </style>
 
 <script>
   console.log('[Belt Wizard Hero] Script loaded');
   document.addEventListener('DOMContentLoaded', () => {
     const button = document.querySelector('[data-get-started]');
-    const hero   = document.querySelector('[data-jumbotron]');
+    const hero = document.querySelector('[data-jumbotron]');
     const wizard = document.querySelector('[data-belt-wizard]');
 
     if (!button || !wizard) return;
@@ -132,14 +132,14 @@ belt-wizard {
       hero?.setAttribute('hidden', '');
       wizard.removeAttribute('hidden');
     });
-  
+
     // Check if web component is defined
     if (customElements.get('belt-wizard')) {
       console.log('[Belt Wizard Hero] Web component is registered');
     } else {
       console.error('[Belt Wizard Hero] Web component NOT registered');
     }
-    
+
     // Force remove padding from all parent containers
     const wrapper = document.querySelector('.belt-builder');
     if (wrapper) {
