@@ -15,36 +15,6 @@
 {{ 'belt-wizard.css' | asset_url | stylesheet_tag }}
 <script src="{{ 'belt-wizard.js' | asset_url }}" defer></script>
 
-<script>
-  console.log('[Belt Wizard] Script loaded');
-  document.addEventListener('DOMContentLoaded', function() {
-    
-    // Check if web component is defined
-    if (customElements.get('belt-wizard')) {
-      console.log('[Belt Wizard] Web component is registered');
-    } else {
-      console.error('[Belt Wizard] Web component NOT registered');
-    }
-    
-    // Force remove padding from all parent containers
-    const section = document.querySelector('.belt-builder');
-    if (section) {
-      let parent = section.parentElement;
-      let depth = 0;
-      while (parent && depth < 10) {
-        parent.style.paddingLeft = '0';
-        parent.style.paddingRight = '0';
-        parent.style.marginLeft = '0';
-        parent.style.marginRight = '0';
-        parent.style.maxWidth = 'none';
-        console.log('[Belt Wizard] Removed padding from parent:', parent.className || parent.tagName);
-        parent = parent.parentElement;
-        depth++;
-      }
-    }
-  });
-</script>
-
 <style>
   .belt-builder {
     min-height: 80vh;
@@ -52,7 +22,7 @@
     flex-direction: column;
     background-color: #291c12;
     color: #fff;
-    
+
     /* Force full width by breaking out of container */
     width: 100vw;
     margin-left: 0;
@@ -61,12 +31,11 @@
     max-width: none;
     box-sizing: border-box;
   }
-  
+
   belt-wizard {
     flex-grow: 1;
     background-color: #291c12;
   }
-
 </style>
 
 {% schema %}
