@@ -101,7 +101,6 @@ export class CustomBeltWizard extends LitElement {
   private async fetchAppSettings() {
     // Get shop domain from Shopify global object
     const shop = (window as any).Shopify?.shop;
-    console.log('[Belt Wizard] Detected shop:', shop);
     
     if (!shop) {
       console.warn('[Belt Wizard] Shop domain not found, using default settings');
@@ -131,8 +130,6 @@ export class CustomBeltWizard extends LitElement {
 
   protected override connectedCallback() {
     super.connectedCallback();
-    console.log('[Belt Wizard] connectedCallback - sizingChartSrc:', this.sizingChartSrc);
-    console.log('[Belt Wizard] connectedCallback - loopedBeltSrc:', this.loopedBeltSrc);
     this.infiniteScrollObserver.observe(document.getElementById("scrollToken")!);
   }
 
@@ -141,8 +138,8 @@ export class CustomBeltWizard extends LitElement {
     this.infiniteScrollObserver.disconnect();
   }
 
-  private getVariantKey(kind: VariantKind, productId: string): string {
-    return `${kind}:${productId}`;
+  private getVariantKey(kind: VariantKind, productId: string, instanceIndex?: number): string {
+    return instanceIndex !== undefined ? `${kind}:${productId}:${instanceIndex}` : `${kind}:${productId}`;
   }
 
   private isSetProduct(product: Product | null): boolean {
@@ -1016,10 +1013,10 @@ export class CustomBeltWizard extends LitElement {
               <div>
                 <h3 class="collection-title">${collectionTitle}</h3>
                 <div class="row wrap gap-medium">
-                  ${items.map((p) => {
+                  ${items.map((p, index) => {
                     const hasVariants = Array.isArray(p.variants) &&
                       p.variants.length > 1;
-                    const popup = this.renderVariantPopup(variantKind, p);
+                    const popup = this.renderVariantPopup(variantKind, p, index);
                     const selected = this.selection?.get(variantKind) === p.id;
 
                     const thumbnailImage = getImageAt(p, 0)!;
@@ -1042,6 +1039,7 @@ export class CustomBeltWizard extends LitElement {
                           variantKind,
                           p,
                           hasVariants,
+                          index,
                           () => {
                             this.ensureSelection();
 
@@ -1155,7 +1153,7 @@ export class CustomBeltWizard extends LitElement {
               <div>
                 <h3 class="collection-title">${collectionTitle}</h3>
                 <div class="row wrap gap-medium">
-                  ${items.map((p) => {
+                  ${items.map((p, index) => {
                     const currentProducts = this.selection?.getAll(
                       variantKind,
                     ) as string[] | undefined;
@@ -1167,7 +1165,7 @@ export class CustomBeltWizard extends LitElement {
                     const selected = count > 0;
                     const hasVariants = Array.isArray(p.variants) &&
                       p.variants.length > 1;
-                    const popup = this.renderVariantPopup(variantKind, p);
+                    const popup = this.renderVariantPopup(variantKind, p, index);
 
                     return thumbnailOption(
                       p.id,
@@ -1181,6 +1179,7 @@ export class CustomBeltWizard extends LitElement {
                           variantKind,
                           p,
                           hasVariants,
+                          index,
                           (ev: Event) => {
                             ev.preventDefault();
                             this.toggleSelection(variantKind, p.id, maxCount);
@@ -1541,8 +1540,9 @@ export class CustomBeltWizard extends LitElement {
   private renderVariantPopup(
     kind: VariantKind,
     product: Product,
+    instanceIndex: number,
   ): ReturnType<typeof html> | null {
-    const key = this.getVariantKey(kind, product.id);
+    const key = this.getVariantKey(kind, product.id, instanceIndex);
     if (this.activeVariantKey !== key) return null;
 
     const variants = Array.isArray(product.variants) ? product.variants : [];
@@ -1562,6 +1562,7 @@ export class CustomBeltWizard extends LitElement {
       <div
         class="variant-popup"
         data-kind="${kind}"
+        data-instance="${instanceIndex}"
         @click="${(e: Event) => e.stopPropagation()}"
       >
         <div class="variant-popup-grid">
@@ -1582,7 +1583,7 @@ export class CustomBeltWizard extends LitElement {
                 @click="${(ev: Event) => {
                   ev.preventDefault();
                   ev.stopPropagation();
-                  this.handleVariantSelect(kind, product, variant);
+                  this.handleVariantSelect(kind, product, variant, instanceIndex);
                 }}"
               >
                 <img src="${imgUrl}" alt="${variant.title}" />
@@ -1603,13 +1604,14 @@ export class CustomBeltWizard extends LitElement {
     kind: VariantKind,
     product: Product,
     hasVariants: boolean,
+    instanceIndex: number,
     baseOnClick?: (ev: Event) => void,
   ) {
     return (ev: Event) => {
       if (hasVariants) {
         ev.preventDefault();
         ev.stopPropagation();
-        const key = this.getVariantKey(kind, product.id);
+        const key = this.getVariantKey(kind, product.id, instanceIndex);
         this.activeVariantKey = this.activeVariantKey === key ? null : key;
         this.requestUpdate();
         return;
@@ -1623,9 +1625,10 @@ export class CustomBeltWizard extends LitElement {
     kind: VariantKind,
     product: Product,
     variant: ProductVariant,
+    instanceIndex?: number,
   ) {
     this.ensureSelection();
-    const key = this.getVariantKey(kind, product.id);
+    const key = this.getVariantKey(kind, product.id, instanceIndex);
     this.variantSelection.set(key, variant.id);
 
     if (kind === "loop" || kind === "concho") {
