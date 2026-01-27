@@ -18,37 +18,16 @@
 :root {
   /* Colors */
   --neutral-white: #fff;
-  --neutral-lightest: #f2f2f2;
-  --neutral-lighter: #dadada;
-  --neutral-light: #b6b6b6;
   --neutral: #fff;
   --neutral-dark: #545454;
-  --neutral-darker: #242424;
   --neutral-darkest: #0c0c0c;
 
   --potters-clay-lightest: #f3eeeb;
-  --potters-clay-lighter: #e7ded8;
   --potters-clay-light: #ad8e76;
-  --potters-clay: #8b5e3c;
-  --potters-clay-dark: #6f4b30;
-  --potters-clay-darker: #372518;
   --potters-clay-darkest: #291c12;
 
-  --spring-wood-lightest: #fefefd;
-  --spring-wood-lighter: #fdfdfc;
-  --spring-wood-light: #faf8f4;
-  --spring-wood: #f8f5f0;
-  --spring-wood-dark: #c6c4c0;
-  --spring-wood-darker: #636260;
-  --spring-wood-darkest: #4a4948;
-
-  --old-gold-lightest: #faf7eb;
-  --old-gold-lighter: #f6efd7;
-  --old-gold-light: #e8c773;
   --old-gold: #d4af37;
-  --old-gold-dark: #a98c2c;
-  --old-gold-darker: #544616;
-  --old-gold-darkest: #3f3410;
+
 
   /* Backgrounds */
   --belt-wizard-background-color: var(--belt-wizard-bg-color, var(--potters-clay-darkest));

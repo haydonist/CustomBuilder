@@ -27,3 +27,9 @@ uid = "97ef57c2-1d4d-af6f-17eb-055a50b6690938c9e60b"
     type = "single_line_text_field"
     name = "Button Text"
     description = "Text for the Get Started button"
+
+    [[settings.fields]]
+    key = "background_color"
+    type = "color"
+    name = "Background Color"
+    description = "Background color for the belt wizard section"

@@ -3,7 +3,10 @@
   This block embeds the BeltMaster belt customization wizard into any page
 {% endcomment %}
 
-<div class="belt-builder">
+<div
+  class="belt-builder"
+  style="--belt-wizard-background-color: {{ block.settings.background_color | default: '#291c12' }}; --belt-wizard-bg-color: {{ block.settings.background_color | default: '#291c12' }};"
+>
   {% render 'belt-wizard-styles' %}
   <belt-wizard
     sizing-chart-src="{{ 'belts/sizing-chart.png' | asset_url }}"
@@ -15,12 +18,19 @@
 {{ 'belt-wizard.css' | asset_url | stylesheet_tag }}
 <script src="{{ 'belt-wizard.js' | asset_url }}" defer></script>
 
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const bgColor = '{{ block.settings.background_color | default: '#291c12' }}';
+    document.documentElement.style.setProperty('--belt-wizard-bg-color', bgColor);
+    document.documentElement.style.setProperty('--belt-wizard-background-color', bgColor);
+  });
+</script>
+
 <style>
   .belt-builder {
     min-height: 80vh;
     display: flex;
     flex-direction: column;
-    background-color: #291c12;
     color: #fff;
 
     /* Force full width by breaking out of container */
@@ -34,7 +44,6 @@
 
   belt-wizard {
     flex-grow: 1;
-    background-color: #291c12;
   }
 </style>
 
@@ -44,6 +53,14 @@
   "target": "section",
   "tag": "section",
   "class": "belt-builder-section-wrapper",
-  "stylesheet": "belt-wizard.css"
+  "stylesheet": "belt-wizard.css",
+  "settings": [
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background Color",
+      "default": "#291c12"
+    }
+  ]
 }
 {% endschema %}
