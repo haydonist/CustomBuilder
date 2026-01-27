@@ -341,6 +341,11 @@ export class CustomBeltWizard extends LitElement {
     {
       id: "buckle",
       title: "Choose a Belt Buckle",
+      shortcut: () =>
+        this.multiSelectShortcut(
+          "Select a Belt Base",
+          this.selection?.has("base") ?? false,
+        ),
       view: html`
         <div class="row wrap gap-medium"></div>
       `,
@@ -751,21 +756,30 @@ export class CustomBeltWizard extends LitElement {
     return html`
       <header>
         <section id="stepper">
-          ${this.wizard.steps.map(
-            (_, i) =>
-              html`
-                <button
-                  class="step"
-                  ?disabled="${this.wizard.stepIndex === i}"
-                  title="${`Step ${i + 1} of ${this.wizard.steps.length}: ${
-                    this.wizard.steps[i].title
-                  }`}"
-                  @click="${() => this.wizard.goTo(i)}"
-                >
-                </button>
-              `,
-          )}
+          ${this.wizard.steps.map((step, i) => {
+            const isCurrent = this.wizard.stepIndex === i;
+            const isComplete = i < this.wizard.stepIndex;
+
+            return html`
+              <button
+                class="${classMap({
+                  step: true,
+                  "is-current": isCurrent,
+                  "is-complete": isComplete,
+                  "is-upcoming": !isCurrent && !isComplete,
+                })}"
+                ?disabled="${isCurrent}"
+                aria-current="${isCurrent ? "step" : "false"}"
+                aria-label="${`Step ${i + 1} of ${this.wizard.steps.length}: ${step.title}`}"
+                title="${`Step ${i + 1} of ${this.wizard.steps.length}: ${step.title}`}"
+                @click="${() => this.wizard.goTo(i)}"
+              >
+                <span class="step-indicator" aria-hidden="true">${i + 1}</span>
+              </button>
+            `;
+          })}
         </section>
+
         <section id="stepHeading" class="row">
           <div id="stepTitle" class="step-title step-enter-${this.wizard
             .stepIndex}">
@@ -1066,13 +1080,8 @@ export class CustomBeltWizard extends LitElement {
 
                             this.selection!.set(variantKind, p.id);
                             this.applySelectionToPreview();
-
-                            if (variantKind !== "base") {
-                              this.submitStep();
-                            } else {
-                              this.shouldAdvance = false;
-                              this.form.value?.requestSubmit();
-                            }
+                            // Don't auto-advance anymore - user must click "Continue" button
+                            this.shouldAdvance = false;
                           },
                         )}"
                       >

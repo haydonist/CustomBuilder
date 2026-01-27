@@ -186,42 +186,52 @@ belt-wizard {
   width: 100%;
   height: 1px;
   background-color: var(--neutral-white);
-  top: 7px;
+  top: 50%;
+  transform: translateY(-50%);
   z-index: 0;
 }
 
 #stepper button.step {
   position: relative;
-  width: 14px;
-  height: 14px;
-  border-radius: 7px;
-  border: none;
-  background-color: #b6c6fd;
+  width: 22px;
+  height: 22px;
+  border-radius: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: gray;
   z-index: 1;
   cursor: pointer;
-}
-#stepper button.step:not(:first-child):before {
-  content: "";
-  display: block;
-  position: absolute;
-  background-color: var(--belt-wizard-background-color);
-  width: 7px;
-  height: 1px;
-  left: -50%;
-}
-#stepper button.step:not(:last-child):after {
-  content: "";
-  display: block;
-  position: absolute;
-  background-color: var(--belt-wizard-background-color);
-  width: 7px;
-  height: 1px;
-  right: -50%;
+  display: grid;
+  place-items: center;
+  padding: 0;
 }
 
-#stepper button.step:disabled {
+#stepper .step-indicator {
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Completed steps: filled, but still subtle */
+#stepper button.step.is-complete {
+  background-color: rgba(71, 111, 255, 0.85);
+  border-color: rgba(71, 111, 255, 0.85);
+}
+
+/* Current step: strongest emphasis */
+#stepper button.step.is-current {
   background-color: #476fff;
+  border-color: #476fff;
   cursor: not-allowed;
+}
+
+#stepper button.step.is-current .step-indicator {
+  color: #fff;
+}
+
+/* Upcoming: quiet */
+#stepper button.step.is-upcoming .step-indicator {
+  color: rgba(255, 255, 255, 0.75);
 }
 
 /* Steps */
