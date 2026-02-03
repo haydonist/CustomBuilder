@@ -106,7 +106,7 @@ export default class BeltPreview extends LitElement {
       height: 100%;
       z-index: 10;
       display: flex;
-      justify-content: space-evenly;
+      justify-content: space-between;
       align-items: center;
       pointer-events: auto !important;
     }
