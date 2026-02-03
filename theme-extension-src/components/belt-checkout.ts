@@ -161,9 +161,84 @@ export default class BeltCheckout extends LitElement {
       ];
 
       const checkoutUrl = await createCartAndGetCheckoutUrl(lines);
+
+      // Create custom product separately in the background (fire and forget)
+      this.createCustomProductInBackground();
+
       self.location.assign(checkoutUrl);
     } finally {
       this.isCheckingOut = false;
+    }
+  }
+
+  private async createCustomProductInBackground(): Promise<void> {
+    try {
+      // Get product data for metafields
+      const [beltBases, beltBuckles, _beltLoops, _beltConchos, beltTips] = this.beltData;
+      const base = beltBases.find(x => x.id === this.base);
+      const buckle = beltBuckles.find(x => x.id === this.buckle);
+      const tipProduct = beltTips.find(x => x.id === this.tip) ?? null;
+
+      // Calculate prices
+      const baseVariant = base ? getVariantById(base, this.baseVariantId) : null;
+      const buckleVariant = buckle ? getVariantById(buckle, this.buckleVariantId) : null;
+      const tipVariant = tipProduct ? getVariantById(tipProduct, this.tipVariantId) : null;
+      const sizeVariant = this.beltSize ? getVariantById(this.beltSize, this.sizeVariantId) : null;
+
+      const basePrice = baseVariant ? moneyToNumber(baseVariant.price.amount) : 0;
+      const bucklePrice = buckleVariant ? moneyToNumber(buckleVariant.price.amount) : 0;
+      const tipPrice = tipVariant ? moneyToNumber(tipVariant.price.amount) : 0;
+      const sizePrice = sizeVariant ? moneyToNumber(sizeVariant.price.amount) : 0;
+
+      const variantPriceById = buildVariantPriceIndex(this.beltData);
+      const loopsPrice = aggregateVariantCounts(this.loopsVariantIds).reduce((sum, { variantId, count }) => {
+        return sum + (variantPriceById.get(variantId) ?? 0) * count;
+      }, 0);
+      const conchosPrice = aggregateVariantCounts(this.conchosVariantIds).reduce((sum, { variantId, count }) => {
+        return sum + (variantPriceById.get(variantId) ?? 0) * count;
+      }, 0);
+
+      const currencyCode = baseVariant?.price.currencyCode ?? base?.priceRange.minVariantPrice.currencyCode ?? "USD";
+
+      // Build selected products data for metafields
+      const loopCountMap = aggregateAndCount(this.loops);
+      const conchoCountMap = aggregateAndCount(this.conchos);
+
+      const selectedProducts = {
+        base: base ? { id: base.id, title: base.title } : undefined,
+        buckle: buckle ? { id: buckle.id, title: buckle.title } : undefined,
+        tip: tipProduct ? { id: tipProduct.id, title: tipProduct.title } : undefined,
+        size: this.beltSize ? { id: this.beltSize.id, title: sizeVariant?.title || this.beltSize.title } : undefined,
+        loops: Array.from(loopCountMap.values()).map(({ product, count }) => ({
+          id: product.id,
+          title: product.title,
+          count,
+        })),
+        conchos: Array.from(conchoCountMap.values()).map(({ product, count }) => ({
+          id: product.id,
+          title: product.title,
+          count,
+        })),
+      };
+
+      // Call backend API to create custom product bundle (fire and forget)
+      await fetch("/api/create-custom-product", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          basePrice,
+          bucklePrice,
+          tipPrice,
+          sizePrice,
+          loopsPrice,
+          conchosPrice,
+          currencyCode,
+          selectedProducts,
+        }),
+      });
+    } catch (error) {
+      // Log silently - don't interrupt checkout
+      console.debug("Background product creation error:", error);
     }
   }
 }
