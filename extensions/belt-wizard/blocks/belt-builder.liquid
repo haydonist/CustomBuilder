@@ -5,12 +5,13 @@
 
 <div
   class="belt-builder"
-  style="--belt-wizard-background-color: {{ block.settings.background_color | default: '#291c12' }}; --belt-wizard-bg-color: {{ block.settings.background_color | default: '#291c12' }};"
+  style="--belt-wizard-background-color: {{ block.settings.background_color | default: '#291c12' }}; --belt-wizard-bg-color: {{ block.settings.background_color | default: '#291c12' }}; --belt-wizard-text-color-custom: {{ block.settings.text_color | default: '#ffffff' }}; --stepper-line-color-custom: {{ block.settings.stepper_line_color | default: '#ffffff' }}; --stepper-dot-incomplete-color-custom: {{ block.settings.stepper_dot_incomplete_color | default: 'gray' }}; --stepper-dot-complete-color-custom: {{ block.settings.stepper_dot_complete_color | default: 'rgba(71, 111, 255, 0.85)' }}; --stepper-dot-current-color-custom: {{ block.settings.stepper_dot_current_color | default: '#476fff' }};"
 >
   {% render 'belt-wizard-styles' %}
   <belt-wizard
     sizing-chart-src="{{ 'belts/sizing-chart.png' | asset_url }}"
     looped-belt-src="{{ 'belts/looped-belt.png' | asset_url }}"
+    concho-recommendation="{{ block.settings.concho_recommendation_text | default: '<strong>Our Recommendation:</strong> Using the same concho in sets of 5, 7, or 9 usually looks best and qualifies for a discount. Other quantities or mixing different conchos can end up looking unpolished.' }}"
   ></belt-wizard>
   <div id="scrollToken" style="height: 1px;"></div>
 </div>
@@ -21,8 +22,18 @@
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     const bgColor = '{{ block.settings.background_color | default: '#291c12' }}';
+    const textColor = '{{ block.settings.text_color | default: '#ffffff' }}';
+    const stepperLineColor = '{{ block.settings.stepper_line_color | default: '#ffffff' }}';
+    const stepperIncompleteColor = '{{ block.settings.stepper_dot_incomplete_color | default: 'gray' }}';
+    const stepperCompleteColor = '{{ block.settings.stepper_dot_complete_color | default: 'rgba(71, 111, 255, 0.85)' }}';
+    const stepperCurrentColor = '{{ block.settings.stepper_dot_current_color | default: '#476fff' }}';
     document.documentElement.style.setProperty('--belt-wizard-bg-color', bgColor);
     document.documentElement.style.setProperty('--belt-wizard-background-color', bgColor);
+    document.documentElement.style.setProperty('--belt-wizard-text-color-custom', textColor);
+    document.documentElement.style.setProperty('--stepper-line-color-custom', stepperLineColor);
+    document.documentElement.style.setProperty('--stepper-dot-incomplete-color-custom', stepperIncompleteColor);
+    document.documentElement.style.setProperty('--stepper-dot-complete-color-custom', stepperCompleteColor);
+    document.documentElement.style.setProperty('--stepper-dot-current-color-custom', stepperCurrentColor);
   });
 </script>
 
@@ -60,6 +71,50 @@
       "id": "background_color",
       "label": "Background Color",
       "default": "#291c12"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text Color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "header",
+      "content": "Stepper Settings"
+    },
+    {
+      "type": "color",
+      "id": "stepper_line_color",
+      "label": "Line Color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "stepper_dot_incomplete_color",
+      "label": "Incomplete Color",
+      "default": "#808080"
+    },
+    {
+      "type": "color",
+      "id": "stepper_dot_complete_color",
+      "label": "Complete Color",
+      "default": "#476fff"
+    },
+    {
+      "type": "color",
+      "id": "stepper_dot_current_color",
+      "label": "Current Color",
+      "default": "#476fff"
+    },
+    {
+      "type": "header",
+      "content": "Concho Step Settings"
+    },
+    {
+      "type": "richtext",
+      "id": "concho_recommendation_text",
+      "label": "Recommendation Message",
+      "default": "<p><strong>Our Recommendation:</strong> Using the same concho in sets of 5, 7, or 9 usually looks best and qualifies for a discount. Other quantities or mixing different conchos can end up looking unpolished.</p>"
     }
   ]
 }
