@@ -196,7 +196,7 @@ export function renderLoader(ariaLabel: string): TemplateResult {
             <div class="belt__hole"></div>
           </div>
         </div>
-        <div class="bm-loader__label"><slot></slot></div>
+        <div class="bm-loader__label">${ariaLabel}</div>
       </div>
     </div>
   `;
