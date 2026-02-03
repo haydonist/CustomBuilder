@@ -66,7 +66,7 @@ export default class BeltPreview extends LitElement {
     }
 
     #loops {
-      left: 2.6%;
+      left: 1%;
       height: 100%;
       gap: 15px;
       z-index: 10;
@@ -213,7 +213,7 @@ export default class BeltPreview extends LitElement {
         })}
       ></canvas></div>
       <img id="buckle" class="center-vertically" src=${this.buckle ?? ""} aria-hidden="true" style="z-index: ${this.buckleOnTop || this.isRangerCore ? '10' : '-1'}; left: ${this.isRangerCore ? '-2.8%' : '-5.8%'}" />
-      <div id="loops" class="center-vertically" style="left: ${this.isRangerCore ? '5.6%' : '2.6%'}">
+      <div id="loops" class="center-vertically" style="left: ${this.isRangerCore ? '5.6%' : '1%'}">
         ${this.loops.map(
           (loop, index) => html`
             <div
@@ -276,6 +276,8 @@ export default class BeltPreview extends LitElement {
     const canvas = this.#baseCanvas;
     if (!canvas || !this.base) return;
 
+    this.isRenderingBase = true;
+
     try {
       const img = await cacheImage(this.base);
       const cropped = await cropToContents(img, img.naturalWidth, img.naturalHeight);
@@ -287,8 +289,16 @@ export default class BeltPreview extends LitElement {
 
       // Ensure layout is ready
       await new Promise(requestAnimationFrame);
-      const width = Math.floor(canvas.getBoundingClientRect().width) || 1;
-      const height = Math.max(1, Math.round(width * aspect));
+      let width = Math.floor(canvas.getBoundingClientRect().width) || 1;
+      let height = Math.round(width * aspect);
+      
+      // If height is less than 50px, scale both width and height proportionally to maintain aspect ratio
+      if (height < 50) {
+        const scale = 50 / height;
+        width = Math.round(width * scale);
+        height = 50;
+      }
+      
       const dpr = self.devicePixelRatio || 1;
 
       canvas.width = Math.round(width * dpr);
@@ -307,6 +317,8 @@ export default class BeltPreview extends LitElement {
 
     } catch (e) {
       console.error("renderBeltBase failed:", e);
+    } finally {
+      this.isRenderingBase = false;
     }
   }
 

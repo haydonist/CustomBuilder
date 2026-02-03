@@ -185,7 +185,7 @@ belt-wizard {
   position: absolute;
   width: 100%;
   height: 1px;
-  background-color: var(--neutral-white);
+  background-color: var(--stepper-line-color, var(--neutral-white));
   top: 50%;
   transform: translateY(-50%);
   z-index: 0;
@@ -195,9 +195,9 @@ belt-wizard {
   position: relative;
   width: 22px;
   height: 22px;
-  border-radius: 100%;
+  border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.45);
-  background: gray;
+  background: var(--stepper-dot-incomplete-color, gray);
   z-index: 1;
   cursor: pointer;
   display: grid;
@@ -214,14 +214,14 @@ belt-wizard {
 
 /* Completed steps: filled, but still subtle */
 #stepper button.step.is-complete {
-  background-color: rgba(71, 111, 255, 0.85);
-  border-color: rgba(71, 111, 255, 0.85);
+  background-color: var(--stepper-dot-complete-color, rgba(71, 111, 255, 0.85));
+  border-color: var(--stepper-dot-complete-color, rgba(71, 111, 255, 0.85));
 }
 
 /* Current step: strongest emphasis */
 #stepper button.step.is-current {
-  background-color: #476fff;
-  border-color: #476fff;
+  background-color: var(--stepper-dot-current-color, #476fff);
+  border-color: var(--stepper-dot-current-color, #476fff);
   cursor: not-allowed;
 }
 
