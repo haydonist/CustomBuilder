@@ -9,8 +9,10 @@ export function renderLoader(ariaLabel: string): TemplateResult {
           display: grid;
           place-items: center;
           padding: 24px;
-          min-height: 160px;
+          max-height: 175px;
+          max-width: 300px;
           margin: 25% 0;
+          max-height: 160px;
           /* Universal visibility layer */
           isolation: isolate;
         }
@@ -40,23 +42,20 @@ export function renderLoader(ariaLabel: string): TemplateResult {
           z-index: 1;
           display: grid;
           justify-items: center;
+          max-height: 175px;
           gap: 12px;
           padding: 18px 18px 16px;
           border-radius: 16px;
 
-          /* Works on light or dark: semi-opaque surface + border */
           background: rgba(255, 255, 255, 0.80);
           border: 1px solid rgba(255, 255, 255, 0.22);
 
-          /* Outer shadow + inner highlight for contrast */
           box-shadow:
             0 18px 40px rgba(0, 0, 0, 0.28),
             inset 0 1px 0 rgba(255, 255, 255, 0.18);
 
-          /* If the page is dark, this still reads fine */
         }
 
-        /* If you support dark mode explicitly, you can tweak */
         @media (prefers-color-scheme: dark) {
           .bm-loader__panel {
             background: rgba(0, 0, 0, 0.25);
@@ -71,12 +70,10 @@ export function renderLoader(ariaLabel: string): TemplateResult {
           font: 600 13px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
           letter-spacing: 0.02em;
 
-          /* Text readable on either */
           color: #000;
           text-shadow: 0 2px 8px rgba(0,0,0,0.35);
         }
 
-        /* --- Belt Loader (unchanged except a tiny outline) --- */
         .belt {
           width: 220px;
           height: 64px;

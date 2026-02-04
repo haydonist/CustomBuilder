@@ -6,6 +6,9 @@ import { ref } from "lit/directives/ref.js";
 import * as styles from "../../styles.ts";
 import cropToContents from "./cropper.ts";
 
+import { renderLoader as loader } from "../loader.ts";
+
+
 @customElement("belt-preview")
 export default class BeltPreview extends LitElement {
   @property({ type: String }) base: string | null = null;
@@ -16,6 +19,10 @@ export default class BeltPreview extends LitElement {
 
   @state() loops: string[] = [];
   @state() conchos: string[] = [];
+    @state() private isRenderingBase = false;
+
+  // Prevent out-of-order async renders (clicking bases quickly)
+  private renderToken = 0;
 
   #baseCanvas: HTMLCanvasElement | null = null;
 
@@ -23,175 +30,205 @@ export default class BeltPreview extends LitElement {
   private draggingConchoIndex: number | null = null;
 
   static override styles = css`
-    ${styles.theme}
+  ${styles.theme}
 
-    :host {
-      position: relative;
-      display: block;
-      width: 100%;
-      min-height: 250px;
-      pointer-events: auto;
-    }
+  :host {
+    position: relative;
+    display: block;
+    width: 100%;
+    min-height: 250px;
+    pointer-events: auto;
+  }
 
-    .center-vertically {
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-    }
+  .center-vertically {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+  }
 
-    #base {
-      position: relative;
-      display: block;
-      width: 90vw;       /* visual size */
-      max-width: 100%;
-      pointer-events: none;
-    }
+  .base-wrapper {
+    position: relative;
+  }
 
-    .selection-indicator-wrapper {
-      width: 160px;
-      height: 160px;
-    }
-    #buckle,
-    #tip {
-      max-height: 100%;
-      z-index: 1;
-      pointer-events: auto;
-    }
-    #buckle {
-      left: -5.8%;
-      z-index:-1;
-    }
-    #tip {
-      right: -5%;
-    }
+  #base {
+    position: relative;
+    display: block;
+    width: 90vw;       /* visual size */
+    max-width: 100%;
+    pointer-events: none;
+    transition: opacity 120ms ease;
+  }
 
-    #loops {
-      left: 1%;
-      height: 100%;
-      gap: 15px;
-      z-index: 10;
-      pointer-events: auto !important;
-      cursor: grab;
-      display: flex;
-    }
+  /* When rendering, hide the canvas so old content doesn't flash */
+  :host([data-rendering]) #base {
+    opacity: 0;
+  }
 
-    .loop-item {
-      position: relative;
-      height: 100%;
-      width: 40px;
-      max-width: 40px;
-      margin-right: -20px;
-      overflow: hidden;
-      cursor: grab;
-      pointer-events: auto !important;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex: 0 0 auto;
-    }
+  /* Loader overlay sits exactly where the canvas is */
+  .preview-loader {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    z-index: 50;
+    pointer-events: none; /* do not block dragging loops/conchos */
+  }
 
-    .loop-item:active {
-      cursor: grabbing;
-    }
+  /* Your loader has margin/min-height for full-page use, override here */
+  .preview-loader .bm-loader {
+    margin: 0 !important;
+    min-height: 100% !important;
+    padding: 12px !important;
+    width: 100%;
+  }
 
-    .loop {
-      max-height: 100%;
-      cursor: grab;
-      pointer-events: auto !important;
-    }
+  .selection-indicator-wrapper {
+    width: 160px;
+    height: 160px;
+  }
+  #buckle,
+  #tip {
+    max-height: 100%;
+    z-index: 1;
+    pointer-events: auto;
+  }
+  #buckle {
+    left: -5.8%;
+    z-index:-1;
+  }
+  #tip {
+    right: -5%;
+  }
 
-    #conchosList {
-      left: 18%;
-      width: 50%;
-      height: 100%;
-      z-index: 10;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      pointer-events: auto !important;
-    }
+  #loops {
+    left: 1%;
+    height: 100%;
+    gap: 15px;
+    z-index: 10;
+    pointer-events: auto !important;
+    cursor: grab;
+    display: flex;
+  }
 
-    .concho-wrapper {
-      position: relative;
-      max-height: 200px;
-      max-width: 50px;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex: 0 0 auto;
-      cursor: grab;
-      pointer-events: auto !important;
-    }
+  .loop-item {
+    position: relative;
+    height: 100%;
+    width: 40px;
+    max-width: 40px;
+    margin-right: -20px;
+    overflow: hidden;
+    cursor: grab;
+    pointer-events: auto !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+  }
 
-    .concho-wrapper:active {
-      cursor: grabbing;
-    }
+  .loop-item:active {
+    cursor: grabbing;
+  }
 
-    .concho {
-      display: block;
-      max-height: 200px;
-      margin: 0 auto;
-      clip-path: inset(0 30% 0 30%);
-      cursor: grab;
-      pointer-events: auto !important;
-    }
+  .loop {
+    max-height: 100%;
+    cursor: grab;
+    pointer-events: auto !important;
+  }
 
-    .concho img{
-      scale: 5;
-    }
+  #conchosList {
+    left: 18%;
+    width: 50%;
+    height: 100%;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    pointer-events: auto !important;
+  }
 
-    .loop-item,
-    .concho-wrapper {
-      cursor: grab;
-      pointer-events: auto !important;
-    }
+  .concho-wrapper {
+    position: relative;
+    max-height: 200px;
+    max-width: 50px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    cursor: grab;
+    pointer-events: auto !important;
+  }
 
-    .loop-item:active,
-    .concho-wrapper:active {
-      cursor: grabbing;
-    }
+  .concho-wrapper:active {
+    cursor: grabbing;
+  }
 
-    /* While dragging, fade the original */
-    .loop-item.dragging .loop,
-    .concho-wrapper.dragging .concho {
-      opacity: 0.55;
-    }
+  .concho {
+    display: block;
+    max-height: 200px;
+    margin: 0 auto;
+    clip-path: inset(0 30% 0 30%);
+    cursor: grab;
+    pointer-events: auto !important;
+  }
 
+  .concho img{
+    scale: 5;
+  }
 
-    .remove-badge {
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%) translateY(-10px);
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      border: none;
-      padding: 0;
-      background: rgba(220, 220, 220, 0.95);
-      background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M5%205%20L19%2019%20M19%205%20L5%2019%22%20stroke%3D%22white%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: center;
-      background-size: 8px 8px;
-      opacity: 0;
-      pointer-events: none;
-      cursor: pointer;
-      transition: opacity 0.15s ease, transform 0.15s ease;
-      z-index: 20;
-    }
+  .loop-item,
+  .concho-wrapper {
+    cursor: grab;
+    pointer-events: auto !important;
+  }
 
-    .loop-item:hover .remove-badge,
-    .concho-wrapper:hover .remove-badge {
-      opacity: 1;
-      transform: translateX(-50%) translateY(-30px);
-      pointer-events: auto;
-    }
-  `;
+  .loop-item:active,
+  .concho-wrapper:active {
+    cursor: grabbing;
+  }
+
+  /* While dragging, fade the original */
+  .loop-item.dragging .loop,
+  .concho-wrapper.dragging .concho {
+    opacity: 0.55;
+  }
+
+  .remove-badge {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: none;
+    padding: 0;
+    background: rgba(220, 220, 220, 0.95);
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M5%205%20L19%2019%20M19%205%20L5%2019%22%20stroke%3D%22white%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 8px 8px;
+    opacity: 0;
+    pointer-events: none;
+    cursor: pointer;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    z-index: 20;
+  }
+
+  .loop-item:hover .remove-badge,
+  .concho-wrapper:hover .remove-badge {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-30px);
+    pointer-events: auto;
+  }
+`;
 
   protected override updated(changed: PropertyValues) {
-    if (changed.has("base")) console.debug("base changed to", this.base);
-    if (changed.has("base")) this.renderBeltBase();
-  }
+  if (changed.has("base")) console.debug("base changed to", this.base);
+  if (changed.has("base")) this.renderBeltBase();
+
+  // Reflect rendering state for CSS (canvas fade)
+  this.toggleAttribute("data-rendering", this.isRenderingBase);
+}
 
 
   protected override willUpdate(changed: PropertyValues) {
@@ -200,20 +237,34 @@ export default class BeltPreview extends LitElement {
 
   override render() {
     return html`
-    <div class="base-wrapper">
-      <canvas
-        id="base"
-        aria-hidden="true"
-        ${ref((el?: Element) => {
-          if (!el) return;
-          assertInstanceOf(el, HTMLCanvasElement);
-          this.#baseCanvas = el;
-          // Render at the end of this event loop
-          queueMicrotask(() => this.renderBeltBase());
-        })}
-      ></canvas></div>
-      <img id="buckle" class="center-vertically" src=${this.buckle ?? ""} aria-hidden="true" style="z-index: ${this.buckleOnTop || this.isRangerCore ? '10' : '-1'}; left: ${this.isRangerCore ? '-2.8%' : '-5.8%'}" />
-      <div id="loops" class="center-vertically" style="left: ${this.isRangerCore ? '5.6%' : '1%'}">
+  <div class="base-wrapper">
+    <canvas
+  id="base"
+  aria-hidden="true"
+  ${ref((el?: Element) => {
+    if (!el) return;
+    assertInstanceOf(el, HTMLCanvasElement);
+
+    const firstAttach = this.#baseCanvas !== el;
+    this.#baseCanvas = el;
+
+    // Only render once on initial attach *if* we already have a base.
+    if (firstAttach && this.base) {
+      queueMicrotask(() => this.renderBeltBase());
+    }
+  })}
+></canvas>
+
+
+    ${this.isRenderingBase
+      ? html`<div class="preview-loader">
+          ${loader("Cutting The Leather To Size...")}
+        </div>`
+      : null}
+  </div>
+
+  <img id="buckle" class="center-vertically" src=${this.buckle ?? ""} aria-hidden="true" style="z-index: ${this.buckleOnTop || this.isRangerCore ? '10' : '-1'}; left: ${this.isRangerCore ? '-2.8%' : '-5.8%'}" />
+      <div id="loops" class="center-vertically" style="left: ${this.isRangerCore ? '5.6%' : '1.8%'}">
         ${this.loops.map(
           (loop, index) => html`
             <div
@@ -271,56 +322,66 @@ export default class BeltPreview extends LitElement {
   }
 
   private async renderBeltBase() {
-    console.debug("renderBeltBase()", { hasCanvas: !!this.#baseCanvas, base: this.base });
+  console.debug("renderBeltBase()", { hasCanvas: !!this.#baseCanvas, base: this.base });
 
-    const canvas = this.#baseCanvas;
-    if (!canvas || !this.base) return;
+  const canvas = this.#baseCanvas;
+  if (!canvas || !this.base) return;
 
-    this.isRenderingBase = true;
+  // Token prevents out-of-order draws if base changes quickly
+  const myToken = ++this.renderToken;
 
-    try {
-      const img = await cacheImage(this.base);
-      const cropped = await cropToContents(img, img.naturalWidth, img.naturalHeight);
-      let aspect = cropped.height / cropped.width;
-      
-      // Scale down the aspect ratio by 25% to match other components
-      // This prevents the base from being 33% too tall
-      aspect *= 0.75;
+  this.isRenderingBase = true;
+  this.toggleAttribute("data-rendering", true);
 
-      // Ensure layout is ready
-      await new Promise(requestAnimationFrame);
-      let width = Math.floor(canvas.getBoundingClientRect().width) || 1;
-      let height = Math.round(width * aspect);
-      
-      // If height is less than 50px, scale both width and height proportionally to maintain aspect ratio
-      if (height < 50) {
-        const scale = 50 / height;
-        width = Math.round(width * scale);
-        height = 50;
-      }
-      
-      const dpr = self.devicePixelRatio || 1;
+  try {
+    const img = await cacheImage(this.base);
+    if (myToken !== this.renderToken) return;
 
-      canvas.width = Math.round(width * dpr);
-      canvas.height = Math.round(height * dpr);
+    const cropped = await cropToContents(img, img.naturalWidth, img.naturalHeight);
+    if (myToken !== this.renderToken) return;
 
-      const ctx = canvas.getContext("2d");
-      assert(ctx, "Could not acquire 2D canvas context!");
-      ctx.clearRect(0, 0, width, height);
-      ctx.drawImage(cropped, 0, 0, width * dpr, height * dpr);
-      console.debug("draw", {
-        base: this.base,
-        rectW: canvas.getBoundingClientRect().width,
-        naturalW: img.naturalWidth,
-        naturalH: img.naturalHeight,
-      });
+    let aspect = cropped.height / cropped.width;
+    aspect *= 0.75;
 
-    } catch (e) {
-      console.error("renderBeltBase failed:", e);
-    } finally {
+    // Ensure layout is ready
+    await new Promise(requestAnimationFrame);
+
+    let width = Math.floor(canvas.getBoundingClientRect().width) || 1;
+    let height = Math.round(width * aspect);
+
+    if (height < 50) {
+      const scale = 50 / height;
+      width = Math.round(width * scale);
+      height = 50;
+    }
+
+    const dpr = self.devicePixelRatio || 1;
+
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+
+    const ctx = canvas.getContext("2d");
+    assert(ctx, "Could not acquire 2D canvas context!");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(cropped, 0, 0, width * dpr, height * dpr);
+
+    console.debug("draw", {
+      base: this.base,
+      rectW: canvas.getBoundingClientRect().width,
+      naturalW: img.naturalWidth,
+      naturalH: img.naturalHeight,
+    });
+  } catch (e) {
+    console.error("renderBeltBase failed:", e);
+  } finally {
+    // Only clear loader if we’re still the latest render
+    if (myToken === this.renderToken) {
       this.isRenderingBase = false;
+      this.toggleAttribute("data-rendering", false);
     }
   }
+}
+
 
   // ---------- DRAG HANDLERS ----------
   private onLoopDragStart(e: DragEvent) {
