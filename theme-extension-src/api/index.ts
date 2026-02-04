@@ -49,7 +49,7 @@ const productQuery = `
               currencyCode
             }
           }
-          images(first: 4, sortKey: POSITION) {
+          images(first: 12, sortKey: POSITION) {
             edges {
               node {
                 id
@@ -142,7 +142,7 @@ export interface Product {
 export async function queryProducts(
   query: string,
   { after, prefetchImages }: { after?: string, prefetchImages: boolean } = { prefetchImages: true },
-): Promise<Product[]> {
+): Promise<{ page: PageInfo; products: Product[] }> {
   const resp = await client.request(productQuery, { variables: {
     query,
     after: after ?? null
