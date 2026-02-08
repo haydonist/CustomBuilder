@@ -25,8 +25,6 @@ import BeltPreview from "./components/belt-preview/index.ts";
 import { textOption, thumbnailOption } from "./components/option.ts";
 import Wizard, { renderView } from "./models/wizard/index.ts";
 
-// See https://open-wc.org
-// See https://open-wc.org/guides/developing-components/code-examples
 
 export enum Theme {
   light = "light",
@@ -99,27 +97,7 @@ export class CustomBeltWizard extends LitElement {
     // Update the view when the wizard's step changes
     this.wizard.changed.subscribe(() => this.requestUpdate());
 
-    this.fetchAppSettings();
     this.updateProducts();
-    console.log("initialized belt-wizard constructor");
-    console.log("sizingChartSrc:", this.sizingChartSrc);
-    console.log("loopedBeltSrc:", this.loopedBeltSrc);
-    console.log(this);
-  }
-
-  private async fetchAppSettings() {
-    // Get shop domain from Shopify global object
-    const shop = (window as any).Shopify?.shop;
-    
-    if (!shop) {
-      console.warn('[Belt Wizard] Shop domain not found, using default settings');
-      const settings = await fetchBeltWizardSettings('');
-      applySettingsToDOM(settings);
-      return;
-    }
-
-    const settings = await fetchBeltWizardSettings(shop);
-    applySettingsToDOM(settings);
   }
 
   /** Disable the shadow DOM for this root-level component. */
@@ -247,6 +225,34 @@ private getMaxLoopsAllowed(): number {
     if (!key) return [];
     return this.collectionFilters[key] ?? [];
   }
+  private getVariantOption(variant: ProductVariant, name: string): string | null {
+  return variant.selectedOptions?.find(o => o.name.toLowerCase() === name.toLowerCase())?.value ?? null;
+}
+
+private getBaseColors(base: Product): string[] {
+  const set = new Set<string>();
+  for (const v of base.variants ?? []) {
+    const c = this.getVariantOption(v, "Color");
+    if (c) set.add(c);
+  }
+  return Array.from(set);
+}
+
+private findFirstVariantForBaseColor(base: Product, color: string): ProductVariant | null {
+  return (base.variants ?? []).find(v => this.getVariantOption(v, "Color") === color) ?? null;
+}
+
+private findVariantForBaseColorAndSize(base: Product, color: string, size: string): ProductVariant | null {
+  return (base.variants ?? []).find(v =>
+    this.getVariantOption(v, "Color") === color &&
+    this.getVariantOption(v, "Size") === size
+  ) ?? null;
+}
+
+private getSelectedBaseColor(): string | null {
+  return (this.selection?.get("baseColor") as string | null) ?? null;
+}
+
 
   private toggleCollectionFilter(stepId: string, collectionTitle: string) {
     const key = this.getFilterStepKey(stepId);
@@ -341,15 +347,6 @@ private getMaxLoopsAllowed(): number {
       subtitle: "We will add 3” to meet your perfect fit belt size",
       view: html`
         <div class="row wrap gap-medium"></div>
-        <img
-          id="sizingChart"
-          src="https://cdn.shopify.com/s/files/1/0655/2856/1715/files/Beltmaster_Size_Guide_4-3.png?v=1768503345"
-          alt="Perfect belt sizing chart"
-          @load="${() => console.log('[Belt Wizard] Sizing chart loaded:', this.sizingChartSrc)}"
-          @error="${() => console.error('[Belt Wizard] Sizing chart failed to load:', this.sizingChartSrc)}"
-          style="max-width: 100%; height: auto; display: ${this.sizingChartSrc ? 'block' : 'none'};"
-        />
-        ${!this.sizingChartSrc ? html`<p style="color: red;">Sizing chart src not set!</p>` : ''}
       `,
       background: {
         image: `url(${this.loopedBeltSrc})`,
@@ -429,6 +426,10 @@ private getMaxLoopsAllowed(): number {
         if (this.beltLoops.length === 0 && !this.hasSetSelected()) {
           missingParts.push({ label: "Belt loop", stepId: 3 });
         }
+        if (!this.selection?.get("baseVariant")) {
+          missingParts.push({ label: "Size", stepId: 1 });
+        }
+
 
         const hasMissing = missingParts.length > 0;
 
@@ -650,10 +651,8 @@ private getMaxLoopsAllowed(): number {
       checkout.loops = this.beltLoops;
       checkout.conchos = this.beltConchos;
 
-      checkout.baseVariantId = this.getSelectedSingleVariantId(
-        "base",
-        this.beltBase,
-      );
+      checkout.baseVariantId = (this.selection?.get("baseVariant") as string | null) ?? undefined;
+
       checkout.buckleVariantId = this.getSelectedSingleVariantId(
         "buckle",
         this.beltBuckle,
@@ -665,8 +664,8 @@ private getMaxLoopsAllowed(): number {
         ? []
         : this.getSelectedMultiVariantIds("loop", 2);
       checkout.conchosVariantIds = this.getSelectedMultiVariantIds("concho", 9);
-      checkout.sizeVariantId = this.beltSizeVariantId ?? undefined;
-      checkout.beltSize = this.beltSize;
+      checkout.baseVariantId = this.getSelectedSingleVariantId("base", this.beltBase);
+
     }
     if (changed.has("showCollectionFilter")) {
       if (this.showCollectionFilter) {
@@ -724,6 +723,63 @@ private getMaxLoopsAllowed(): number {
     });
   }
 
+  private stepperIcons: Partial<Record<string, string>> = {
+  base: "https://cdn.shopify.com/s/files/1/0655/2856/1715/files/BeltMaster_Icon_Design_FEB2026-BeltBase_1.svg?v=1770403542",
+  size: "https://cdn.shopify.com/s/files/1/0655/2856/1715/files/BeltMaster_Icon_Design_FEB2026-BeltSizes.svg?v=1770403543",
+  buckle: "https://cdn.shopify.com/s/files/1/0655/2856/1715/files/BeltMaster_Icon_Design_FEB2026-BeltBuckle.svg?v=1770405106",
+  loops: "https://cdn.shopify.com/s/files/1/0655/2856/1715/files/BeltMaster_Icon_Design_FEB2026-BeltLoops.svg?v=1770405090",
+  conchos: "https://cdn.shopify.com/s/files/1/0655/2856/1715/files/BeltMaster_Icon_Design_FEB2026-Conchos.svg?v=1770405085",
+  tip: "https://cdn.shopify.com/s/files/1/0655/2856/1715/files/BeltMaster_Icon_Design_FEB2026-BeltTip.svg?v=1770405074",
+  summary: "https://cdn.shopify.com/s/files/1/0655/2856/1715/files/BeltMaster_Icon_Design_FEB2026-FinalBelt.svg?v=1770405095"
+};
+
+private renderStepIndicator(stepId: string, stepNumber: number) {
+  const iconSrc = this.stepperIcons[stepId];
+
+  if (!iconSrc) {
+    return html`<span class="step-indicator" aria-hidden="true">${stepNumber}</span>`;
+  }
+
+  return html`
+    <span
+      class="step-indicator step-indicator--mask"
+      style=${`--icon-url: url("${iconSrc}")`}
+      aria-hidden="true"
+    ></span>
+  `;
+}
+
+private get hasBaseSelected(): boolean {
+  return (this.selection?.has("base") ?? false);
+}
+
+
+private getVariantOptionValue(variant: ProductVariant, name: string): string | null {
+  const hit = variant.selectedOptions?.find(
+    (o) => o.name.toLowerCase() === name.toLowerCase(),
+  );
+  return hit?.value ?? null;
+}
+
+private getBaseVariantColor(variant: ProductVariant): string | null {
+  // handle Color/Colour just in case
+  return (
+    this.getVariantOptionValue(variant, "Color") ??
+    this.getVariantOptionValue(variant, "Colour")
+  );
+}
+
+private getBaseVariantSize(variant: ProductVariant): string | null {
+  return this.getVariantOptionValue(variant, "Size");
+}
+private get selectedBaseColor(): string | null {
+  return (this.selection?.get("baseColor") as string | null) ?? null;
+}
+
+
+
+
+
   override render() {
     if (this.loading) {
       return loader("Gathering The Pieces...");
@@ -771,13 +827,18 @@ private getMaxLoopsAllowed(): number {
       ? this.renderFilterTools(currentStep.id)
       : null;
 
+     
+
+
     return html`
       <header>
         <section id="stepper">
           ${this.wizard.steps.map((step, i) => {
             const isCurrent = this.wizard.stepIndex === i;
             const isComplete = i < this.wizard.stepIndex;
-
+            const baseLocked = !this.hasBaseSelected;
+            const isBaseStep = i === 0; // base is step index 0 in your wizard array
+            const isDisabled = isCurrent || (baseLocked && !isBaseStep);
             return html`
               <button
                 class="${classMap({
@@ -785,15 +846,21 @@ private getMaxLoopsAllowed(): number {
                   "is-current": isCurrent,
                   "is-complete": isComplete,
                   "is-upcoming": !isCurrent && !isComplete,
+                  "is-disabled": isDisabled,
                 })}"
-                ?disabled="${isCurrent}"
+                ?disabled="${isDisabled}"
+                aria-disabled="${isDisabled ? "true" : "false"}"
                 aria-current="${isCurrent ? "step" : "false"}"
                 aria-label="${`Step ${i + 1} of ${this.wizard.steps.length}: ${step.title}`}"
                 title="${`Step ${i + 1} of ${this.wizard.steps.length}: ${step.title}`}"
-                @click="${() => this.wizard.goTo(i)}"
+                @click="${() => {
+                  if (isDisabled) return;
+                  this.wizard.goTo(i);
+                }}"
               >
-                <span class="step-indicator" aria-hidden="true">${i + 1}</span>
+                ${this.renderStepIndicator(step.id, i + 1)}
               </button>
+
             `;
           })}
         </section>
@@ -1269,44 +1336,88 @@ private getMaxLoopsAllowed(): number {
     this.buildSingleSelectStep("tip", beltTips);
 
     const sizeStep = this.wizard.find("size")!;
-    const sizeProduct = beltSizes[0] ?? null;
 
-    const sizeVariants = sizeProduct?.variants ?? [];
-    sizeStep.view = () =>
-      html`
-        <div class="size-step-wrapper">
-          <div class="row wrap gap-medium">
-            ${sizeVariants.length === 0
-              ? html`
-                <p>No sizes found. Check the "Size" product variants.</p>
-              `
-              : sizeVariants.map((variant) => {
-                const title = variant.title.trim();
+sizeStep.view = () => {
+  const base = this.beltBase;
+  const color = this.selectedBaseColor;
 
-                const priceAmount = variant.price ?? null;
+  if (!base) return html`<p>Please choose a belt base first.</p>`;
+  if (!color) return html`<p>Please choose a color first.</p>`;
 
-                const label = `${title}"`;
+  const matches = (base.variants ?? [])
+    .map((v) => ({
+      variant: v,
+      color: this.getBaseVariantColor(v),
+      size: this.getBaseVariantSize(v),
+    }))
+    .filter((x) => x.color === color && !!x.size);
 
-                return textOption(
-                  `size-${variant.id}`,
-                  "size",
-                  variant.id,
-                  label,
-                  priceAmount,
-                  {
-                    onClick: this.submitStep,
-                  },
-                );
-              })}
-          </div>
-          <img
-            id="sizingChart"
-            src="https://cdn.shopify.com/s/files/1/0655/2856/1715/files/Beltmaster_Size_Guide_4-3.png?v=1768503345"
-            alt="Perfect belt sizing chart"
-            max-width="80%"
-          />
-        </div>
-      `;
+  if (!matches.length) {
+    return html`<p>No sizes found for ${color}. Check your base variants.</p>`;
+  }
+
+  // Sort sizes numerically when possible
+  matches.sort((a, b) => {
+    const an = Number(a.size);
+    const bn = Number(b.size);
+    if (!Number.isNaN(an) && !Number.isNaN(bn)) return an - bn;
+    return (a.size ?? "").localeCompare(b.size ?? "");
+  });
+
+  const selectedBaseVariantId = (this.selection?.get("baseVariant") as string | null) ?? null;
+
+  return html`
+    <div class="size-step-wrapper">
+      <div class="row wrap gap-medium">
+        ${matches.map(({ variant, size }) => {
+          const label = `${String(size).trim()}"`;
+          const priceAmount = variant.price ?? null;
+          const isSelected = selectedBaseVariantId === variant.id;
+
+          return textOption(
+            `base-size-${variant.id}`,
+            "baseSize",
+            variant.id,
+            label,
+            priceAmount,
+            {
+              selected: isSelected,
+              onClick: (ev: Event) => {
+                ev.preventDefault();
+                this.ensureSelection();
+
+                // THIS is the actual purchasable belt-base variant
+                this.selection!.set("baseVariant", variant.id);
+
+                // Keep your existing flow working: your code checks selection.has("size")
+                // so we mirror baseVariant into "size" to avoid rewriting multiSelectShortcut/submit logic.
+                this.selection!.set("size", variant.id);
+
+                this.applySelectionToPreview();
+                this.submitStep();
+              },
+            },
+          );
+        })}
+      </div>
+
+      <img
+          id="sizingChart"
+          src=${this.sizingChartSrc}
+          alt="Perfect belt sizing chart"
+          @error=${(e: Event) => {
+            const img = e.currentTarget as HTMLImageElement;
+            console.error("[Belt Wizard] Sizing chart failed to load:", {
+              sizingChartSrc: this.sizingChartSrc,
+              currentSrc: img.currentSrc,
+              src: img.src,
+            });
+          }}
+        />
+    </div>
+  `;
+};
+
 
     this.loading = false;
   }
@@ -1419,45 +1530,27 @@ private getMaxLoopsAllowed(): number {
     const hasBaseNow = !!this.beltBase;
     if (!hadBaseBefore && hasBaseNow) this.firstBaseSelected = true;
 
-    // Base preview image selection based on variant:
-    // - No variant or 1st variant → image index 1 (2nd image, first layflat)
-    // - 2nd variant → image index 5 (6th image, variant 2 hero)
-    // - 3rd variant → image index 7 (8th image, variant 3 hero)
-    // - 4th variant → image index 9 (10th image, variant 4 hero)
-    // Pattern: imageIndex = 3 + (variantIndex * 2) for variants, 1 for no variant
     if (this.beltBase) {
-      const baseVariantId = this.selection?.get("baseVariant") as string | null;
-      
-      // Find variant by ID
-      let variantIndex = 0;
-      if (baseVariantId && this.beltBase.variants) {
-        variantIndex = this.beltBase.variants.findIndex(v => v.id === baseVariantId);
-        if (variantIndex === -1) variantIndex = 0; // Not found, use first
-      }
-      
-      const imageIndex = variantIndex === 0 ? 1 : 2 + (variantIndex * 2);
+  const selectedColor = this.getSelectedBaseColor();
+  const colors = this.getBaseColors(this.beltBase);
 
-      const preferred = getImageAt(this.beltBase, imageIndex, { fallbackToFirst: false });
-      const layflat = getImageAt(this.beltBase, 1, { fallbackToFirst: false });
-      const hero = getImageAt(this.beltBase, 0, { fallbackToFirst: false });
+  const colorIndex = selectedColor ? Math.max(0, colors.indexOf(selectedColor)) : 0;
 
-      this.basePreviewImage = preferred ?? layflat ?? hero ?? null;
-      
-      console.log("[Base Preview]", {
-        baseId: this.beltBase?.id,
-        baseVariantId,
-        variantIndex,
-        calculatedImageIndex: imageIndex,
-        basePreviewImage: this.basePreviewImage,
-      });
-    } else {
-      this.basePreviewImage = null;
-    }
+  // Your original desired mapping:
+  // color 0 -> image[1] (2nd)
+  // color 1 -> image[4] (5th)
+  // color 2 -> image[6] (7th)
+  // color 3 -> image[8] (9th)
+  const imageIndex = colorIndex === 0 ? 1 : (2 * colorIndex + 2);
 
-    // If preview element exists already, you *can* set it, but the binding will handle it anyway.
-    if (this.preview.value) {
-      this.preview.value.base = this.basePreviewImage;
-    }
+  const preferred = getImageAt(this.beltBase, imageIndex, { fallbackToFirst: false });
+  const layflat = getImageAt(this.beltBase, 1, { fallbackToFirst: false });
+  const hero = getImageAt(this.beltBase, 0, { fallbackToFirst: false });
+
+  this.basePreviewImage = preferred ?? layflat ?? hero ?? null;
+} else {
+  this.basePreviewImage = null;
+}
 
     // BUCKLE
     if (this.selection?.has("buckle")) {
@@ -1607,8 +1700,53 @@ private getMaxLoopsAllowed(): number {
     const key = this.getVariantKey(kind, product.id, instanceIndex);
     if (this.activeVariantKey !== key) return null;
 
-    const variants = Array.isArray(product.variants) ? product.variants : [];
-    if (variants.length <= 1) return null;
+    if (kind === "base") {
+  const colors = this.getBaseColors(product);
+  if (colors.length <= 1) return null;
+
+  const selectedColor = this.getSelectedBaseColor();
+  const firstVariantByColor = (color: string) => this.findFirstVariantForBaseColor(product, color);
+
+  return html`
+    <div class="variant-popup" data-kind="base" data-instance="${instanceIndex}"
+      @click="${(e: Event) => e.stopPropagation()}">
+      <div class="variant-popup-grid">
+        ${colors.map((color) => {
+          const v = firstVariantByColor(color);
+          if (!v) return null;
+
+          const isSelected = selectedColor === color;
+          const imgUrl = v.image?.url ?? getImageAt(product, 0);
+
+          return html`
+            <button
+              type="button"
+              class="variant-swatch ${isSelected ? "is-selected" : ""}"
+              @click="${(ev: Event) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                this.ensureSelection();
+                this.selection!.set("base", product.id);
+                this.selection!.set("baseColor", color);
+
+                // Set a default baseVariant for checkout purposes (first size for that color)
+                this.selection!.set("baseVariant", v.id);
+
+                this.applySelectionToPreview();
+                this.activeVariantKey = null;
+                this.requestUpdate();
+              }}"
+            >
+              <img src="${imgUrl}" alt="${color}" />
+            </button>
+          `;
+        })}
+      </div>
+    </div>
+  `;
+}
+
 
     const isMulti = kind === "loop" || kind === "concho";
 

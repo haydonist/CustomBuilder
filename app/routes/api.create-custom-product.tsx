@@ -48,7 +48,6 @@ const CREATE_PRODUCT_MUTATION = `
           edges {
             node {
               id
-              sku
             }
           }
         }
@@ -61,10 +60,14 @@ const CREATE_PRODUCT_MUTATION = `
   }
 `;
 
-const CREATE_PRODUCT_VARIANT_MUTATION = `
-  mutation CreateProductVariant($input: ProductVariantInput!) {
-    productVariantCreate(input: $input) {
-      productVariant {
+
+const UPDATE_VARIANTS_MUTATION = `
+  mutation UpdateVariants($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+    productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+      product {
+        id
+      }
+      productVariants {
         id
         sku
         price
@@ -76,6 +79,7 @@ const CREATE_PRODUCT_VARIANT_MUTATION = `
     }
   }
 `;
+
 
 // Set metafields on product
 const SET_PRODUCT_METAFIELDS_MUTATION = `
@@ -104,7 +108,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    const { session, admin } = await authenticate.admin(request);
+    const { session, admin } = await authenticate.public.appProxy(request);
     const payload = await request.json() as CreateCustomProductRequest;
 
     // Calculate total price
@@ -153,36 +157,49 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     const productId = productData.data?.productCreate?.product?.id;
-    if (!productId) {
-      throw new Error("No product ID returned from creation");
+    const defaultVariantId =
+    productData.data?.productCreate?.product?.variants?.edges?.[0]?.node?.id;
+
+    if (!productId || !defaultVariantId) {
+        throw new Error("Missing productId or defaultVariantId from productCreate");
     }
 
-    // Create a variant with the calculated price
-    const createVariantResponse = await admin.graphql(
-      CREATE_PRODUCT_VARIANT_MUTATION,
-      {
-        variables: {
-          input: {
-            productId,
+    const sku = `CUSTOM-${Date.now()}`;
+
+    const updateResp = await admin.graphql(UPDATE_VARIANTS_MUTATION, {
+    variables: {
+        productId,
+        variants: [
+        {
+            id: defaultVariantId,
             price: totalPrice,
-            sku: `CUSTOM-${Date.now()}`,
-          },
+            sku,
         },
-      }
+        ],
+    },
+    });
+
+    const updateData = await updateResp.json();
+
+    if (updateData.data?.productVariantsBulkUpdate?.userErrors?.length > 0) {
+    console.error(
+        "Variant update errors:",
+        updateData.data.productVariantsBulkUpdate.userErrors
     );
-
-    const variantData = await createVariantResponse.json();
-
-    if (variantData.data?.productVariantCreate?.userErrors?.length > 0) {
-      console.error("Variant creation errors:", variantData.data.productVariantCreate.userErrors);
-      return Response.json(
-        { error: "Failed to create product variant", details: variantData.data.productVariantCreate.userErrors },
+    return Response.json(
+        {
+        error: "Failed to update product variant",
+        details: updateData.data.productVariantsBulkUpdate.userErrors,
+        },
         { status: 400 }
-      );
+    );
     }
 
-    const variantId = variantData.data?.productVariantCreate?.productVariant?.id;
+    const variantId = updateData.data?.productVariantsBulkUpdate?.productVariants?.[0]?.id;
 
+
+
+    
     // Set metafields with product selection data
     const metafieldsPayload = [
       {

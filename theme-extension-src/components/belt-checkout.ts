@@ -16,7 +16,6 @@ export default class BeltCheckout extends LitElement {
   @property({type: String}) base?: string;
   @property({type: String}) buckle?: string;
   @property({type: String}) tip?: string;
-  @property({type: String}) sizeVariantId?: string;
 
   @property({type: String}) baseVariantId?: string;
   @property({type: String}) buckleVariantId?: string;
@@ -25,7 +24,6 @@ export default class BeltCheckout extends LitElement {
   @property({ type: Array }) conchosVariantIds: string[] = [];
 
   @state() beltData: Product[][] = [];
-  @state() beltSize: Product | null = null;
   @state() loops: Product[] = [];
   @state() conchos: Product[] = [];
   @state() private isCheckingOut = false;
@@ -91,9 +89,10 @@ export default class BeltCheckout extends LitElement {
     const tipProduct = beltTips.find(x => x.id === this.tip) ?? null;
     const tipVariant = tipProduct ? getVariantById(tipProduct, this.tipVariantId) : null;
 
-    const sizeVariant = this.beltSize ? getVariantById(this.beltSize, this.sizeVariantId) : null;
-
     const baseVariant = base ? getVariantById(base, this.baseVariantId) : null;
+    const baseSize = getSelectedOption(baseVariant, "Size");
+    const baseColor = getSelectedOption(baseVariant, "Color") ?? getSelectedOption(baseVariant, "Colour");
+
     const buckleVariant = buckle ? getVariantById(buckle, this.buckleVariantId) : null;
     // If render happens before variant ids are set, do nothing
     if (!baseVariant || !buckleVariant) return;
@@ -102,7 +101,6 @@ export default class BeltCheckout extends LitElement {
     const basePrice = baseVariant ? moneyToNumber(baseVariant.price.amount) : 0;
     const bucklePrice = buckleVariant ? moneyToNumber(buckleVariant.price.amount) : 0;
     const tipPrice = tipVariant ? moneyToNumber(tipVariant.price.amount) : 0;
-    const sizePrice = sizeVariant ? moneyToNumber(sizeVariant.price.amount) : 0;
     const variantPriceById = buildVariantPriceIndex(this.beltData);
     const loopsPrice = aggregateVariantCounts(this.loopsVariantIds).reduce((sum, { variantId, count }) => {
       return sum + (variantPriceById.get(variantId) ?? 0) * count;
@@ -111,8 +109,17 @@ export default class BeltCheckout extends LitElement {
       return sum + (variantPriceById.get(variantId) ?? 0) * count;
     }, 0);
 
-    const amount = (basePrice + bucklePrice + tipPrice + sizePrice + loopsPrice + conchosPrice).toFixed(2);
+    const amount = (basePrice + bucklePrice + tipPrice + loopsPrice + conchosPrice).toFixed(2);
     const currencyCode = baseVariant?.price.currencyCode ?? base?.priceRange.minVariantPrice.currencyCode ?? "en-US";
+
+    function getSelectedOption(productVariant: ProductVariant | null, name: string): string | null {
+  if (!productVariant) return null;
+  const hit = productVariant.selectedOptions?.find(
+    (o) => o.name.toLowerCase() === name.toLowerCase(),
+  );
+  return hit?.value ?? null;
+}
+
 
     return html`
       <div class="row wrap gap-medium">
@@ -122,7 +129,8 @@ export default class BeltCheckout extends LitElement {
         ${conchoSelection}
         ${tipProduct ? productToThumbnail(tipProduct, "beltTip", 5) : null}
       </div>
-      ${sizeVariant ? html`<p><strong>Size:</strong> ${sizeVariant.title} (${formatMoney({ amount: sizePrice.toString(), currencyCode })})</p>` : null}
+      ${baseSize ? html`<p><strong>Size:</strong> ${baseSize}</p>` : null}
+
       <div id="checkoutTotal">
         Total: <span class="price">${formatMoney({ amount, currencyCode })}</span>
       </div>
@@ -155,17 +163,17 @@ export default class BeltCheckout extends LitElement {
         toLineVariant(this.baseVariantId, 1),
         toLineVariant(this.buckleVariantId, 1),
         ...(this.tipVariantId ? [toLineVariant(this.tipVariantId, 1)] : []),
-        ...(this.sizeVariantId ? [toLineVariant(this.sizeVariantId, 1)] : []),
         ...aggregateVariantCounts(loops).map(({ variantId, count }) => toLineVariant(variantId, count)),
         ...aggregateVariantCounts(conchos).map(({ variantId, count }) => toLineVariant(variantId, count)),
       ];
 
+
       const checkoutUrl = await createCartAndGetCheckoutUrl(lines);
 
       // Create custom product separately in the background (fire and forget)
-      this.createCustomProductInBackground();
-
+      await this.createCustomProductInBackground();
       self.location.assign(checkoutUrl);
+
     } finally {
       this.isCheckingOut = false;
     }
@@ -183,12 +191,10 @@ export default class BeltCheckout extends LitElement {
       const baseVariant = base ? getVariantById(base, this.baseVariantId) : null;
       const buckleVariant = buckle ? getVariantById(buckle, this.buckleVariantId) : null;
       const tipVariant = tipProduct ? getVariantById(tipProduct, this.tipVariantId) : null;
-      const sizeVariant = this.beltSize ? getVariantById(this.beltSize, this.sizeVariantId) : null;
 
       const basePrice = baseVariant ? moneyToNumber(baseVariant.price.amount) : 0;
       const bucklePrice = buckleVariant ? moneyToNumber(buckleVariant.price.amount) : 0;
       const tipPrice = tipVariant ? moneyToNumber(tipVariant.price.amount) : 0;
-      const sizePrice = sizeVariant ? moneyToNumber(sizeVariant.price.amount) : 0;
 
       const variantPriceById = buildVariantPriceIndex(this.beltData);
       const loopsPrice = aggregateVariantCounts(this.loopsVariantIds).reduce((sum, { variantId, count }) => {
@@ -208,7 +214,9 @@ export default class BeltCheckout extends LitElement {
         base: base ? { id: base.id, title: base.title } : undefined,
         buckle: buckle ? { id: buckle.id, title: buckle.title } : undefined,
         tip: tipProduct ? { id: tipProduct.id, title: tipProduct.title } : undefined,
-        size: this.beltSize ? { id: this.beltSize.id, title: sizeVariant?.title || this.beltSize.title } : undefined,
+        size: baseVariant ? { value: getSelectedOption(baseVariant, "Size") } : undefined,
+        color: baseVariant ? { value: getSelectedOption(baseVariant, "Color") ?? getSelectedOption(baseVariant, "Colour") } : undefined,
+
         loops: Array.from(loopCountMap.values()).map(({ product, count }) => ({
           id: product.id,
           title: product.title,
@@ -222,20 +230,26 @@ export default class BeltCheckout extends LitElement {
       };
 
       // Call backend API to create custom product bundle (fire and forget)
-      await fetch("/api/create-custom-product", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          basePrice,
-          bucklePrice,
-          tipPrice,
-          sizePrice,
-          loopsPrice,
-          conchosPrice,
-          currencyCode,
-          selectedProducts,
-        }),
-      });
+      const shop = (window as any).Shopify?.shop;
+      if (!shop) throw new Error("Shop domain not found on window.Shopify.shop");
+
+      // App Proxy route on the SHOP domain (Shopify forwards to your app server)
+      const url = `https://${shop}/apps/custom-belt-builder/api/create-custom-product`;
+
+      const payload = {
+        basePrice,
+        bucklePrice,
+        tipPrice,
+        loopsPrice,
+        conchosPrice,
+        currencyCode,
+        selectedProducts,
+      };
+
+      const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+      navigator.sendBeacon(url, blob);
+
+
     } catch (error) {
       // Log silently - don't interrupt checkout
       console.debug("Background product creation error:", error);
