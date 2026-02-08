@@ -20,10 +20,8 @@ const DEFAULT_SETTINGS: BeltWizardSettings = {
 export async function fetchBeltWizardSettings(shop: string): Promise<BeltWizardSettings> {
   try {
     const url = `https://${shop}/apps/custom-belt-builder/api/settings`;
-    console.log('[Settings API] Fetching from:', url);
     
     const response = await fetch(url);
-    console.log('[Settings API] Response status:', response.status);
     
     if (!response.ok) {
       console.warn('[Settings API] Failed to fetch, using defaults. Status:', response.status);
@@ -31,7 +29,6 @@ export async function fetchBeltWizardSettings(shop: string): Promise<BeltWizardS
     }
 
     const settings = await response.json();
-    console.log('[Settings API] Settings fetched:', settings);
     
     return {
       backgroundColor: settings.backgroundColor || DEFAULT_SETTINGS.backgroundColor,
@@ -52,5 +49,4 @@ export function applySettingsToDOM(settings: BeltWizardSettings): void {
   document.documentElement.style.setProperty('--belt-wizard-bg-color', settings.backgroundColor);
   document.documentElement.style.setProperty('--belt-wizard-font-family', settings.fontFamily);
   document.documentElement.style.setProperty('--belt-wizard-font-color', settings.fontColor);
-  console.log('[Settings API] Settings applied as CSS variables');
 }
