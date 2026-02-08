@@ -139,6 +139,20 @@ export interface Product {
   variants: ProductVariant[];
 }
 
+export function isProductInStock(product: Product): boolean {
+  const variants = product.variants ?? [];
+  if (!variants.length) return false;
+
+  return variants.some((v) => {
+    // If inventory is tracked, quantityAvailable will be a number.
+    if (typeof v.quantityAvailable === "number") return v.quantityAvailable > 0;
+
+    // If not tracked, fall back to availableForSale.
+    return v.availableForSale === true;
+  });
+}
+
+
 export async function queryProducts(
   query: string,
   { after, prefetchImages }: { after?: string, prefetchImages: boolean } = { prefetchImages: true },
@@ -191,7 +205,10 @@ export async function queryProducts(
       quantityAvailable: v.quantityAvailable,
     })),
   }));
-  return { page, products };
+  const inStockProducts = products.filter(isProductInStock);
+
+  return { page, products: inStockProducts };
+
 }
 
 export function totalProductQuantity(product: Product): number | null {
