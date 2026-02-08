@@ -9,7 +9,6 @@
 >
   {% render 'belt-wizard-styles' %}
   <belt-wizard
-    sizing-chart-src="{{ 'belts/sizing-chart.png' | asset_url }}"
     looped-belt-src="{{ 'belts/looped-belt.png' | asset_url }}"
     concho-recommendation="{{ block.settings.concho_recommendation_text | default: '<strong>Our Recommendation:</strong> Using the same concho in sets of 5, 7, or 9 usually looks best and qualifies for a discount. Other quantities or mixing different conchos can end up looking unpolished.' }}"
   ></belt-wizard>
@@ -45,10 +44,10 @@
     color: #fff;
 
     /* Force full width by breaking out of container */
-    width: 100vw;
+    width: 100%;
     margin-left: 0;
     margin-right: 0;
-    padding: 0;
+    padding: 0 1rem;
     max-width: none;
     box-sizing: border-box;
   }

@@ -38,7 +38,6 @@
   <belt-wizard
     data-belt-wizard
     hidden
-    sizing-chart-src="{{ 'belts/sizing-chart.png' | asset_url }}"
     looped-belt-src="{{ 'belts/looped-belt.png' | asset_url }}"
   ></belt-wizard>
 </div>
@@ -127,8 +126,6 @@
     if (!button || !wizard) return;
 
     button.addEventListener('click', () => {
-      console.log('[Belt Builder] Get Started clicked');
-
       hero?.setAttribute('hidden', '');
       wizard.removeAttribute('hidden');
     });
