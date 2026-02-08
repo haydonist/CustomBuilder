@@ -19,7 +19,7 @@ export default class BeltPreview extends LitElement {
 
   @state() loops: string[] = [];
   @state() conchos: string[] = [];
-    @state() private isRenderingBase = false;
+  @state() private isRenderingBase = false;
 
   // Prevent out-of-order async renders (clicking bases quickly)
   private renderToken = 0;
@@ -70,17 +70,37 @@ export default class BeltPreview extends LitElement {
     inset: 0;
     display: grid;
     place-items: center;
+    max-height: 300px;
     z-index: 50;
     pointer-events: none; /* do not block dragging loops/conchos */
   }
 
-  /* Your loader has margin/min-height for full-page use, override here */
-  .preview-loader .bm-loader {
-    margin: 0 !important;
-    min-height: 100% !important;
-    padding: 12px !important;
-    width: 100%;
-  }
+  .preview-loader {
+  position: relative;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* Keep the loader compact instead of stretching it */
+.preview-loader .bm-loader {
+  margin: 0 !important;        /* kills the 25% margin */
+  padding: 0 !important;       /* let the panel handle padding */
+  width: auto !important;
+  max-width: 360px !important;
+  max-height: none !important;
+}
+
+.preview-loader .bm-loader__panel {
+  transform: scale(0.9);
+  transform-origin: center;
+}
+
+.preview-loader .bm-loader::before {
+  opacity: 0.85;
+}
 
   .selection-indicator-wrapper {
     width: 160px;

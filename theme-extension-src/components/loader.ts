@@ -9,34 +9,26 @@ export function renderLoader(ariaLabel: string): TemplateResult {
           display: grid;
           place-items: center;
           padding: 24px;
-          max-height: 175px;
-          max-width: 300px;
           margin: 25% 0;
-          max-height: 160px;
-          /* Universal visibility layer */
           isolation: isolate;
         }
 
-        /* Background scrim that adapts to light/dark-ish contexts */
         .bm-loader::before {
           content: "";
           position: absolute;
           inset: 0;
           border-radius: 16px;
 
-          /* Two layers: a soft dark wash + a soft light wash. One will help. */
           background:
             linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255, 0.50)),
             linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0.10));
 
-          /* Backdrop blur helps on busy backgrounds */
           backdrop-filter: blur(6px);
           -webkit-backdrop-filter: blur(6px);
 
           z-index: 0;
         }
 
-        /* The "card" that the loader sits on */
         .bm-loader__panel {
           position: relative;
           z-index: 1;
