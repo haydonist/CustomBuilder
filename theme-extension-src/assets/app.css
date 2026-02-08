@@ -234,6 +234,56 @@ belt-wizard {
   color: rgba(255, 255, 255, 0.75);
 }
 
+.step-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step-indicator--icon {
+  width: 20px;
+  height: 20px;
+}
+.step-indicator--mask {
+  width: 18px;
+  /* tweak */
+  height: 18px;
+  /* tweak */
+  display: inline-block;
+
+  background-color: currentColor;
+
+  -webkit-mask-image: var(--icon-url);
+  mask-image: var(--icon-url);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.step-icon {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+#stepper button.step {
+  color: rgba(255, 255, 255, 0.75);
+  /* default icon color */
+}
+
+#stepper button.step.is-complete {
+  color: #fff;
+  /* or match your design */
+}
+
+#stepper button.step.is-current {
+  color: #fff;
+}
+
 /* Steps */
 #stepHeading {
   margin-block-start: 2em;
@@ -319,10 +369,7 @@ belt-wizard > header {
 
 @media screen and (min-width: 500px) {
   #sizingChart {
-    max-width: 50vw;
-    position: absolute;
-    right: 0;
-    top: -20%;
+    max-width: 50%;
   }
 }
 
