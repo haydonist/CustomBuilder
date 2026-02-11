@@ -75,6 +75,7 @@ export default class BeltCheckout extends LitElement {
           ].filter(Boolean).join(" "),
           onClick: () => this.gotoStep(step),
           count,
+          isSet,
         },
       );
     };
@@ -90,8 +91,7 @@ export default class BeltCheckout extends LitElement {
     const tipVariant = tipProduct ? getVariantById(tipProduct, this.tipVariantId) : null;
 
     const baseVariant = base ? getVariantById(base, this.baseVariantId) : null;
-    const baseSize = getSelectedOption(baseVariant, "Size");
-    const baseColor = getSelectedOption(baseVariant, "Color") ?? getSelectedOption(baseVariant, "Colour");
+    const baseSize = getSelectedOption(baseVariant, "Size") ?? getSelectedOption(baseVariant, "Accessory size");
 
     const buckleVariant = buckle ? getVariantById(buckle, this.buckleVariantId) : null;
     // If render happens before variant ids are set, do nothing
@@ -214,8 +214,8 @@ export default class BeltCheckout extends LitElement {
         base: base ? { id: base.id, title: base.title } : undefined,
         buckle: buckle ? { id: buckle.id, title: buckle.title } : undefined,
         tip: tipProduct ? { id: tipProduct.id, title: tipProduct.title } : undefined,
-        size: baseVariant ? { value: getSelectedOption(baseVariant, "Size") } : undefined,
-        color: baseVariant ? { value: getSelectedOption(baseVariant, "Color") ?? getSelectedOption(baseVariant, "Colour") } : undefined,
+        size: baseVariant ? { value: findOption(baseVariant, "Size") ?? findOption(baseVariant, "Accessory size") } : undefined,
+        color: baseVariant ? { value: findOption(baseVariant, "Color") ?? findOption(baseVariant, "Colour") } : undefined,
 
         loops: Array.from(loopCountMap.values()).map(({ product, count }) => ({
           id: product.id,
@@ -276,17 +276,15 @@ function aggregateAndCount(products: Product[]): ProductCountById {
   return result;
 }
 
-function aggregatePrice(collection: ProductCountById) {
-  return collection.values().reduce((amount, { product, count }) => {
-    const unit = Number.parseFloat(product.priceRange.minVariantPrice.amount);
-    return amount += unit * count;
-  }, 0)
-}
 
 function moneyToNumber(amount: string): number {
   const n = Number.parseFloat(amount);
   if (Number.isNaN(n)) throw new Error(`Invalid money amount: ${amount}`);
   return n;
+}
+
+function findOption(variant: ProductVariant, name: string): string | null {
+  return variant.selectedOptions?.find(o => o.name.toLowerCase() === name.toLowerCase())?.value ?? null;
 }
 
 function getVariantById(product: Product, variantId?: string): ProductVariant | null {

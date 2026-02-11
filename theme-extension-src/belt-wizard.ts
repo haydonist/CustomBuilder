@@ -229,17 +229,25 @@ private getMaxLoopsAllowed(): number {
   return variant.selectedOptions?.find(o => o.name.toLowerCase() === name.toLowerCase())?.value ?? null;
 }
 
+private isVariantInStock(v: ProductVariant): boolean {
+  if (typeof v.quantityAvailable === "number") return v.quantityAvailable > 0;
+  console.log("available:\t", v.availableForSale, v);
+  return v.availableForSale === true;
+}
+
 private getBaseColors(base: Product): string[] {
   const set = new Set<string>();
   for (const v of base.variants ?? []) {
     const c = this.getVariantOption(v, "Color");
-    if (c) set.add(c);
+    if (c && this.isVariantInStock(v)) set.add(c);
   }
   return Array.from(set);
 }
 
 private findFirstVariantForBaseColor(base: Product, color: string): ProductVariant | null {
-  return (base.variants ?? []).find(v => this.getVariantOption(v, "Color") === color) ?? null;
+  return (base.variants ?? []).find(v =>
+    this.getVariantOption(v, "Color") === color && this.isVariantInStock(v)
+  ) ?? null;
 }
 
 private findVariantForBaseColorAndSize(base: Product, color: string, size: string): ProductVariant | null {
@@ -770,7 +778,10 @@ private getBaseVariantColor(variant: ProductVariant): string | null {
 }
 
 private getBaseVariantSize(variant: ProductVariant): string | null {
-  return this.getVariantOptionValue(variant, "Size");
+  return (
+    this.getVariantOptionValue(variant, "Size") ??
+    this.getVariantOptionValue(variant, "Accessory size")
+  );
 }
 private get selectedBaseColor(): string | null {
   return (this.selection?.get("baseColor") as string | null) ?? null;
@@ -796,7 +807,7 @@ private get selectedBaseColor(): string | null {
           <belt-preview
             class="step-${this.wizard.stepIndex}"
             ${ref(this.preview)}
-            .base="${this.basePreviewImage ?? undefined}"
+            .base=${this.basePreviewImage ?? null}
             .buckle="${buckleImage ?? ""}"
             .tip="${this.beltTip ? getImageAt(this.beltTip, 0) : undefined}"
             .buckleOnTop="${this.beltBuckle?.tags?.includes("top") ?? false}"
@@ -1109,8 +1120,11 @@ private get selectedBaseColor(): string | null {
                 <h3 class="collection-title">${collectionTitle}</h3>
                 <div class="row wrap gap-medium">
                   ${items.map((p, index) => {
-                    const hasVariants = Array.isArray(p.variants) &&
-                      p.variants.length > 1;
+                    // For bases, "has variants" means multiple colors to pick
+                    // (the popup shows color swatches, not size options)
+                    const hasVariants = variantKind === "base"
+                      ? this.getBaseColors(p).length > 1
+                      : Array.isArray(p.variants) && p.variants.length > 1;
                     const popup = this.renderVariantPopup(variantKind, p, index);
                     const selected = this.selection?.get(variantKind) === p.id;
 
@@ -1145,6 +1159,16 @@ private get selectedBaseColor(): string | null {
 
                               if (baseChanged) {
                                 this.resetSelections();
+                              }
+
+                              // Auto-set color for single-color bases (popup
+                              // only opens for multi-color, so we land here
+                              // when there is exactly 0-1 in-stock color).
+                              const colors = this.getBaseColors(p);
+                              if (colors.length === 1) {
+                                this.selection!.set("baseColor", colors[0]);
+                                const firstVariant = this.findFirstVariantForBaseColor(p, colors[0]);
+                                if (firstVariant) this.selection!.set("baseVariant", firstVariant.id);
                               }
                             }
 
@@ -1344,16 +1368,28 @@ sizeStep.view = () => {
   if (!base) return html`<p>Please choose a belt base first.</p>`;
   if (!color) return html`<p>Please choose a color first.</p>`;
 
+  console.log("[Belt Wizard] Finding size options for color:", color, {
+    variants: base.variants,
+  });
+
+  
   const matches = (base.variants ?? [])
     .map((v) => ({
       variant: v,
       color: this.getBaseVariantColor(v),
       size: this.getBaseVariantSize(v),
     }))
-    .filter((x) => x.color === color && !!x.size);
+    .filter((x) => x.color === color && !!x.size && this.isVariantInStock(x.variant));
+    
+  console.log("[Belt Wizard] matches:", matches);
 
   if (!matches.length) {
-    return html`<p>No sizes found for ${color}. Check your base variants.</p>`;
+    return html`
+      <p>No sizes found for ${color}. Check your base variants.</p>
+      <button type="button" class="btn primary" @click="${() => this.wizard.goTo(0)}">
+        Change Belt Base
+      </button>
+    `;
   }
 
   // Sort sizes numerically when possible
@@ -1370,7 +1406,7 @@ sizeStep.view = () => {
     <div class="size-step-wrapper">
       <div class="row wrap gap-medium">
         ${matches.map(({ variant, size }) => {
-          const label = `${String(size).trim()}"`;
+          const label = `${String(size).trim()}`;
           const priceAmount = variant.price ?? null;
           const isSelected = selectedBaseVariantId === variant.id;
 
@@ -1693,88 +1729,32 @@ sizeStep.view = () => {
   }
 
   private renderVariantPopup(
-    kind: VariantKind,
-    product: Product,
-    instanceIndex: number,
-  ): ReturnType<typeof html> | null {
-    const key = this.getVariantKey(kind, product.id, instanceIndex);
-    if (this.activeVariantKey !== key) return null;
+  kind: VariantKind,
+  product: Product,
+  instanceIndex: number,
+): ReturnType<typeof html> | null {
+  const key = this.getVariantKey(kind, product.id, instanceIndex);
+  if (this.activeVariantKey !== key) return null;
 
-    if (kind === "base") {
-  const colors = this.getBaseColors(product);
-  if (colors.length <= 1) return null;
+  // ✅ BASE SPECIAL CASE (keep your custom color UI)
+  if (kind === "base") {
+    const colors = this.getBaseColors(product);
+    if (colors.length <= 1) return null;
 
-  const selectedColor = this.getSelectedBaseColor();
-  const firstVariantByColor = (color: string) => this.findFirstVariantForBaseColor(product, color);
-
-  return html`
-    <div class="variant-popup" data-kind="base" data-instance="${instanceIndex}"
-      @click="${(e: Event) => e.stopPropagation()}">
-      <div class="variant-popup-grid">
-        ${colors.map((color) => {
-          const v = firstVariantByColor(color);
-          if (!v) return null;
-
-          const isSelected = selectedColor === color;
-          const imgUrl = v.image?.url ?? getImageAt(product, 0);
-
-          return html`
-            <button
-              type="button"
-              class="variant-swatch ${isSelected ? "is-selected" : ""}"
-              @click="${(ev: Event) => {
-                ev.preventDefault();
-                ev.stopPropagation();
-
-                this.ensureSelection();
-                this.selection!.set("base", product.id);
-                this.selection!.set("baseColor", color);
-
-                // Set a default baseVariant for checkout purposes (first size for that color)
-                this.selection!.set("baseVariant", v.id);
-
-                this.applySelectionToPreview();
-                this.activeVariantKey = null;
-                this.requestUpdate();
-              }}"
-            >
-              <img src="${imgUrl}" alt="${color}" />
-            </button>
-          `;
-        })}
-      </div>
-    </div>
-  `;
-}
-
-
-    const isMulti = kind === "loop" || kind === "concho";
-
-    const countsByVariant: Record<string, number> = isMulti
-      ? this.getVariantCountsForProduct(kind as "loop" | "concho", product.id)
-      : {};
-
-    const singleSelectedVariantId = !isMulti && this.selection
-      ? (this.selection.get(`${kind}Variant`) as string | null)
-      : null;
+    const selectedColor = this.getSelectedBaseColor();
+    const firstVariantByColor = (color: string) =>
+      this.findFirstVariantForBaseColor(product, color);
 
     return html`
-      <div
-        class="variant-popup"
-        data-kind="${kind}"
-        data-instance="${instanceIndex}"
-        @click="${(e: Event) => e.stopPropagation()}"
-      >
+      <div class="variant-popup" data-kind="base" data-instance="${instanceIndex}"
+        @click="${(e: Event) => e.stopPropagation()}">
         <div class="variant-popup-grid">
-          ${variants.map((variant) => {
-            const variantId = variant.id;
-            const count = isMulti ? countsByVariant[variantId] ?? 0 : 0;
-            const isSelected = isMulti
-              ? count > 0 // any instances of this variant exist
-              : singleSelectedVariantId === variantId;
-            const showCountBadge = isMulti && count > 0;
-            const imgUrl = variant.image?.url ?? variant.image?.url ??
-              getImageAt(product, 0);
+          ${colors.map((color) => {
+            const v = firstVariantByColor(color);
+            if (!v) return null;
+
+            const isSelected = selectedColor === color;
+            const imgUrl = v.image?.url ?? getImageAt(product, 0);
 
             return html`
               <button
@@ -1783,15 +1763,24 @@ sizeStep.view = () => {
                 @click="${(ev: Event) => {
                   ev.preventDefault();
                   ev.stopPropagation();
-                  this.handleVariantSelect(kind, product, variant, instanceIndex);
+
+                  this.ensureSelection();
+
+                  const baseChanged = !!this.beltBase && this.beltBase.id !== product.id;
+                  if (baseChanged) {
+                    this.resetSelections();
+                  }
+
+                  this.selection!.set("base", product.id);
+                  this.selection!.set("baseColor", color);
+                  this.selection!.set("baseVariant", v.id);
+
+                  this.applySelectionToPreview();
+                  this.activeVariantKey = null;
+                  this.requestUpdate();
                 }}"
               >
-                <img src="${imgUrl}" alt="${variant.title}" />
-                ${showCountBadge
-                  ? html`
-                    <span class="option-count">x${count}</span>
-                  `
-                  : null}
+                <img src="${imgUrl}" alt="${color}" />
               </button>
             `;
           })}
@@ -1799,6 +1788,55 @@ sizeStep.view = () => {
       </div>
     `;
   }
+
+  const variants = product.variants ?? [];
+  if (!variants.length) return null;
+
+  const isMulti = kind === "loop" || kind === "concho";
+
+  const countsByVariant: Record<string, number> = isMulti
+    ? this.getVariantCountsForProduct(kind as "loop" | "concho", product.id)
+    : {};
+
+  const singleSelectedVariantId = !isMulti && this.selection
+    ? (this.selection.get(`${kind}Variant`) as string | null)
+    : null;
+
+  return html`
+    <div
+      class="variant-popup"
+      data-kind="${kind}"
+      data-instance="${instanceIndex}"
+      @click="${(e: Event) => e.stopPropagation()}"
+    >
+      <div class="variant-popup-grid">
+        ${variants.map((variant) => {
+          const variantId = variant.id;
+          const count = isMulti ? countsByVariant[variantId] ?? 0 : 0;
+          const isSelected = isMulti ? count > 0 : singleSelectedVariantId === variantId;
+          const showCountBadge = isMulti && count > 0;
+          const imgUrl = variant.image?.url ?? getImageAt(product, 0);
+
+          return html`
+            <button
+              type="button"
+              class="variant-swatch ${isSelected ? "is-selected" : ""}"
+              @click="${(ev: Event) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                this.handleVariantSelect(kind, product, variant, instanceIndex);
+              }}"
+            >
+              <img src="${imgUrl}" alt="${variant.title}" />
+              ${showCountBadge ? html`<span class="option-count">x${count}</span>` : null}
+            </button>
+          `;
+        })}
+      </div>
+    </div>
+  `;
+}
+
 
   private handleCardClick(
     kind: VariantKind,
@@ -1842,14 +1880,17 @@ sizeStep.view = () => {
 
     switch (kind) {
       case "base": {
-        // Keep variant selection for checkout purposes (SKU/variant id),
-        // but DO NOT use variant image for preview.
+        const baseChanged = !!this.beltBase && this.beltBase.id !== product.id;
+        if (baseChanged) {
+          this.resetSelections();
+        }
+
         this.selection!.set("base", product.id);
         this.selection!.set("baseVariant", variant.id);
+        const color = this.getBaseVariantColor(variant);
+        if (color) this.selection!.set("baseColor", color);
 
-        // Recompute everything from selection (including basePreviewImage from product images).
         this.applySelectionToPreview();
-
         break;
       }
 
@@ -2019,6 +2060,10 @@ sizeStep.view = () => {
       "conchoVariant",
       "tip",
       "tipVariant",
+      "baseVariant",
+      "baseColor",
+      "size",
+      "baseSize",
     ];
     for (const key of keysToClear) this.selection.delete(key);
 
@@ -2028,6 +2073,8 @@ sizeStep.view = () => {
     this.beltLoops = [];
     this.beltConchos = [];
     this.beltTip = null;
+    this.beltSize = null;
+    this.beltSizeVariantId = null;
 
     // Close any open UI + clear filters (collections will change with width)
     this.showCollectionFilter = false;
