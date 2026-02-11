@@ -5,34 +5,45 @@ export default async function cropToContents(
   w: number,
   h: number,
 ): Promise<ImageBitmap> {
-  // OffscreenCanvas is nice when it exists, but don’t bet your life on it.
-  const canvas: OffscreenCanvas | HTMLCanvasElement =
-    typeof OffscreenCanvas !== "undefined"
-      ? new OffscreenCanvas(w, h)
-      : Object.assign(document.createElement("canvas"), {
-        width: w,
-        height: h,
-      });
-
-  const ctx = canvas.getContext("2d");
-  assert(ctx, "Could not create a canvas context!");
-
   const bitmap = source instanceof ImageBitmap
     ? source
     : await createImageBitmap(source);
 
-  ctx.clearRect(0, 0, w, h);
-  ctx.drawImage(bitmap, 0, 0);
+  // Downscale for scanning so we don't brute-force millions of pixels.
+  const MAX_SCAN_W = 600; // tune: 400-800 is usually great
+  const scale = w > MAX_SCAN_W ? (MAX_SCAN_W / w) : 1;
 
-  const pixels = ctx.getImageData(0, 0, w, h);
+  const scanW = Math.max(1, Math.round(w * scale));
+  const scanH = Math.max(1, Math.round(h * scale));
 
-  let top = h, left = w, right = -1, bottom = -1;
+  const scanCanvas: OffscreenCanvas | HTMLCanvasElement =
+    typeof OffscreenCanvas !== "undefined"
+      ? new OffscreenCanvas(scanW, scanH)
+      : Object.assign(document.createElement("canvas"), {
+          width: scanW,
+          height: scanH,
+        });
+
+  const scanCtx = scanCanvas.getContext("2d");
+  assert(scanCtx, "Could not create a canvas context!");
+
+  scanCtx.clearRect(0, 0, scanW, scanH);
+  scanCtx.drawImage(bitmap, 0, 0, scanW, scanH);
+
+  // NOTE: If the image is tainted (CORS), getImageData will throw.
+  // Your caller catches errors, so this won't hard-crash.
+  const pixels = scanCtx.getImageData(0, 0, scanW, scanH);
   const data = pixels.data;
 
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const a = data[(y * w + x) * 4 + 3];
-      if (a === 0) continue;
+  let top = scanH, left = scanW, right = -1, bottom = -1;
+
+  // Optional: stride > 1 makes it even faster (slightly less precise).
+  const STRIDE = 1;
+
+  for (let y = 0; y < scanH; y += STRIDE) {
+    for (let x = 0; x < scanW; x += STRIDE) {
+      const a = data[(y * scanW + x) * 4 + 3];
+      if (a < 8) continue; // or 16
 
       if (x < left) left = x;
       if (x > right) right = x;
@@ -41,13 +52,23 @@ export default async function cropToContents(
     }
   }
 
-  // Fully transparent image: just return the original bitmap (or a 1x1 transparent)
+  // Fully transparent image: return original bitmap.
   if (right < left || bottom < top) {
     return bitmap;
   }
 
-  const cropW = right - left + 1;
-  const cropH = bottom - top + 1;
+  // Convert scan bounds back to full-res bounds.
+  const inv = 1 / scale;
 
-  return await createImageBitmap(canvas as any, left, top, cropW, cropH);
+  const fullLeft = Math.max(0, Math.floor(left * inv));
+  const fullTop = Math.max(0, Math.floor(top * inv));
+  const fullRight = Math.min(w - 1, Math.ceil((right + 1) * inv) - 1);
+  const fullBottom = Math.min(h - 1, Math.ceil((bottom + 1) * inv) - 1);
+
+  const cropW = fullRight - fullLeft + 1;
+  const cropH = fullBottom - fullTop + 1;
+
+  // Crop from the original bitmap at full resolution.
+  return await createImageBitmap(bitmap, fullLeft, fullTop, cropW, cropH);
 }
+
