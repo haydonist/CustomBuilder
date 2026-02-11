@@ -379,11 +379,11 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   position: relative;
 }
 
-.option.thumbnail[data-kind="base"] .selection-indicator {
+.option.thumbnail[data-kind="base"]:not(.summary) .selection-indicator {
   transition: opacity 300ms ease;
 }
 
-.option.thumbnail[data-kind="base"] .hover-image {
+.option.thumbnail[data-kind="base"]:not(.summary) .hover-image {
   position: absolute;
   inset: 0;
   opacity: 0;
@@ -392,11 +392,11 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   object-fit: cover;
 }
 
-.option.thumbnail[data-kind="base"]:hover .hover-image {
+.option.thumbnail[data-kind="base"]:not(.summary):hover .hover-image {
   opacity: 1;
 }
 
-.option.thumbnail[data-kind="base"]:hover .selection-indicator {
+.option.thumbnail[data-kind="base"]:not(.summary):hover .selection-indicator {
   opacity: 0;
 }
 
