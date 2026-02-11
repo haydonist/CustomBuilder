@@ -75,14 +75,6 @@ export default class BeltPreview extends LitElement {
     pointer-events: none; /* do not block dragging loops/conchos */
   }
 
-  .preview-loader {
-  position: relative;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  z-index: 50;
-  pointer-events: none;
-}
 
 /* Keep the loader compact instead of stretching it */
 .preview-loader .bm-loader {
@@ -342,12 +334,17 @@ export default class BeltPreview extends LitElement {
   }
 
   private async renderBeltBase() {
-  console.debug("renderBeltBase()", { hasCanvas: !!this.#baseCanvas, base: this.base });
-
   const canvas = this.#baseCanvas;
-  if (!canvas || !this.base) return;
 
-  // Token prevents out-of-order draws if base changes quickly
+  // If we can't render, also make sure we are not stuck showing the loader
+  if (!canvas || !this.base) {
+    if (this.isRenderingBase) {
+      this.isRenderingBase = false;
+      this.toggleAttribute("data-rendering", false);
+    }
+    return;
+  }
+
   const myToken = ++this.renderToken;
 
   this.isRenderingBase = true;
@@ -360,10 +357,8 @@ export default class BeltPreview extends LitElement {
     const cropped = await cropToContents(img, img.naturalWidth, img.naturalHeight);
     if (myToken !== this.renderToken) return;
 
-    let aspect = cropped.height / cropped.width;
-    aspect *= 0.75;
+    let aspect = (cropped.height / cropped.width) * 0.75;
 
-    // Ensure layout is ready
     await new Promise(requestAnimationFrame);
 
     let width = Math.floor(canvas.getBoundingClientRect().width) || 1;
@@ -376,7 +371,6 @@ export default class BeltPreview extends LitElement {
     }
 
     const dpr = self.devicePixelRatio || 1;
-
     canvas.width = Math.round(width * dpr);
     canvas.height = Math.round(height * dpr);
 
@@ -384,23 +378,16 @@ export default class BeltPreview extends LitElement {
     assert(ctx, "Could not acquire 2D canvas context!");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(cropped, 0, 0, width * dpr, height * dpr);
-
-    console.debug("draw", {
-      base: this.base,
-      rectW: canvas.getBoundingClientRect().width,
-      naturalW: img.naturalWidth,
-      naturalH: img.naturalHeight,
-    });
   } catch (e) {
     console.error("renderBeltBase failed:", e);
   } finally {
-    // Only clear loader if we’re still the latest render
     if (myToken === this.renderToken) {
       this.isRenderingBase = false;
       this.toggleAttribute("data-rendering", false);
     }
   }
 }
+
 
 
   // ---------- DRAG HANDLERS ----------
@@ -557,14 +544,26 @@ async function cacheImage(url: string): Promise<HTMLImageElement> {
   cachedImages[url] = new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
+
+    const done = () => resolve(img);
+    const fail = (err: any) => {
+      delete cachedImages[url];
+      reject(err);
+    };
+
+    img.onload = () => {
+      // decode is nice-to-have, not required
+      if ("decode" in img) {
+        (img as any).decode().then(done).catch(() => done());
+      } else {
+        done();
+      }
+    };
+
+    img.onerror = fail;
     img.src = url;
-    img.decode()
-      .then(() => resolve(img))
-      .catch((err) => {
-        delete cachedImages[url]; // allow retry next time
-        reject(err);
-      });
   });
 
   return cachedImages[url];
 }
+
