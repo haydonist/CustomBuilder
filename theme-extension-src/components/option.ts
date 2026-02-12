@@ -52,6 +52,7 @@ export function thumbnailOption(
     type?: unknown;
     selected?: boolean;
     count?: number;
+    variantCount?: number;
     popup?: ReturnType<typeof html> | null;
     isSet?: boolean;
   },
@@ -91,6 +92,9 @@ export function thumbnailOption(
             ? html`
               <span class="option-count">x${options.count}</span>
             `
+            : null}
+          ${options.variantCount && options.variantCount > 1
+            ? html`<span class="variant-badge">${options.variantCount}</span>`
             : null}
         </div>
         <span class="label">${label}</span>

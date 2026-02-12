@@ -1122,9 +1122,10 @@ private get selectedBaseColor(): string | null {
                   ${items.map((p, index) => {
                     // For bases, "has variants" means multiple colors to pick
                     // (the popup shows color swatches, not size options)
-                    const hasVariants = variantKind === "base"
-                      ? this.getBaseColors(p).length > 1
-                      : Array.isArray(p.variants) && p.variants.length > 1;
+                    const variantCount = variantKind === "base"
+                      ? this.getBaseColors(p).length
+                      : (p.variants?.length ?? 0);
+                    const hasVariants = variantCount > 1;
                     const popup = this.renderVariantPopup(variantKind, p, index);
                     const selected = this.selection?.get(variantKind) === p.id;
 
@@ -1214,6 +1215,9 @@ private get selectedBaseColor(): string | null {
                                 />
                               `
                               : null}
+                            ${hasVariants
+                              ? html`<span class="variant-badge">${variantCount}</span>`
+                              : null}
                           </div>
                           <span class="label">${p.title}</span>
                           ${p.priceRange?.minVariantPrice
@@ -1272,8 +1276,8 @@ private get selectedBaseColor(): string | null {
                       : 0;
 
                     const selected = count > 0;
-                    const hasVariants = Array.isArray(p.variants) &&
-                      p.variants.length > 1;
+                    const variantCount = p.variants?.length ?? 0;
+                    const hasVariants = variantCount > 1;
                     const popup = this.renderVariantPopup(variantKind, p, index);
 
                     return thumbnailOption(
@@ -1297,6 +1301,7 @@ private get selectedBaseColor(): string | null {
                         ),
                         selected,
                         count,
+                        variantCount,
                         popup,
                       },
                     );
