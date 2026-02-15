@@ -167,6 +167,20 @@ private getMaxLoopsAllowed(): number {
     if (e.key === "Escape") this.showCollectionFilter = false;
   };
 
+  private onVariantPointerDown = (e: PointerEvent) => {
+    if (!this.activeVariantKey) return;
+    const target = e.target as Node | null;
+    const popup = this.renderRoot.querySelector(".variant-popup");
+    if (popup && target && !popup.contains(target)) {
+      this.activeVariantKey = null;
+    }
+  };
+
+  private onVariantKeyDown = (e: KeyboardEvent) => {
+    if (!this.activeVariantKey) return;
+    if (e.key === "Escape") this.activeVariantKey = null;
+  };
+
   private getFilterStepKey(stepId: string): string | null {
     if (stepId === "buckle") return "buckle";
     if (stepId === "loops") return "loops";
@@ -710,6 +724,15 @@ private getSelectedBaseColor(): string | null {
       } else {
         self.removeEventListener("pointerdown", this.onGlobalPointerDown);
         self.removeEventListener("keydown", this.onGlobalKeyDown);
+      }
+    }
+    if (changed.has("activeVariantKey")) {
+      if (this.activeVariantKey) {
+        self.addEventListener("pointerdown", this.onVariantPointerDown);
+        self.addEventListener("keydown", this.onVariantKeyDown);
+      } else {
+        self.removeEventListener("pointerdown", this.onVariantPointerDown);
+        self.removeEventListener("keydown", this.onVariantKeyDown);
       }
     }
   }
@@ -2031,13 +2054,20 @@ sizeStep.view = () => {
       this.resetBuckleLoopsAndTip();
     }
 
-    // WTF is this? Why so convoluted?
     let current = (this.selection!.getAll(variantKind) as string[]) ?? [];
     const sameCount = current.filter((id) => id === selectionId).length;
-    current = sameCount >= maxCount
-      ? current.filter((id) => id !== selectionId)
-      : [...current, selectionId];
-    if (current.length > maxCount) current = current.slice(0, maxCount);
+
+    if (sameCount > 0 && current.length >= maxCount) {
+      // At max capacity and item is already selected: remove one instance
+      const idx = current.indexOf(selectionId);
+      current = [...current.slice(0, idx), ...current.slice(idx + 1)];
+    } else if (sameCount >= maxCount) {
+      // All slots are this item: remove all
+      current = current.filter((id) => id !== selectionId);
+    } else {
+      current = [...current, selectionId];
+      if (current.length > maxCount) current = current.slice(0, maxCount);
+    }
 
     // Reset variant selection
     this.selection!.delete(variantKind);

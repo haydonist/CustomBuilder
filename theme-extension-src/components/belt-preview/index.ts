@@ -29,6 +29,14 @@ export default class BeltPreview extends LitElement {
   private draggingLoopIndex: number | null = null;
   private draggingConchoIndex: number | null = null;
 
+  private dragOriginalLoopIndex: number | null = null;
+  private hoverLoopIndex: number | null = null;
+  private loopItemRects: DOMRect[] = [];
+
+  private dragOriginalConchoIndex: number | null = null;
+  private hoverConchoIndex: number | null = null;
+  private conchoItemRects: DOMRect[] = [];
+
   static override styles = css`
   ${styles.theme}
 
@@ -192,6 +200,7 @@ export default class BeltPreview extends LitElement {
   .concho-wrapper {
     cursor: grab;
     pointer-events: auto !important;
+    transition: transform 150ms ease;
   }
 
   .loop-item:active,
@@ -199,10 +208,11 @@ export default class BeltPreview extends LitElement {
     cursor: grabbing;
   }
 
-  /* While dragging, fade the original */
-  .loop-item.dragging .loop,
-  .concho-wrapper.dragging .concho {
-    opacity: 0.55;
+  /* While dragging, hide the original so shifted items fill the gap */
+  .loop-item.dragging,
+  .concho-wrapper.dragging {
+    opacity: 0;
+    transition: none;
   }
 
   .remove-badge {
@@ -276,7 +286,9 @@ export default class BeltPreview extends LitElement {
   </div>
 
   <img id="buckle" class="center-vertically" src=${this.buckle ?? ""} aria-hidden="true" style="z-index: ${this.buckleOnTop || this.isRangerCore ? '10' : '-1'}; left: ${this.isRangerCore ? '-2.8%' : '-5.8%'}" />
-      <div id="loops" class="center-vertically" style="left: ${this.isRangerCore ? '5.6%' : '1.8%'}">
+      <div id="loops" class="center-vertically" style="left: ${this.isRangerCore ? '5.6%' : '1.8%'}"
+        @dragover=${this.onLoopDragOver}
+        @drop=${this.onLoopDrop}>
         ${this.loops.map(
           (loop, index) => html`
             <div
@@ -284,8 +296,6 @@ export default class BeltPreview extends LitElement {
               draggable="true"
               data-index=${index}
               @dragstart=${this.onLoopDragStart}
-              @dragover=${this.onLoopDragOver}
-              @drop=${this.onLoopDrop}
               @dragend=${this.onLoopDragEnd}
             >
               <button
@@ -300,7 +310,9 @@ export default class BeltPreview extends LitElement {
           `,
         )}
       </div>
-      <div id="conchosList" class="center-vertically">
+      <div id="conchosList" class="center-vertically"
+        @dragover=${this.onConchoDragOver}
+        @drop=${this.onConchoDrop}>
         ${this.conchos.map(
           (concho, index) => html`
             <div
@@ -308,8 +320,6 @@ export default class BeltPreview extends LitElement {
               draggable="true"
               data-index=${index}
               @dragstart=${this.onConchoDragStart}
-              @dragover=${this.onConchoDragOver}
-              @drop=${this.onConchoDrop}
               @dragend=${this.onConchoDragEnd}
             >
               <button
@@ -391,98 +401,242 @@ export default class BeltPreview extends LitElement {
 
 
   // ---------- DRAG HANDLERS ----------
+
+  // ---- Loops ----
   private onLoopDragStart(e: DragEvent) {
     const target = e.currentTarget as HTMLElement | null;
     if (!target || !e.dataTransfer) return;
 
-    this.draggingLoopIndex = Number(target.dataset.index);
+    const index = Number(target.dataset.index);
+    this.draggingLoopIndex = index;
+    this.dragOriginalLoopIndex = index;
+    this.hoverLoopIndex = index;
+
     e.dataTransfer.setData("text/plain", "loop");
     e.dataTransfer.effectAllowed = "move";
-
     target.classList.add("dragging");
     this.createDragImageFrom(target, e);
+
+    // Snapshot original positions for hit-testing during drag
+    const container = this.shadowRoot?.querySelector('#loops');
+    if (container) {
+      this.loopItemRects = Array.from(
+        container.querySelectorAll('.loop-item')
+      ).map(el => el.getBoundingClientRect());
+    }
   }
 
   private onLoopDragOver(e: DragEvent) {
     e.preventDefault();
+    if (this.dragOriginalLoopIndex == null) return;
+
+    const targetIndex = this.getDropIndex(e.clientX, this.loopItemRects, this.dragOriginalLoopIndex);
+    if (targetIndex === this.hoverLoopIndex) return;
+
+    this.hoverLoopIndex = targetIndex;
+    this.applyDragTransforms("loop");
   }
 
   private onLoopDrop(e: DragEvent) {
     e.preventDefault();
-    const target = e.currentTarget as HTMLElement | null;
-    if (!target) return;
+    this.clearDragTransforms("loop");
 
-    const from = this.draggingLoopIndex;
-    const to = Number(target.dataset.index);
-    if (from == null || from === to) return;
+    const from = this.dragOriginalLoopIndex;
+    const to = this.hoverLoopIndex;
 
-    const updated = [...this.loops];
-    const [moved] = updated.splice(from, 1);
-    updated.splice(to, 0, moved);
-    this.loops = updated;
+    if (from != null && to != null && from !== to) {
+      const updated = [...this.loops];
+      const [moved] = updated.splice(from, 1);
+      updated.splice(to, 0, moved);
+      this.loops = updated;
 
-    this.dispatchEvent(new CustomEvent("reorder-loops", {
-      detail: { fromIndex: from, toIndex: to },
-      bubbles: true,
-      composed: true,
-    }));
+      this.dispatchEvent(new CustomEvent("reorder-loops", {
+        detail: { fromIndex: from, toIndex: to },
+        bubbles: true,
+        composed: true,
+      }));
+    }
 
     this.draggingLoopIndex = null;
+    this.dragOriginalLoopIndex = null;
+    this.hoverLoopIndex = null;
+    this.loopItemRects = [];
   }
 
   private onLoopDragEnd(e: DragEvent) {
     const target = e.currentTarget as HTMLElement | null;
-    if (target) {
-      target.classList.remove("dragging");
+    if (target) target.classList.remove("dragging");
+    this.clearDragTransforms("loop");
+
+    if (this.draggingLoopIndex != null) {
+      this.dispatchEvent(new CustomEvent("remove-loop", {
+        detail: { index: this.dragOriginalLoopIndex ?? this.draggingLoopIndex },
+        bubbles: true,
+        composed: true,
+      }));
     }
+
     this.draggingLoopIndex = null;
+    this.dragOriginalLoopIndex = null;
+    this.hoverLoopIndex = null;
+    this.loopItemRects = [];
   }
 
+  // ---- Conchos ----
   private onConchoDragStart(e: DragEvent) {
     const target = e.currentTarget as HTMLElement | null;
     if (!target || !e.dataTransfer) return;
 
-    this.draggingConchoIndex = Number(target.dataset.index);
+    const index = Number(target.dataset.index);
+    this.draggingConchoIndex = index;
+    this.dragOriginalConchoIndex = index;
+    this.hoverConchoIndex = index;
+
     e.dataTransfer.setData("text/plain", "concho");
     e.dataTransfer.effectAllowed = "move";
-
     target.classList.add("dragging");
     this.createDragImageFrom(target, e);
+
+    const container = this.shadowRoot?.querySelector('#conchosList');
+    if (container) {
+      this.conchoItemRects = Array.from(
+        container.querySelectorAll('.concho-wrapper')
+      ).map(el => el.getBoundingClientRect());
+    }
   }
 
   private onConchoDragOver(e: DragEvent) {
     e.preventDefault();
+    if (this.dragOriginalConchoIndex == null) return;
+
+    const targetIndex = this.getDropIndex(e.clientX, this.conchoItemRects, this.dragOriginalConchoIndex);
+    if (targetIndex === this.hoverConchoIndex) return;
+
+    this.hoverConchoIndex = targetIndex;
+    this.applyDragTransforms("concho");
   }
 
   private onConchoDrop(e: DragEvent) {
     e.preventDefault();
-    const target = e.currentTarget as HTMLElement | null;
-    if (!target) return;
+    this.clearDragTransforms("concho");
 
-    const from = this.draggingConchoIndex;
-    const to = Number(target.dataset.index);
-    if (from == null || from === to) return;
+    const from = this.dragOriginalConchoIndex;
+    const to = this.hoverConchoIndex;
 
-    const updated = [...this.conchos];
-    const [moved] = updated.splice(from, 1);
-    updated.splice(to, 0, moved);
-    this.conchos = updated;
+    if (from != null && to != null && from !== to) {
+      const updated = [...this.conchos];
+      const [moved] = updated.splice(from, 1);
+      updated.splice(to, 0, moved);
+      this.conchos = updated;
 
-    this.dispatchEvent(new CustomEvent("reorder-conchos", {
-      detail: { fromIndex: from, toIndex: to },
-      bubbles: true,
-      composed: true,
-    }));
+      this.dispatchEvent(new CustomEvent("reorder-conchos", {
+        detail: { fromIndex: from, toIndex: to },
+        bubbles: true,
+        composed: true,
+      }));
+    }
 
     this.draggingConchoIndex = null;
+    this.dragOriginalConchoIndex = null;
+    this.hoverConchoIndex = null;
+    this.conchoItemRects = [];
   }
 
   private onConchoDragEnd(e: DragEvent) {
     const target = e.currentTarget as HTMLElement | null;
-    if (target) {
-      target.classList.remove("dragging");
+    if (target) target.classList.remove("dragging");
+    this.clearDragTransforms("concho");
+
+    if (this.draggingConchoIndex != null) {
+      this.dispatchEvent(new CustomEvent("remove-concho", {
+        detail: { index: this.dragOriginalConchoIndex ?? this.draggingConchoIndex },
+        bubbles: true,
+        composed: true,
+      }));
     }
+
     this.draggingConchoIndex = null;
+    this.dragOriginalConchoIndex = null;
+    this.hoverConchoIndex = null;
+    this.conchoItemRects = [];
+  }
+
+  // ---- Shared drag helpers ----
+
+  /** Map a mouse X position to a drop index using the stored original rects. */
+  private getDropIndex(mouseX: number, rects: DOMRect[], dragIndex: number): number {
+    const items: { originalIndex: number; center: number }[] = [];
+    for (let i = 0; i < rects.length; i++) {
+      if (i === dragIndex) continue;
+      items.push({ originalIndex: i, center: rects[i].left + rects[i].width / 2 });
+    }
+
+    let insertionPoint = 0;
+    for (const item of items) {
+      if (mouseX > item.center) insertionPoint++;
+    }
+
+    if (insertionPoint === 0) return 0;
+    if (insertionPoint >= items.length) return rects.length - 1;
+
+    const afterItem = items[insertionPoint - 1].originalIndex;
+    return afterItem < dragIndex ? afterItem + 1 : afterItem;
+  }
+
+  /** Shift non-dragged items with CSS transforms to preview the reorder. */
+  private applyDragTransforms(kind: "loop" | "concho") {
+    const containerId = kind === "loop" ? "#loops" : "#conchosList";
+    const itemSelector = kind === "loop" ? ".loop-item" : ".concho-wrapper";
+    const from = kind === "loop" ? this.dragOriginalLoopIndex : this.dragOriginalConchoIndex;
+    const to = kind === "loop" ? this.hoverLoopIndex : this.hoverConchoIndex;
+    const rects = kind === "loop" ? this.loopItemRects : this.conchoItemRects;
+
+    const container = this.shadowRoot?.querySelector(containerId);
+    if (!container || from == null || to == null) return;
+
+    const items = Array.from(container.querySelectorAll(itemSelector)) as HTMLElement[];
+
+    // Slot width = space each item occupies in the flow
+    let slotWidth: number;
+    if (rects.length > 1) {
+      slotWidth = from < rects.length - 1
+        ? Math.abs(rects[from + 1].left - rects[from].left)
+        : Math.abs(rects[from].left - rects[from - 1].left);
+    } else {
+      slotWidth = rects[0]?.width ?? 0;
+    }
+
+    items.forEach((el, index) => {
+      if (index === from) { el.style.transform = ''; return; }
+
+      if (from < to && index > from && index <= to) {
+        el.style.transform = `translateX(${-slotWidth}px)`;
+      } else if (from > to && index >= to && index < from) {
+        el.style.transform = `translateX(${slotWidth}px)`;
+      } else {
+        el.style.transform = '';
+      }
+    });
+  }
+
+  /** Remove all inline transforms (used on drop / dragend). */
+  private clearDragTransforms(kind: "loop" | "concho") {
+    const containerId = kind === "loop" ? "#loops" : "#conchosList";
+    const itemSelector = kind === "loop" ? ".loop-item" : ".concho-wrapper";
+    const container = this.shadowRoot?.querySelector(containerId);
+    if (!container) return;
+
+    container.querySelectorAll(itemSelector).forEach((el) => {
+      const h = el as HTMLElement;
+      h.style.transition = 'none';
+      h.style.transform = '';
+    });
+    // Re-enable transitions after paint so the clear is instant
+    requestAnimationFrame(() => {
+      container.querySelectorAll(itemSelector).forEach((el) => {
+        (el as HTMLElement).style.transition = '';
+      });
+    });
   }
 
   private createDragImageFrom(target: HTMLElement, e: DragEvent) {
