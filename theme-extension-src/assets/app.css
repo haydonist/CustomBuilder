@@ -329,7 +329,7 @@ belt-wizard > header {
   transform-origin: left;
 }
 #preview belt-preview.step-2 {
-  transform: scale(1.5) translateX(300px);
+  transform: scale(2.5) translateX(240px);
   transform-origin: left;
 }
 #preview belt-preview.step-3 {
