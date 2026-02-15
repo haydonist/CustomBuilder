@@ -250,6 +250,34 @@ private findFirstVariantForBaseColor(base: Product, color: string): ProductVaria
   ) ?? null;
 }
 
+private getUniqueVariantImages(kind: string, product: Product): string[] {
+  const images: string[] = [];
+  const seen = new Set<string>();
+
+  if (kind === "base") {
+    // One image per in-stock color
+    for (const color of this.getBaseColors(product)) {
+      const v = this.findFirstVariantForBaseColor(product, color);
+      const url = v?.image?.url;
+      if (url && !seen.has(url)) {
+        seen.add(url);
+        images.push(url);
+      }
+    }
+  } else {
+    // One image per unique variant image
+    for (const v of product.variants ?? []) {
+      const url = v.image?.url;
+      if (url && !seen.has(url)) {
+        seen.add(url);
+        images.push(url);
+      }
+    }
+  }
+
+  return images;
+}
+
 private findVariantForBaseColorAndSize(base: Product, color: string, size: string): ProductVariant | null {
   return (base.variants ?? []).find(v =>
     this.getVariantOption(v, "Color") === color &&
@@ -1122,10 +1150,8 @@ private get selectedBaseColor(): string | null {
                   ${items.map((p, index) => {
                     // For bases, "has variants" means multiple colors to pick
                     // (the popup shows color swatches, not size options)
-                    const variantCount = variantKind === "base"
-                      ? this.getBaseColors(p).length
-                      : (p.variants?.length ?? 0);
-                    const hasVariants = variantCount > 1;
+                    const variantImages = this.getUniqueVariantImages(variantKind, p);
+                    const hasVariants = variantImages.length > 1;
                     const popup = this.renderVariantPopup(variantKind, p, index);
                     const selected = this.selection?.get(variantKind) === p.id;
 
@@ -1216,7 +1242,18 @@ private get selectedBaseColor(): string | null {
                               `
                               : null}
                             ${hasVariants
-                              ? html`<span class="variant-badge">${variantCount}</span>`
+                              ? html`<div class="variant-previews">
+                                  ${variantImages.slice(0, 3).map(
+                                    (url) => html`
+                                      <div class="variant-preview-item">
+                                        <img src="${url}" alt="" />
+                                      </div>
+                                    `,
+                                  )}
+                                  ${variantImages.length > 3
+                                    ? html`<span class="variant-preview-more">+${variantImages.length - 3}</span>`
+                                    : null}
+                                </div>`
                               : null}
                           </div>
                           <span class="label">${p.title}</span>
@@ -1276,8 +1313,8 @@ private get selectedBaseColor(): string | null {
                       : 0;
 
                     const selected = count > 0;
-                    const variantCount = p.variants?.length ?? 0;
-                    const hasVariants = variantCount > 1;
+                    const variantImages = this.getUniqueVariantImages(variantKind, p);
+                    const hasVariants = variantImages.length > 1;
                     const popup = this.renderVariantPopup(variantKind, p, index);
 
                     return thumbnailOption(
@@ -1301,7 +1338,7 @@ private get selectedBaseColor(): string | null {
                         ),
                         selected,
                         count,
-                        variantCount,
+                        variantImages,
                         popup,
                       },
                     );

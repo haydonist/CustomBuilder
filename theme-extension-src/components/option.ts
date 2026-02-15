@@ -52,7 +52,7 @@ export function thumbnailOption(
     type?: unknown;
     selected?: boolean;
     count?: number;
-    variantCount?: number;
+    variantImages?: string[];
     popup?: ReturnType<typeof html> | null;
     isSet?: boolean;
   },
@@ -93,8 +93,19 @@ export function thumbnailOption(
               <span class="option-count">x${options.count}</span>
             `
             : null}
-          ${options.variantCount && options.variantCount > 1
-            ? html`<span class="variant-badge">${options.variantCount}</span>`
+          ${options.variantImages && options.variantImages.length > 1
+            ? html`<div class="variant-previews">
+                ${options.variantImages.slice(0, 3).map(
+                  (url) => html`
+                    <div class="variant-preview-item">
+                      <img src="${url}" alt="" />
+                    </div>
+                  `,
+                )}
+                ${options.variantImages.length > 3
+                  ? html`<span class="variant-preview-more">+${options.variantImages.length - 3}</span>`
+                  : null}
+              </div>`
             : null}
         </div>
         <span class="label">${label}</span>

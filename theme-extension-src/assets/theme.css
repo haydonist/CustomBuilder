@@ -413,28 +413,72 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   pointer-events: none;
 }
 
-.option.thumbnail .variant-badge {
+/* Variant preview thumbnails (bottom-right of product card) */
+.option.thumbnail .variant-previews {
   position: absolute;
   bottom: 4px;
   right: 4px;
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: #333;
-  font-size: 10px;
-  font-weight: 700;
+  display: flex;
+  gap: 3px;
+  align-items: center;
   pointer-events: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-  line-height: 1;
-  letter-spacing: 0;
-  text-indent: 0;
-  padding: 0;
 }
 
-.option.thumbnail.summary .variant-badge {
+.option.thumbnail .variant-preview-item {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  flex: 0 0 auto;
+}
+
+.option.thumbnail .variant-preview-item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: scale(2);
+}
+
+/* Kind-specific zoom for variant previews (mirrors main thumbnail scaling) */
+.option.thumbnail[data-kind="base"] .variant-preview-item img {
+  transform: scale(1.4);
+}
+
+.option.thumbnail[data-kind="buckle"] .variant-preview-item img {
+  transform: scale(1.8);
+}
+
+.option.thumbnail[data-kind="loop"] .variant-preview-item img {
+  transform: scale(2.5);
+}
+
+.option.thumbnail[data-kind="concho"] .variant-preview-item img {
+  transform: scale(3.5);
+}
+
+.option.thumbnail[data-kind="tip"] .variant-preview-item img {
+  transform: scale(2.5);
+}
+
+.option.thumbnail .variant-preview-more {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  letter-spacing: normal;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: #333;
+  line-height: 1;
+}
+
+.option.thumbnail.summary .variant-previews {
   display: none;
 }
 
