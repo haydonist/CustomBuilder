@@ -1,4 +1,5 @@
 import { css, html, LitElement, TemplateResult } from "lit";
+import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { customElement, property, state } from "lit/decorators.js";
 
 import { getImageAt, Product, ProductVariant } from "../api/index.ts";
@@ -26,6 +27,9 @@ export default class BeltCheckout extends LitElement {
   @state() beltData: Product[][] = [];
   @state() loops: Product[] = [];
   @state() conchos: Product[] = [];
+  @property({ type: String, attribute: 'checkout-policy' })
+  checkoutPolicy = '<p>Free cancellation is available within 24 business hours of placing your order. After an order is placed, our team will contact you to confirm all order details.</p><p>Each belt is custom-tailored to your specifications. Because custom belts cannot be reused or resold, a <strong>30% restocking fee</strong> will apply if a return is requested after the order has been completed.</p>';
+
   @state() private isCheckingOut = false;
 
   static override styles = css`
@@ -39,6 +43,15 @@ export default class BeltCheckout extends LitElement {
     img {
       max-width: 100%;
       max-height: 200px;
+    }
+    .checkout-policy {
+      margin-top: var(--gap-small);
+      font-size: 0.8rem;
+      line-height: 1.4;
+      color: var(--color-foreground-secondary, #666);
+    }
+    .checkout-policy p {
+      margin: 0 0 0.4em;
     }`;
 
   override render() {
@@ -141,6 +154,9 @@ export default class BeltCheckout extends LitElement {
       >
         ${this.isCheckingOut ? "Sending to checkout..." : "Checkout"}
       </button>
+      <div class="checkout-policy">
+        ${unsafeHTML(this.checkoutPolicy)}
+      </div>
     `;
   }
 

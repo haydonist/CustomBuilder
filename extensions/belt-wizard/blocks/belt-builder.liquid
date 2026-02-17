@@ -11,6 +11,7 @@
   <belt-wizard
     looped-belt-src="{{ 'belts/looped-belt.png' | asset_url }}"
     concho-recommendation="{{ block.settings.concho_recommendation_text | default: '<strong>Our Recommendation:</strong> Using the same concho in sets of 5, 7, or 9 usually looks best and qualifies for a discount. Other quantities or mixing different conchos can end up looking unpolished.' }}"
+    checkout-policy="{{ block.settings.checkout_policy_text | default: '<p>Free cancellation is available within 24 business hours of placing your order. After an order is placed, our team will contact you to confirm all order details.</p><p>Each belt is custom-tailored to your specifications. Because custom belts cannot be reused or resold, a <strong>30% restocking fee</strong> will apply if a return is requested after the order has been completed.</p>' }}"
   ></belt-wizard>
   <div id="scrollToken" style="height: 1px;"></div>
 </div>
@@ -42,8 +43,7 @@
     display: flex;
     flex-direction: column;
     color: #fff;
-
-    /* Force full width by breaking out of container */
+    overflow: hidden;
     width: 100%;
     margin-left: 0;
     margin-right: 0;
@@ -114,6 +114,16 @@
       "id": "concho_recommendation_text",
       "label": "Recommendation Message",
       "default": "<p><strong>Our Recommendation:</strong> Using the same concho in sets of 5, 7, or 9 usually looks best and qualifies for a discount. Other quantities or mixing different conchos can end up looking unpolished.</p>"
+    },
+    {
+      "type": "header",
+      "content": "Checkout Policy"
+    },
+    {
+      "type": "richtext",
+      "id": "checkout_policy_text",
+      "label": "Checkout Policy Notice",
+      "default": "<p>Free cancellation is available within 24 business hours of placing your order. After an order is placed, our team will contact you to confirm all order details.</p><p>Each belt is custom-tailored to your specifications. Because custom belts cannot be reused or resold, a <strong>30% restocking fee</strong> will apply if a return is requested after the order has been completed.</p>"
     }
   ]
 }
