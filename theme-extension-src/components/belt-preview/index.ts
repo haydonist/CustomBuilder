@@ -5,24 +5,38 @@ import { ref } from "lit/directives/ref.js";
 
 import * as styles from "../../styles.ts";
 import cropToContents from "./cropper.ts";
+import { detectBeltAnchors } from "./analyzer.ts";
+import { type BeltAnchors, type AnchorOverrides, DEFAULT_ANCHORS } from "../../config/belt-anchors.ts";
 
 import { renderLoader as loader } from "../loader.ts";
 
 
 @customElement("belt-preview")
 export default class BeltPreview extends LitElement {
+  /** Desktop breakpoint: render at fixed 1200px and scale down */
+  static readonly DESKTOP_REF = 1200;
+  /** Below this width, render at actual container width (no scaling) */
+  static readonly TABLET_BREAK = 991;
+
   @property({ type: String }) base: string | null = null;
   @property({ type: String }) buckle: string | null = null;
   @property({ type: String }) tip: string | null = null;
   @property({ type: Boolean }) buckleOnTop: boolean = false;
-  @property({ type: Boolean }) isRangerCore: boolean = false;
+  /** Manual overrides from config/tags. Merged on top of auto-detected values. */
+  @property({ attribute: false }) anchorOverrides: AnchorOverrides | null = null;
 
   @state() loops: string[] = [];
   @state() conchos: string[] = [];
   @state() private isRenderingBase = false;
+  @state() private activeRefWidth = 1200;
+  @state() private scaleFactor = 1;
+  @state() private canvasDisplayHeight = 0;
+  /** Effective anchors: auto-detected from belt image + manual overrides. */
+  @state() private anchors: BeltAnchors = DEFAULT_ANCHORS;
 
   // Prevent out-of-order async renders (clicking bases quickly)
   private renderToken = 0;
+  private resizeObserver: ResizeObserver | null = null;
 
   #baseCanvas: HTMLCanvasElement | null = null;
 
@@ -37,6 +51,31 @@ export default class BeltPreview extends LitElement {
   private hoverConchoIndex: number | null = null;
   private conchoItemRects: DOMRect[] = [];
 
+  override connectedCallback() {
+    super.connectedCallback();
+    this.resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const w = entry.contentRect.width || 1;
+        if (w > BeltPreview.TABLET_BREAK) {
+          // Desktop: fixed 1200px layout, scale to fit
+          this.activeRefWidth = BeltPreview.DESKTOP_REF;
+          this.scaleFactor = Math.min(1, w / BeltPreview.DESKTOP_REF);
+        } else {
+          // Tablet & mobile: render at actual width, no scaling
+          this.activeRefWidth = Math.round(w);
+          this.scaleFactor = 1;
+        }
+      }
+    });
+    this.resizeObserver.observe(this);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
+  }
+
   static override styles = css`
   ${styles.theme}
 
@@ -44,8 +83,14 @@ export default class BeltPreview extends LitElement {
     position: relative;
     display: block;
     width: 100%;
-    min-height: 250px;
     pointer-events: auto;
+  }
+
+
+
+  .scale-wrapper {
+    position: relative;
+    transform-origin: top left;
   }
 
   .center-vertically {
@@ -56,13 +101,14 @@ export default class BeltPreview extends LitElement {
 
   .base-wrapper {
     position: relative;
+    margin-left: 7%;
+    margin-right: 6%;
   }
 
   #base {
     position: relative;
     display: block;
-    width: 90vw;       /* visual size */
-    max-width: 100%;
+    width: 100%;
     pointer-events: none;
     transition: opacity 120ms ease;
   }
@@ -108,20 +154,17 @@ export default class BeltPreview extends LitElement {
   }
   #buckle,
   #tip {
-    max-height: 100%;
+    height: 400%;
+    max-height: none;
     z-index: 1;
     pointer-events: auto;
+    /* Center horizontally on the anchor pixel + vertically on the belt */
+    transform: translateX(-50%) translateY(-50%);
   }
   #buckle {
-    left: -5.8%;
     z-index:-1;
   }
-  #tip {
-    right: -5%;
-  }
-
   #loops {
-    left: 1%;
     height: 100%;
     gap: 15px;
     z-index: 10;
@@ -136,7 +179,6 @@ export default class BeltPreview extends LitElement {
     width: 40px;
     max-width: 40px;
     margin-right: -20px;
-    overflow: hidden;
     cursor: grab;
     pointer-events: auto !important;
     display: flex;
@@ -150,14 +192,12 @@ export default class BeltPreview extends LitElement {
   }
 
   .loop {
-    max-height: 100%;
+    max-height: 400%;
     cursor: grab;
-    pointer-events: auto !important;
+    pointer-events: none;
   }
 
   #conchosList {
-    left: 18%;
-    width: 50%;
     height: 100%;
     z-index: 10;
     display: flex;
@@ -189,7 +229,7 @@ export default class BeltPreview extends LitElement {
     margin: 0 auto;
     clip-path: inset(0 30% 0 30%);
     cursor: grab;
-    pointer-events: auto !important;
+    pointer-events: none;
   }
 
   .concho img{
@@ -242,11 +282,45 @@ export default class BeltPreview extends LitElement {
     transform: translateX(-50%) translateY(-30px);
     pointer-events: auto;
   }
+
+  /* Debug overlay — visible with ?debug=anchors */
+  .debug-dot {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 2px solid white;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+    pointer-events: none;
+    box-shadow: 0 0 3px rgba(0,0,0,0.5);
+  }
+  .debug-label {
+    position: absolute;
+    font-size: 10px;
+    color: white;
+    background: rgba(0,0,0,0.7);
+    padding: 1px 4px;
+    border-radius: 2px;
+    white-space: nowrap;
+    z-index: 100;
+    pointer-events: none;
+    transform: translateY(-100%);
+  }
 `;
 
   protected override updated(changed: PropertyValues) {
   if (changed.has("base")) console.debug("base changed to", this.base);
-  if (changed.has("base")) this.renderBeltBase();
+
+  // Re-render canvas when base changes or ref width changes significantly
+  if (changed.has("base")) {
+    this.renderBeltBase();
+  } else if (changed.has("activeRefWidth")) {
+    const prev = changed.get("activeRefWidth") as number | undefined;
+    if (prev == null || Math.abs(this.activeRefWidth - prev) > 20) {
+      this.renderBeltBase();
+    }
+  }
 
   // Reflect rendering state for CSS (canvas fade)
   this.toggleAttribute("data-rendering", this.isRenderingBase);
@@ -257,90 +331,132 @@ export default class BeltPreview extends LitElement {
     if (changed.has("base") && this.base) cacheImage(this.base);
   }
 
+  /** Base-wrapper width in px (= belt bounding box). 87% of activeRefWidth due to margins. */
+  private get bboxWidth() {
+    return this.activeRefWidth * 0.87;
+  }
+
+  /** Convert a 0–1 fraction to pixels within the belt bounding box. */
+  private px(fraction: number): number {
+    return Math.round(fraction * this.bboxWidth);
+  }
+
   override render() {
+    const scaledHeight = Math.round(this.canvasDisplayHeight * this.scaleFactor);
+    const refW = this.activeRefWidth;
+    const a = this.anchors;
     return html`
-  <div class="base-wrapper">
-    <canvas
-  id="base"
-  aria-hidden="true"
-  ${ref((el?: Element) => {
-    if (!el) return;
-    assertInstanceOf(el, HTMLCanvasElement);
+  <div class="height-wrapper" style="height: ${scaledHeight}px;">
+    <div class="scale-wrapper" style="width: ${refW}px; transform: scale(${this.scaleFactor});">
+      <div class="base-wrapper">
+        <canvas
+          id="base"
+          aria-hidden="true"
+          ${ref((el?: Element) => {
+            if (!el) return;
+            assertInstanceOf(el, HTMLCanvasElement);
 
-    const firstAttach = this.#baseCanvas !== el;
-    this.#baseCanvas = el;
+            const firstAttach = this.#baseCanvas !== el;
+            this.#baseCanvas = el;
 
-    // Only render once on initial attach *if* we already have a base.
-    if (firstAttach && this.base) {
-      queueMicrotask(() => this.renderBeltBase());
-    }
-  })}
-></canvas>
+            // Only render once on initial attach *if* we already have a base.
+            if (firstAttach && this.base) {
+              queueMicrotask(() => this.renderBeltBase());
+            }
+          })}
+        ></canvas>
 
+        ${this.isRenderingBase
+          ? html`<div class="preview-loader">
+              ${loader("Cutting The Leather To Size...")}
+            </div>`
+          : null}
 
-    ${this.isRenderingBase
-      ? html`<div class="preview-loader">
-          ${loader("Cutting The Leather To Size...")}
-        </div>`
-      : null}
+        <img id="buckle" class="center-vertically" src=${this.buckle ?? ""} aria-hidden="true"
+          style="z-index: ${this.buckleOnTop || a.buckleOnTop ? '10' : '-1'}; left: ${this.px(a.buckleX)}px;" />
+        <div id="loops" class="center-vertically" style="left: ${this.px(a.loopsX)}px"
+          @dragover=${this.onLoopDragOver}
+          @drop=${this.onLoopDrop}>
+          ${this.loops.map(
+            (loop, index) => html`
+              <div
+                class="loop-item"
+                draggable="true"
+                data-index=${index}
+                @dragstart=${this.onLoopDragStart}
+                @dragend=${this.onLoopDragEnd}
+              >
+                <button
+                  type="button"
+                  class="remove-badge"
+                  @click=${(e: MouseEvent) =>
+                    this.handleRemoveClick("loop", index, e)}
+                  aria-label="Remove loop"
+                ></button>
+                <img class="loop" src=${loop} aria-hidden="true" />
+              </div>
+            `,
+          )}
+        </div>
+        <div id="conchosList" class="center-vertically"
+          style="left: ${this.px(a.conchosX)}px; width: ${this.px(a.conchosEndX) - this.px(a.conchosX)}px; justify-content: ${this.conchos.length === 1 ? 'center' : 'space-between'}"
+          @dragover=${this.onConchoDragOver}
+          @drop=${this.onConchoDrop}>
+          ${this.conchos.map(
+            (concho, index) => html`
+              <div
+                class="concho-wrapper"
+                draggable="true"
+                data-index=${index}
+                @dragstart=${this.onConchoDragStart}
+                @dragend=${this.onConchoDragEnd}
+              >
+                <button
+                  type="button"
+                  class="remove-badge"
+                  @click=${(e: MouseEvent) =>
+                    this.handleRemoveClick("concho", index, e)}
+                  aria-label="Remove concho"
+                ></button>
+                <img class="concho" src=${concho} aria-hidden="true" />
+              </div>
+            `,
+          )}
+        </div>
+        <img
+          id="tip"
+          class="center-vertically"
+          src=${this.tip ?? ""}
+          aria-hidden="true"
+          style="left: ${this.px(a.tipX)}px"
+        />
+        ${this.renderDebugOverlay()}
+      </div>
+    </div>
   </div>
-
-  <img id="buckle" class="center-vertically" src=${this.buckle ?? ""} aria-hidden="true" style="z-index: ${this.buckleOnTop || this.isRangerCore ? '10' : '-1'}; left: ${this.isRangerCore ? '-2.8%' : '-5.8%'}" />
-      <div id="loops" class="center-vertically" style="left: ${this.isRangerCore ? '5.6%' : '1.8%'}"
-        @dragover=${this.onLoopDragOver}
-        @drop=${this.onLoopDrop}>
-        ${this.loops.map(
-          (loop, index) => html`
-            <div
-              class="loop-item"
-              draggable="true"
-              data-index=${index}
-              @dragstart=${this.onLoopDragStart}
-              @dragend=${this.onLoopDragEnd}
-            >
-              <button
-                type="button"
-                class="remove-badge"
-                @click=${(e: MouseEvent) =>
-                  this.handleRemoveClick("loop", index, e)}
-                aria-label="Remove loop"
-              ></button>
-              <img class="loop" src=${loop} aria-hidden="true" />
-            </div>
-          `,
-        )}
-      </div>
-      <div id="conchosList" class="center-vertically"
-        @dragover=${this.onConchoDragOver}
-        @drop=${this.onConchoDrop}>
-        ${this.conchos.map(
-          (concho, index) => html`
-            <div
-              class="concho-wrapper"
-              draggable="true"
-              data-index=${index}
-              @dragstart=${this.onConchoDragStart}
-              @dragend=${this.onConchoDragEnd}
-            >
-              <button
-                type="button"
-                class="remove-badge"
-                @click=${(e: MouseEvent) =>
-                  this.handleRemoveClick("concho", index, e)}
-                aria-label="Remove concho"
-              ></button>
-              <img class="concho" src=${concho} aria-hidden="true" />
-            </div>
-          `,
-        )}
-      </div>
-      <img
-        id="tip"
-        class="center-vertically"
-        src=${this.tip ?? ""}
-        aria-hidden="true"
-      />
     `;
+  }
+
+  /** Render anchor debug dots when ?debug=anchors is in the URL. */
+  private renderDebugOverlay() {
+    if (typeof location === "undefined") return null;
+    const params = new URLSearchParams(location.search);
+    if (params.get("debug") !== "anchors") return null;
+
+    const a = this.anchors;
+    const bbox = this.bboxWidth;
+    const dots = [
+      { label: `buckle ${this.px(a.buckleX)}px`, left: `${this.px(a.buckleX)}px`, top: "50%", color: "#ff4444" },
+      { label: `loops ${this.px(a.loopsX)}px`, left: `${this.px(a.loopsX)}px`, top: "50%", color: "#44ff44" },
+      { label: `conchos ${this.px(a.conchosX)}px`, left: `${this.px(a.conchosX)}px`, top: "50%", color: "#4488ff" },
+      { label: `conchos end ${this.px(a.conchosEndX)}px`, left: `${this.px(a.conchosEndX)}px`, top: "50%", color: "#4488ff" },
+      { label: `tip ${this.px(a.tipX)}px`, left: `${this.px(a.tipX)}px`, top: "50%", color: "#ff44ff" },
+    ];
+
+    return dots.map(d => html`
+      <span class="debug-dot" style="left:${d.left}; top:${d.top}; background:${d.color}"></span>
+      <span class="debug-label" style="left:${d.left}; top:${d.top}; color:${d.color}">${d.label} (bbox: ${Math.round(bbox)}px)</span>
+    `);
   }
 
   private async renderBeltBase() {
@@ -367,11 +483,22 @@ export default class BeltPreview extends LitElement {
     const cropped = await cropToContents(img, img.naturalWidth, img.naturalHeight);
     if (myToken !== this.renderToken) return;
 
-    let aspect = (cropped.height / cropped.width) * 0.75;
+    // Auto-detect anchor positions from the cropped belt image shape
+    const detected = await detectBeltAnchors(cropped);
+    if (myToken !== this.renderToken) return;
+    // Merge: auto-detected → default buckleOnTop → manual overrides
+    this.anchors = {
+      ...DEFAULT_ANCHORS,
+      ...detected,
+      buckleOnTop: DEFAULT_ANCHORS.buckleOnTop,
+      ...(this.anchorOverrides ?? {}),
+    };
+
+    const aspect = cropped.height / cropped.width;
 
     await new Promise(requestAnimationFrame);
 
-    let width = Math.floor(canvas.getBoundingClientRect().width) || 1;
+    let width = this.activeRefWidth;
     let height = Math.round(width * aspect);
 
     if (height < 50) {
@@ -388,6 +515,9 @@ export default class BeltPreview extends LitElement {
     assert(ctx, "Could not acquire 2D canvas context!");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(cropped, 0, 0, width * dpr, height * dpr);
+
+    // Update display height so the height-wrapper can size correctly
+    this.canvasDisplayHeight = height;
   } catch (e) {
     console.error("renderBeltBase failed:", e);
   } finally {
@@ -693,7 +823,7 @@ declare global {
 const cachedImages: Record<string, Promise<HTMLImageElement>> = {};
 
 async function cacheImage(url: string): Promise<HTMLImageElement> {
-  if (cachedImages[url]) return cachedImages[url];
+  if (awaitcachedImages[url]) return cachedImages[url];
 
   cachedImages[url] = new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();

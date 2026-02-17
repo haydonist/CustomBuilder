@@ -1,12 +1,10 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
-import { apiVersion } from "../shopify.server";
 
 interface CreateCustomProductRequest {
   basePrice: number;
   bucklePrice: number;
   tipPrice: number;
-  sizePrice: number;
   loopsPrice: number;
   conchosPrice: number;
   currencyCode: string;
@@ -14,7 +12,8 @@ interface CreateCustomProductRequest {
     base?: { id: string; title: string };
     buckle?: { id: string; title: string };
     tip?: { id: string; title: string };
-    size?: { id: string; title: string };
+    size?: { value: string };
+    color?: { value: string };
     loops?: Array<{ id: string; title: string; count: number }>;
     conchos?: Array<{ id: string; title: string; count: number }>;
   };
@@ -108,17 +107,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    const { session, admin } = await authenticate.public.appProxy(request);
+    const { admin } = await authenticate.public.appProxy(request);
+    if (!admin) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const payload = await request.json() as CreateCustomProductRequest;
 
     // Calculate total price
     const totalPrice = (
-      payload.basePrice +
-      payload.bucklePrice +
-      payload.tipPrice +
-      payload.sizePrice +
-      payload.loopsPrice +
-      payload.conchosPrice
+      (payload.basePrice ?? 0) +
+      (payload.bucklePrice ?? 0) +
+      (payload.tipPrice ?? 0) +
+      (payload.loopsPrice ?? 0) +
+      (payload.conchosPrice ?? 0)
     ).toFixed(2);
 
     // Count existing custom products to get the next number
@@ -216,7 +217,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           basePrice: payload.basePrice,
           bucklePrice: payload.bucklePrice,
           tipPrice: payload.tipPrice,
-          sizePrice: payload.sizePrice,
           loopsPrice: payload.loopsPrice,
           conchosPrice: payload.conchosPrice,
           total: totalPrice,

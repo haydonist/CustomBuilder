@@ -24,6 +24,7 @@ import BeltCheckout from "./components/belt-checkout.ts";
 import BeltPreview from "./components/belt-preview/index.ts";
 import { textOption, thumbnailOption } from "./components/option.ts";
 import Wizard, { renderView } from "./models/wizard/index.ts";
+import { getAnchorOverrides } from "./config/belt-anchors.ts";
 
 
 export enum Theme {
@@ -42,6 +43,9 @@ export class CustomBeltWizard extends LitElement {
   
   @property({ type: String, attribute: 'concho-recommendation' })
   conchoRecommendation = '<strong>Our Recommendation:</strong> Using the same concho in sets of 5, 7, or 9 usually looks best and qualifies for a discount. Other quantities or mixing different conchos can end up looking unpolished.';
+
+  @property({ type: String, attribute: 'checkout-policy' })
+  checkoutPolicy = '<p>Free cancellation is available within 24 business hours of placing your order. After an order is placed, our team will contact you to confirm all order details.</p><p>Each belt is custom-tailored to your specifications. Because custom belts cannot be reused or resold, a <strong>30% restocking fee</strong> will apply if a return is requested after the order has been completed.</p>';
   
   private selection: FormData | null = null;
   private form: Ref<HTMLFormElement> = createRef();
@@ -517,6 +521,7 @@ private getSelectedBaseColor(): string | null {
             base="${this.beltBase?.id}"
             buckle="${this.beltBuckle?.id}"
             tip="${this.beltTip?.id}"
+            checkout-policy="${this.checkoutPolicy}"
             @step-change="${({ detail: step }: CustomEvent<number>) =>
               this.wizard.goTo(step)}"
           >
@@ -653,7 +658,13 @@ private getSelectedBaseColor(): string | null {
       if (!canContinue) label = "1 loop required";
       else label = "Continue";
     }
-      else if (isConchosStep || isTipStep) {
+      else if (isConchosStep) {
+      const conchoCount = this.selection?.getAll("concho").length ?? 0;
+      const allowedCounts = [0, 1, 2, 3, 5, 7, 9];
+      canContinue = allowedCounts.includes(conchoCount);
+      if (!canContinue) label = `Add or remove a concho (${conchoCount} not allowed)`;
+      else label = conchoCount > 0 ? "Continue" : skipLabel;
+    } else if (isTipStep) {
       canContinue = true;
       label = hasSelection ? "Continue" : skipLabel;
     } else {
@@ -862,7 +873,7 @@ private get selectedBaseColor(): string | null {
             .buckle="${buckleImage ?? ""}"
             .tip="${this.beltTip ? getImageAt(this.beltTip, 0) : undefined}"
             .buckleOnTop="${this.beltBuckle?.tags?.includes("top") ?? false}"
-            .isRangerCore="${this.beltBase?.tags?.includes("Ranger Core") ?? false}"
+            .anchorOverrides=${getAnchorOverrides(this.beltBase?.id ?? "", this.beltBase?.tags ?? [])}
             @reorder-loops="${(
               e: CustomEvent<{ fromIndex: number; toIndex: number }>,
             ) =>
@@ -984,10 +995,10 @@ private get selectedBaseColor(): string | null {
       const widthFilter = baseWidth ? ` AND tag:${baseWidth}` : "";
 
       const [
-        { products: beltBuckles },
+        { page: newBucklePage, products: beltBuckles },
         { products: beltSets },
-        { products: beltLoops },
-        { products: beltTips },
+        { page: newLoopPage, products: beltLoops },
+        { page: newTipPage, products: beltTips },
       ] = await Promise.all([
         queryProducts(`tag:buckle${widthFilter}`, { prefetchImages: false }),
         queryProducts(`tag:set${widthFilter}`, { prefetchImages: false }),
@@ -1005,6 +1016,11 @@ private get selectedBaseColor(): string | null {
       this.beltData[2] = filteredLoops;
       this.beltData[4] = filteredTips;
       this.beltData[6] = filteredSets;
+
+      // Update page cursors so infinite scroll paginates the filtered query
+      this.pages[1] = newBucklePage;
+      this.pages[2] = newLoopPage;
+      this.pages[4] = newTipPage;
 
       console.debug(
         "Rebuilt buckle, set, loop, and tip steps based on base width:",
@@ -1530,6 +1546,12 @@ sizeStep.view = () => {
     const baseWidth = this.beltBase?.tags?.find((t) => t.endsWith("mm"));
     const widthFilter = baseWidth ? ` AND tag:${baseWidth}` : "";
 
+    // Append only products not already present (prevents dupes from stale cursors)
+    const dedup = (existing: Product[], incoming: Product[]) => {
+      const ids = new Set(existing.map(p => p.id));
+      return existing.concat(incoming.filter(p => !ids.has(p.id)));
+    };
+
     switch (this.wizard.currentStep.id) {
       case "base":
         page = this.pages[0];
@@ -1541,7 +1563,7 @@ sizeStep.view = () => {
           },
         );
         this.pages[0] = nextBeltPage;
-        this.beltData[0] = this.beltData[0].concat(bases);
+        this.beltData[0] = dedup(this.beltData[0], bases);
         this.buildSingleSelectStep("base", this.beltData[0]);
         break;
       case "buckle":
@@ -1555,8 +1577,8 @@ sizeStep.view = () => {
         );
         const filteredBuckles = this.filterProductsByWidth(buckles, baseWidth);
         this.pages[1] = nextBucklePage;
-        this.beltData[1] = this.beltData[1].concat(filteredBuckles);
-        this.buckleChoices = this.buckleChoices.concat(filteredBuckles);
+        this.beltData[1] = dedup(this.beltData[1], filteredBuckles);
+        this.buckleChoices = dedup(this.buckleChoices, filteredBuckles);
         this.buildSingleSelectStep("buckle", this.buckleChoices);
         break;
       case "loops":
@@ -1570,7 +1592,7 @@ sizeStep.view = () => {
         );
         const filteredLoops = this.filterProductsByWidth(loops, baseWidth);
         this.pages[2] = nextLoopPage;
-        this.beltData[2] = this.beltData[2].concat(filteredLoops);
+        this.beltData[2] = dedup(this.beltData[2], filteredLoops);
         this.buildMultiSelectStep("loop", this.beltData[2], this.getMaxLoopsAllowed());
         break;
       case "conchos":
@@ -1584,7 +1606,7 @@ sizeStep.view = () => {
         );
         const filteredConchos = this.filterProductsByWidth(conchos, baseWidth);
         this.pages[3] = nextConchoPage;
-        this.beltData[3] = this.beltData[3].concat(filteredConchos);
+        this.beltData[3] = dedup(this.beltData[3], filteredConchos);
         this.buildMultiSelectStep("concho", this.beltData[3], 9);
         break;
       case "tip":
@@ -1599,7 +1621,7 @@ sizeStep.view = () => {
         );
         const filteredTips = this.filterProductsByWidth(tips, baseWidth);
         this.pages[4] = nextTipPage;
-        this.beltData[4] = this.beltData[4].concat(filteredTips);
+        this.beltData[4] = dedup(this.beltData[4], filteredTips);
         this.buildSingleSelectStep("tip", this.beltData[4]);
         break;
     }
@@ -2057,16 +2079,20 @@ sizeStep.view = () => {
     let current = (this.selection!.getAll(variantKind) as string[]) ?? [];
     const sameCount = current.filter((id) => id === selectionId).length;
 
-    if (sameCount > 0 && current.length >= maxCount) {
-      // At max capacity and item is already selected: remove one instance
+    if (sameCount >= maxCount) {
+      // Every slot is filled with this item → toggle them all off
+      current = current.filter((id) => id !== selectionId);
+    } else if (current.length >= maxCount && sameCount > 0) {
+      // At max capacity, this item partially present → remove one instance
       const idx = current.indexOf(selectionId);
       current = [...current.slice(0, idx), ...current.slice(idx + 1)];
-    } else if (sameCount >= maxCount) {
-      // All slots are this item: remove all
-      current = current.filter((id) => id !== selectionId);
+    } else if (current.length >= maxCount) {
+      // At max capacity, clicking a new item → swap to the new item
+      current = [selectionId];
+      this.selection!.delete(`${variantKind}Variant`);
     } else {
+      // Under capacity → add
       current = [...current, selectionId];
-      if (current.length > maxCount) current = current.slice(0, maxCount);
     }
 
     // Reset variant selection
