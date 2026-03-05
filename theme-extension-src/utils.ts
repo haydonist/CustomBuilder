@@ -29,3 +29,14 @@ export function assertInstanceOf<T extends abstract new (...args: any) => any>(
 }
 
 export const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Normalized concho thumbnail scale: 25mm is the reference at scale 5. */
+export function getConchoThumbScale(product: Product): number | undefined {
+  const BASE_SCALE = 5;
+  const REF_MM = 25;
+  const tag = product.tags?.find((t) => t.toLowerCase().endsWith("mm"));
+  if (!tag) return undefined;
+  const mm = parseFloat(tag);
+  if (!mm || mm <= 0) return undefined;
+  return BASE_SCALE * (REF_MM / mm);
+}
