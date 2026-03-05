@@ -15,8 +15,9 @@ export interface BeltAnchors {
   /** Whether the buckle renders on top of the belt by default (e.g. Ranger Core). */
   buckleOnTop: boolean;
 
-  /** Loops container left edge: fraction from the left edge. */
-  loopsX: number;
+  /** Loops center: fraction from the left edge. */
+  loop1X: number;
+  loop2X: number;
 
   /** Conchos container left edge: fraction from the left edge. */
   conchosX: number;
@@ -36,12 +37,13 @@ export type AnchorOverrides = Partial<BeltAnchors>;
 // ---------------------------------------------------------------------------
 
 export const DEFAULT_ANCHORS: BeltAnchors = {
-  buckleX: 0.105,       // ~10.5% from left
+  buckleX: 1,      
   buckleOnTop: false,
-  loopsX: 0.018,        // ~1.8% from left
-  conchosX: 0.095,      // ~9.5% from left
-  conchosEndX: 0.715,   // ~71.5% from left  (width ≈ 62%)
-  tipX: 0.99,           // ~99% from left
+  loop1X: 3.7,   
+  loop2X: 5.7,     
+  conchosX: 9.5,     
+  conchosEndX: 71.5,   
+  tipX: 99,         
 };
 
 // ---------------------------------------------------------------------------
@@ -50,9 +52,9 @@ export const DEFAULT_ANCHORS: BeltAnchors = {
 
 const TAG_OVERRIDES: Record<string, AnchorOverrides> = {
   "Ranger Core": {
-    buckleX: 0.11,        // ~11% from left (vs 9.5% default)
+    buckleX: 3,       
     buckleOnTop: true,
-    loopsX: 0.056,        // ~5.6% from left (vs 1.8% default)
+    loop1X: 7.5,       
   },
 };
 
@@ -68,7 +70,7 @@ const PRODUCT_OVERRIDES: Record<string, AnchorOverrides> = {
   // Example:
   // "gid://shopify/Product/1234567890": {
   //   buckleX: 0.08,
-  //   loopsX: 0.03,
+  //   loop1X: 0.03,
   // },
 };
 
@@ -81,7 +83,11 @@ const PRODUCT_OVERRIDES: Record<string, AnchorOverrides> = {
  * Returns only the fields that should override auto-detection.
  * Returns null if no overrides exist (auto-detect everything).
  */
-export function getAnchorOverrides(productId: string, tags: string[]): AnchorOverrides | null {
+export function getAnchorOverrides(
+  productId: string,
+  tags: string[],
+  metafield?: Record<string, unknown> | null,
+): AnchorOverrides | null {
   let overrides: AnchorOverrides = {};
   let hasOverrides = false;
 
@@ -94,12 +100,34 @@ export function getAnchorOverrides(productId: string, tags: string[]): AnchorOve
     }
   }
 
-  // Apply product-specific overrides (highest priority)
+  // Apply product-specific overrides
   const productOverride = PRODUCT_OVERRIDES[productId];
   if (productOverride) {
     overrides = { ...overrides, ...productOverride };
     hasOverrides = true;
   }
 
-  return hasOverrides ? overrides : null;
+  // Apply metafield overrides (highest priority)
+  console.log("[anchors:resolve]", { productId, tags, metafield, overridesSoFar: { ...overrides } });
+  if (metafield) {
+    const ANCHOR_KEYS: (keyof BeltAnchors)[] = [
+      "buckleX", "buckleOnTop", "loop1X", "loop2X", "conchosX", "conchosEndX", "tipX",
+    ];
+    for (const key of ANCHOR_KEYS) {
+      if (key in metafield) {
+        const val = metafield[key];
+        if (key === "buckleOnTop" && typeof val === "boolean") {
+          (overrides as Record<string, unknown>)[key] = val;
+          hasOverrides = true;
+        } else if (key !== "buckleOnTop" && typeof val === "number") {
+          (overrides as Record<string, unknown>)[key] = val;
+          hasOverrides = true;
+        }
+      }
+    }
+  }
+
+  const result = hasOverrides ? overrides : null;
+  console.log("[anchors:resolve] final overrides:", result);
+  return result;
 }

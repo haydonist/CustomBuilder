@@ -9,21 +9,18 @@
  *  - The buckle flap transition (where the left end narrows to standard)
  *  - The tip taper (where the right end narrows)
  *
- * Returns positions as **fractions (0–1)** of the cropped belt width.
+ * Returns positions as **percentages (0–100)** of the cropped belt width.
  * The cropped belt image IS the bounding box.
  */
 
 export interface DetectedPositions {
-  /** Buckle center: fraction from the left edge (0–1). */
-  buckleX: number;
-  /** Loops left edge: fraction from the left edge (0–1). */
-  loopsX: number;
-  /** Conchos left edge: fraction from the left edge (0–1). */
+  /** Loops center: percentage from the left edge (0–100). */
+  loop1X: number;
+  loop2X: number;
+  /** Conchos left edge: percentage from the left edge (0–100). */
   conchosX: number;
-  /** Conchos right edge: fraction from the left edge (0–1). */
+  /** Conchos right edge: percentage from the left edge (0–100). */
   conchosEndX: number;
-  /** Tip center: fraction from the left edge (0–1). */
-  tipX: number;
 }
 
 const SCAN_WIDTH = 400; // downsample target — fast but precise enough
@@ -52,6 +49,9 @@ export async function detectBeltAnchors(
 
   (ctx as CanvasRenderingContext2D).drawImage(source, 0, 0, w, h);
   const { data } = (ctx as CanvasRenderingContext2D).getImageData(0, 0, w, h);
+
+  // Yield to the event loop so queued click events can process before scanning
+  await new Promise(resolve => setTimeout(resolve, 0));
 
   // ---- Build vertical profile ----
   // spans[x] = number of opaque pixels in column x (vertical thickness)
@@ -106,38 +106,31 @@ export async function detectBeltAnchors(
     }
   }
 
-  // ---- Convert to fractions (0–1) of the belt width ----
-  const buckleEdge = buckleTransitionCol / w;
-  const tipTaper = (w - 1 - tipTransitionCol) / w;
+  // ---- Convert to percentages (0–100) of the belt width ----
+  const buckleEdge = (buckleTransitionCol / w) * 100;
+  const tipTaper = ((w - 1 - tipTransitionCol) / w) * 100;
 
-  // Buckle center: at the buckle transition point
-  const buckleX = buckleEdge;
-
-  // Loops: just to the right of the buckle transition
-  const loopsX = buckleEdge + 0.015;
+  // Loops: center of the first loop, just right of the buckle transition
+  const loop1X = buckleEdge + 3.4;
+  const loop2X = buckleEdge + 7.4;
 
   // Conchos: start after the loops area, end before the tip taper
-  const conchosX = loopsX + 0.08;
-  const conchosEndX = Math.max(conchosX + 0.2, 1 - tipTaper - 0.30);
-
-  // Tip center: near the right end of the belt
-  const tipX = 1 - tipTaper - 0.01;
+  const conchosX = loop1X + 6.1;
+  const conchosEndX = Math.max(conchosX + 20, 100 - tipTaper - 30);
 
   return {
-    buckleX,
-    loopsX,
+    loop1X,
+    loop2X,
     conchosX,
     conchosEndX,
-    tipX,
   };
 }
 
 function fallbackPositions(): DetectedPositions {
   return {
-    buckleX: 0.095,
-    loopsX: 0.018,
-    conchosX: 0.095,
-    conchosEndX: 0.715,
-    tipX: 0.98,
+    loop1X: 3.7,
+    loop2X: 5.7,
+    conchosX: 9.5,
+    conchosEndX: 71.5,
   };
 }

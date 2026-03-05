@@ -35,6 +35,9 @@ export default async function cropToContents(
   const pixels = scanCtx.getImageData(0, 0, scanW, scanH);
   const data = pixels.data;
 
+  // Yield to the event loop so queued click events can process before scanning
+  await new Promise(resolve => setTimeout(resolve, 0));
+
   let top = scanH, left = scanW, right = -1, bottom = -1;
 
   // Optional: stride > 1 makes it even faster (slightly less precise).

@@ -8,20 +8,27 @@ import cropToContents from "./cropper.ts";
 import { detectBeltAnchors } from "./analyzer.ts";
 import { type BeltAnchors, type AnchorOverrides, DEFAULT_ANCHORS } from "../../config/belt-anchors.ts";
 
-import { renderLoader as loader } from "../loader.ts";
 
 
 @customElement("belt-preview")
 export default class BeltPreview extends LitElement {
   /** Desktop breakpoint: render at fixed 1200px and scale down */
   static readonly DESKTOP_REF = 1200;
-  /** Below this width, render at actual container width (no scaling) */
+  /** Mobile breakpoint: render at fixed 472px and scale down */
+  static readonly MOBILE_REF = 472;
+  /** Below this width, switch to tablet/mobile rendering */
   static readonly TABLET_BREAK = 991;
+  /** Below this width, use the fixed mobile reference width */
+  static readonly MOBILE_BREAK = 767;
 
   @property({ type: String }) base: string | null = null;
   @property({ type: String }) buckle: string | null = null;
   @property({ type: String }) tip: string | null = null;
   @property({ type: Boolean }) buckleOnTop: boolean = false;
+  /** Belt base width in mm (from product tag). Used to scale accessory overlays. */
+  @property({ type: Number }) baseWidthMm: number = 0;
+  /** When true, skip the mm-based height calculation and use the default multiplier. */
+  @property({ type: Boolean }) useDefaultComponentHeight: boolean = false;
   /** Manual overrides from config/tags. Merged on top of auto-detected values. */
   @property({ attribute: false }) anchorOverrides: AnchorOverrides | null = null;
 
@@ -32,7 +39,9 @@ export default class BeltPreview extends LitElement {
   @state() private scaleFactor = 1;
   @state() private canvasDisplayHeight = 0;
   /** Effective anchors: auto-detected from belt image + manual overrides. */
-  @state() private anchors: BeltAnchors = DEFAULT_ANCHORS;
+  @state() anchors: BeltAnchors = DEFAULT_ANCHORS;
+  /** URLs that have been fully loaded + decoded and are safe to display. */
+  @state() private readyImages = new Set<string>();
 
   // Prevent out-of-order async renders (clicking bases quickly)
   private renderToken = 0;
@@ -51,17 +60,29 @@ export default class BeltPreview extends LitElement {
   private hoverConchoIndex: number | null = null;
   private conchoItemRects: DOMRect[] = [];
 
+  // Debug anchor dragging
+  private debugDragKey: keyof BeltAnchors | null = null;
+  private debugDragBound: { move: ((e: MouseEvent) => void) | null; up: ((e: MouseEvent) => void) | null } = { move: null, up: null };
+
   override connectedCallback() {
     super.connectedCallback();
     this.resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
-        const w = entry.contentRect.width || 1;
+        // Cap at viewport width so inflated parent containers (e.g. Shopify
+        // theme forcing body>main to 1260px) don't trick us into desktop mode.
+        const raw = entry.contentRect.width || 1;
+        const vw = typeof window !== 'undefined' ? window.innerWidth : Infinity;
+        const w = Math.min(raw, vw);
         if (w > BeltPreview.TABLET_BREAK) {
           // Desktop: fixed 1200px layout, scale to fit
           this.activeRefWidth = BeltPreview.DESKTOP_REF;
           this.scaleFactor = Math.min(1, w / BeltPreview.DESKTOP_REF);
+        } else if (w <= BeltPreview.MOBILE_BREAK) {
+          // Mobile: fixed 472px layout, scale down to fit container
+          this.activeRefWidth = BeltPreview.MOBILE_REF;
+          this.scaleFactor = Math.min(2, w / BeltPreview.MOBILE_REF);
         } else {
-          // Tablet & mobile: render at actual width, no scaling
+          // Tablet: render at actual width, no scaling
           this.activeRefWidth = Math.round(w);
           this.scaleFactor = 1;
         }
@@ -81,11 +102,33 @@ export default class BeltPreview extends LitElement {
 
   :host {
     position: relative;
-    display: block;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     width: 100%;
     pointer-events: auto;
   }
 
+  /* Cap bounding box at viewport width on small screens so an inflated
+     parent chain can't push the previewer (and everything else) wider. */
+  @media screen and (max-width: 479px) {
+    :host {
+      max-width: 100vw;
+      overflow: hidden;
+    }
+    .concho {
+      max-height: 100px !important;
+    }
+    /* Collapse the invisible clip-path space (30% each side) so
+       visible concho portions overlap instead of pushing apart. */
+    .concho-wrapper {
+      margin-inline: 0px;
+    }
+
+    .base-wrapper{
+      margin-right: 1.5% !important;
+    }
+  }
 
 
   .scale-wrapper {
@@ -118,35 +161,6 @@ export default class BeltPreview extends LitElement {
     opacity: 0;
   }
 
-  /* Loader overlay sits exactly where the canvas is */
-  .preview-loader {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    max-height: 300px;
-    z-index: 50;
-    pointer-events: none; /* do not block dragging loops/conchos */
-  }
-
-
-/* Keep the loader compact instead of stretching it */
-.preview-loader .bm-loader {
-  margin: 0 !important;        /* kills the 25% margin */
-  padding: 0 !important;       /* let the panel handle padding */
-  width: auto !important;
-  max-width: 360px !important;
-  max-height: none !important;
-}
-
-.preview-loader .bm-loader__panel {
-  transform: scale(0.9);
-  transform-origin: center;
-}
-
-.preview-loader .bm-loader::before {
-  opacity: 0.85;
-}
 
   .selection-indicator-wrapper {
     width: 160px;
@@ -154,37 +168,28 @@ export default class BeltPreview extends LitElement {
   }
   #buckle,
   #tip {
-    height: 400%;
+    height: var(--component-h, 400%);
     max-height: none;
     z-index: 1;
     pointer-events: auto;
     /* Center horizontally on the anchor pixel + vertically on the belt */
     transform: translateX(-50%) translateY(-50%);
+    transition: opacity 150ms ease;
   }
   #buckle {
     z-index:-1;
   }
-  #loops {
-    height: 100%;
-    gap: 15px;
-    z-index: 10;
-    pointer-events: auto !important;
-    cursor: grab;
-    display: flex;
-  }
-
   .loop-item {
-    position: relative;
+    position: absolute;
+    top: 50%;
     height: 100%;
-    width: 40px;
-    max-width: 40px;
-    margin-right: -20px;
+    z-index: 10;
     cursor: grab;
     pointer-events: auto !important;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex: 0 0 auto;
+    transform: translateX(-50%) translateY(-50%);
   }
 
   .loop-item:active {
@@ -192,9 +197,10 @@ export default class BeltPreview extends LitElement {
   }
 
   .loop {
-    max-height: 400%;
+    max-height: var(--component-h, 400%);
     cursor: grab;
     pointer-events: none;
+    transition: opacity 150ms ease;
   }
 
   #conchosList {
@@ -208,9 +214,8 @@ export default class BeltPreview extends LitElement {
 
   .concho-wrapper {
     position: relative;
-    max-height: 200px;
-    max-width: 50px;
-    overflow: hidden;
+    max-height: calc(200px * var(--ref-width, 1200) / 1200);
+    max-width: calc(50px * var(--ref-width, 1200) / 1200);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -230,6 +235,7 @@ export default class BeltPreview extends LitElement {
     clip-path: inset(0 30% 0 30%);
     cursor: grab;
     pointer-events: none;
+    transition: opacity 150ms ease;
   }
 
   .concho img{
@@ -276,6 +282,23 @@ export default class BeltPreview extends LitElement {
     z-index: 20;
   }
 
+  /* Extend hover zone upward so the mouse can reach the remove badge */
+  .loop-item::before,
+  .concho-wrapper::before {
+    content: "";
+    position: absolute;
+    top: -35px;
+    left: 0;
+    right: 0;
+    height: 35px;
+    pointer-events: none;
+  }
+
+  .loop-item:hover::before,
+  .concho-wrapper:hover::before {
+    pointer-events: auto;
+  }
+
   .loop-item:hover .remove-badge,
   .concho-wrapper:hover .remove-badge {
     opacity: 1;
@@ -286,26 +309,35 @@ export default class BeltPreview extends LitElement {
   /* Debug overlay — visible with ?debug=anchors */
   .debug-dot {
     position: absolute;
-    width: 8px;
-    height: 8px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     border: 2px solid white;
     transform: translate(-50%, -50%);
     z-index: 100;
-    pointer-events: none;
+    pointer-events: auto;
     box-shadow: 0 0 3px rgba(0,0,0,0.5);
+    cursor: grab;
+  }
+  .debug-dot:active, .debug-dot.dragging {
+    cursor: grabbing;
   }
   .debug-label {
     position: absolute;
     font-size: 10px;
-    color: white;
     background: rgba(0,0,0,0.7);
     padding: 1px 4px;
     border-radius: 2px;
     white-space: nowrap;
     z-index: 100;
     pointer-events: none;
-    transform: translateY(-100%);
+    transform: translateX(-50%);
+  }
+  .debug-leader {
+    position: absolute;
+    width: 1px;
+    z-index: 99;
+    pointer-events: none;
   }
 `;
 
@@ -329,6 +361,30 @@ export default class BeltPreview extends LitElement {
 
   protected override willUpdate(changed: PropertyValues) {
     if (changed.has("base") && this.base) cacheImage(this.base);
+
+    // Pre-load + decode overlay images so they're crisp before we show them
+    const urlsToPreload: string[] = [];
+    if (changed.has("buckle") && this.buckle) urlsToPreload.push(this.buckle);
+    if (changed.has("tip") && this.tip) urlsToPreload.push(this.tip);
+    if (changed.has("loops")) urlsToPreload.push(...this.loops.filter(Boolean));
+    if (changed.has("conchos")) urlsToPreload.push(...this.conchos.filter(Boolean));
+
+    for (const url of urlsToPreload) {
+      if (!this.readyImages.has(url)) {
+        cacheImage(url).then(() => {
+          if (!this.readyImages.has(url)) {
+            const next = new Set(this.readyImages);
+            next.add(url);
+            this.readyImages = next;
+          }
+        }).catch(() => {
+          // Still mark as ready on error so we don't hide forever
+          const next = new Set(this.readyImages);
+          next.add(url);
+          this.readyImages = next;
+        });
+      }
+    }
   }
 
   /** Base-wrapper width in px (= belt bounding box). 87% of activeRefWidth due to margins. */
@@ -336,19 +392,37 @@ export default class BeltPreview extends LitElement {
     return this.activeRefWidth * 0.87;
   }
 
-  /** Convert a 0–1 fraction to pixels within the belt bounding box. */
-  private px(fraction: number): number {
-    return Math.round(fraction * this.bboxWidth);
+  /**
+   * Accessory height as a multiple of the belt canvas height.
+   * 25mm belt → 6.5× (650%); wider belts scale down proportionally.
+   * Falls back to 4× (400%) when no mm width is set.
+   */
+  private get componentHeightMultiplier(): number {
+    if (this.useDefaultComponentHeight) return 4;
+    if (!this.baseWidthMm || this.baseWidthMm <= 0) return 4;
+    return 6.5 * (25 / this.baseWidthMm);
+  }
+
+  /** Returns true when the given URL has been fully loaded + decoded. */
+  private isImageReady(url: string | null | undefined): boolean {
+    return !!url && this.readyImages.has(url);
+  }
+
+  /** Convert a 0–100 percentage to pixels within the belt bounding box. */
+  private convertToPixels(percent: number): number {
+    return Math.round((percent/100) * this.bboxWidth);
   }
 
   override render() {
     const scaledHeight = Math.round(this.canvasDisplayHeight * this.scaleFactor);
     const refW = this.activeRefWidth;
     const a = this.anchors;
+    const hMult = this.componentHeightMultiplier;
+    const componentH = `${Math.round(hMult * 100)}%`;
     return html`
-  <div class="height-wrapper" style="height: ${scaledHeight}px;">
-    <div class="scale-wrapper" style="width: ${refW}px; transform: scale(${this.scaleFactor});">
-      <div class="base-wrapper">
+  <div class="height-wrapper" style="height: ${scaledHeight}px; display: flex; align-items: center;">
+    <div class="scale-wrapper" style="width: ${refW}px; --ref-width: ${refW}; transform: scale(${this.scaleFactor});">
+      <div class="base-wrapper" style="--component-h: ${componentH}">
         <canvas
           id="base"
           aria-hidden="true"
@@ -366,25 +440,35 @@ export default class BeltPreview extends LitElement {
           })}
         ></canvas>
 
-        ${this.isRenderingBase
-          ? html`<div class="preview-loader">
-              ${loader("Cutting The Leather To Size...")}
-            </div>`
-          : null}
 
-        <img id="buckle" class="center-vertically" src=${this.buckle ?? ""} aria-hidden="true"
-          style="z-index: ${this.buckleOnTop || a.buckleOnTop ? '10' : '-1'}; left: ${this.px(a.buckleX)}px;" />
-        <div id="loops" class="center-vertically" style="left: ${this.px(a.loopsX)}px"
-          @dragover=${this.onLoopDragOver}
-          @drop=${this.onLoopDrop}>
-          ${this.loops.map(
-            (loop, index) => html`
+        <img id="buckle" class="center-vertically" crossorigin="anonymous" src=${this.buckle ?? ""} aria-hidden="true"
+          style="z-index: ${this.buckleOnTop || a.buckleOnTop ? '10' : '-1'}; left: ${this.convertToPixels(a.buckleX)}px; opacity: ${this.isImageReady(this.buckle) ? 1 : 0};" />
+        ${this.loops.map(
+            (loop, index) => {
+              const anchorX = index === 0 ? a.loop1X : a.loop2X;
+              // When 2 loops are shown, clip each at the midpoint between the
+              // two anchors so the full image is visible but they can't overlap.
+              // 50% of the element = the anchor (due to translateX(-50%)).
+              // halfGap = half the pixel distance between the two anchors.
+              // Inset of calc(50% - halfGap) puts the clip edge at the midpoint.
+              let clip = '';
+              if (this.loops.length > 1) {
+                const halfGap = Math.abs(this.convertToPixels(a.loop2X) - this.convertToPixels(a.loop1X)) / 2;
+                // Negative top inset (-50px) lets the remove badge extend above
+                clip = index === 0
+                  ? `clip-path: inset(-50px calc(50% - ${halfGap}px) -30px 0);`
+                  : `clip-path: inset(-50px 0 -30px calc(50% - ${halfGap}px));`;
+              }
+              return html`
               <div
                 class="loop-item"
+                style="left: ${this.convertToPixels(anchorX)}px; ${clip}"
                 draggable="true"
                 data-index=${index}
                 @dragstart=${this.onLoopDragStart}
                 @dragend=${this.onLoopDragEnd}
+                @dragover=${this.onLoopDragOver}
+                @drop=${this.onLoopDrop}
               >
                 <button
                   type="button"
@@ -393,13 +477,12 @@ export default class BeltPreview extends LitElement {
                     this.handleRemoveClick("loop", index, e)}
                   aria-label="Remove loop"
                 ></button>
-                <img class="loop" src=${loop} aria-hidden="true" />
+                <img class="loop" crossorigin="anonymous" src=${loop} aria-hidden="true" style="opacity: ${this.isImageReady(loop) ? 1 : 0}" />
               </div>
-            `,
+            `},
           )}
-        </div>
         <div id="conchosList" class="center-vertically"
-          style="left: ${this.px(a.conchosX)}px; width: ${this.px(a.conchosEndX) - this.px(a.conchosX)}px; justify-content: ${this.conchos.length === 1 ? 'center' : 'space-between'}"
+          style="left: ${this.conchos.length > 1 ? this.convertToPixels(a.conchosX) - 25 : this.convertToPixels(a.conchosX)}px; width: ${this.conchos.length > 1 ? this.convertToPixels(a.conchosEndX) - this.convertToPixels(a.conchosX) + 50 : this.convertToPixels(a.conchosEndX) - this.convertToPixels(a.conchosX)}px; justify-content: ${this.conchos.length === 1 ? 'center' : 'space-between'}"
           @dragover=${this.onConchoDragOver}
           @drop=${this.onConchoDrop}>
           ${this.conchos.map(
@@ -418,7 +501,7 @@ export default class BeltPreview extends LitElement {
                     this.handleRemoveClick("concho", index, e)}
                   aria-label="Remove concho"
                 ></button>
-                <img class="concho" src=${concho} aria-hidden="true" />
+                <img class="concho" crossorigin="anonymous" src=${concho} aria-hidden="true" style="opacity: ${this.isImageReady(concho) ? 1 : 0}" />
               </div>
             `,
           )}
@@ -426,9 +509,10 @@ export default class BeltPreview extends LitElement {
         <img
           id="tip"
           class="center-vertically"
+          crossorigin="anonymous"
           src=${this.tip ?? ""}
           aria-hidden="true"
-          style="left: ${this.px(a.tipX)}px"
+          style="left: ${this.convertToPixels(a.tipX)}px; opacity: ${this.isImageReady(this.tip) ? 1 : 0}"
         />
         ${this.renderDebugOverlay()}
       </div>
@@ -437,26 +521,76 @@ export default class BeltPreview extends LitElement {
     `;
   }
 
-  /** Render anchor debug dots when ?debug=anchors is in the URL. */
-  private renderDebugOverlay() {
-    if (typeof location === "undefined") return null;
-    const params = new URLSearchParams(location.search);
-    if (params.get("debug") !== "anchors") return null;
+  private get isDebugAnchors() {
+    return typeof location !== "undefined" && new URLSearchParams(location.search).get("debug") === "anchors";
+  }
 
+  private get debugDots() {
     const a = this.anchors;
-    const bbox = this.bboxWidth;
-    const dots = [
-      { label: `buckle ${this.px(a.buckleX)}px`, left: `${this.px(a.buckleX)}px`, top: "50%", color: "#ff4444" },
-      { label: `loops ${this.px(a.loopsX)}px`, left: `${this.px(a.loopsX)}px`, top: "50%", color: "#44ff44" },
-      { label: `conchos ${this.px(a.conchosX)}px`, left: `${this.px(a.conchosX)}px`, top: "50%", color: "#4488ff" },
-      { label: `conchos end ${this.px(a.conchosEndX)}px`, left: `${this.px(a.conchosEndX)}px`, top: "50%", color: "#4488ff" },
-      { label: `tip ${this.px(a.tipX)}px`, left: `${this.px(a.tipX)}px`, top: "50%", color: "#ff44ff" },
+    return [
+      { key: "buckleX"     as keyof BeltAnchors, name: "buckle",      val: a.buckleX,     left: this.convertToPixels(a.buckleX),     color: "#ff4444",  labelOffset: -35 },
+      { key: "loop1X"      as keyof BeltAnchors, name: "loop 1",       val: a.loop1X,      left: this.convertToPixels(a.loop1X),      color: "#44ff44",  labelOffset: -55 },
+      { key: "loop2X"      as keyof BeltAnchors, name: "loop 2",       val: a.loop2X,      left: this.convertToPixels(a.loop2X),      color: "#44ff44",  labelOffset: 25 },
+      { key: "conchosX"    as keyof BeltAnchors, name: "conchos",     val: a.conchosX,    left: this.convertToPixels(a.conchosX),    color: "#4488ff",  labelOffset: -55 },
+      { key: "conchosEndX" as keyof BeltAnchors, name: "conchos end", val: a.conchosEndX, left: this.convertToPixels(a.conchosEndX), color: "#88aaff",  labelOffset: -35 },
+      { key: "tipX"        as keyof BeltAnchors, name: "tip",         val: a.tipX,        left: this.convertToPixels(a.tipX),        color: "#ff44ff",  labelOffset: -35 },
     ];
+  }
 
-    return dots.map(d => html`
-      <span class="debug-dot" style="left:${d.left}; top:${d.top}; background:${d.color}"></span>
-      <span class="debug-label" style="left:${d.left}; top:${d.top}; color:${d.color}">${d.label} (bbox: ${Math.round(bbox)}px)</span>
-    `);
+  /** Dots, leaders, and labels on the belt — rendered inside base-wrapper. */
+  private renderDebugOverlay() {
+    if (!this.isDebugAnchors) return null;
+    const fmt = (v: number) => `${Math.round(v * 10) / 10}/100`;
+    return this.debugDots.map(d => {
+      const above = d.labelOffset < 0;
+      const leaderTop = above ? `calc(50% + ${d.labelOffset}px)` : "50%";
+      const leaderH = `${Math.abs(d.labelOffset)}px`;
+      const labelTop = `calc(50% + ${d.labelOffset}px)`;
+      return html`
+        <span class="debug-dot"
+          style="left:${d.left}px; top:50%; background:${d.color}"
+          @mousedown=${(e: MouseEvent) => this.onDebugDragStart(e, d.key)}
+        ></span>
+        <span class="debug-leader" style="left:${d.left}px; top:${leaderTop}; height:${leaderH}; border-left:1px dashed ${d.color}"></span>
+        <span class="debug-label" style="left:${d.left}px; top:${labelTop}; color:${d.color}">${d.name} ${fmt(d.val)}</span>
+      `;
+    });
+  }
+
+  private onDebugDragStart(e: MouseEvent, key: keyof BeltAnchors) {
+    e.preventDefault();
+    this.debugDragKey = key;
+
+    const dot = e.currentTarget as HTMLElement;
+    dot.classList.add("dragging");
+
+    const onMove = (ev: MouseEvent) => {
+      if (!this.debugDragKey) return;
+      const wrapper = this.shadowRoot?.querySelector(".base-wrapper");
+      if (!wrapper) return;
+      const rect = wrapper.getBoundingClientRect();
+      // Account for the scale transform
+      const localX = (ev.clientX - rect.left) / this.scaleFactor;
+      const pct = Math.max(0, Math.min(100, (localX / this.bboxWidth) * 100));
+      this.anchors = { ...this.anchors, [this.debugDragKey]: Math.round(pct * 10) / 10 };
+      this.dispatchEvent(new CustomEvent("debug-anchors-changed", {
+        detail: { ...this.anchors },
+        bubbles: true,
+        composed: true,
+      }));
+    };
+
+    const onUp = () => {
+      dot.classList.remove("dragging");
+      this.debugDragKey = null;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      this.debugDragBound = { move: null, up: null };
+    };
+
+    this.debugDragBound = { move: onMove, up: onUp };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
   }
 
   private async renderBeltBase() {
@@ -467,6 +601,7 @@ export default class BeltPreview extends LitElement {
     if (this.isRenderingBase) {
       this.isRenderingBase = false;
       this.toggleAttribute("data-rendering", false);
+      this.dispatchEvent(new CustomEvent("base-render-end", { bubbles: true, composed: true }));
     }
     return;
   }
@@ -475,6 +610,7 @@ export default class BeltPreview extends LitElement {
 
   this.isRenderingBase = true;
   this.toggleAttribute("data-rendering", true);
+  this.dispatchEvent(new CustomEvent("base-render-start", { bubbles: true, composed: true }));
 
   try {
     const img = await cacheImage(this.base);
@@ -487,12 +623,14 @@ export default class BeltPreview extends LitElement {
     const detected = await detectBeltAnchors(cropped);
     if (myToken !== this.renderToken) return;
     // Merge: auto-detected → default buckleOnTop → manual overrides
+    console.log("[anchors:merge] defaults:", DEFAULT_ANCHORS, "detected:", detected, "overrides:", this.anchorOverrides);
     this.anchors = {
       ...DEFAULT_ANCHORS,
       ...detected,
       buckleOnTop: DEFAULT_ANCHORS.buckleOnTop,
       ...(this.anchorOverrides ?? {}),
     };
+    console.log("[anchors:merge] final:", this.anchors);
 
     const aspect = cropped.height / cropped.width;
 
@@ -507,14 +645,23 @@ export default class BeltPreview extends LitElement {
       height = 50;
     }
 
+    // Render at a higher multiplier than bare DPR so the canvas stays
+    // crisp when CSS-zoomed on mobile (up to 5×). Cap to the source
+    // resolution — upscaling beyond the source won't add real detail.
     const dpr = self.devicePixelRatio || 1;
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
+    const quality = Math.min(
+      Math.max(dpr * 1.5, 3),
+      cropped.width / width,  // don't exceed source resolution
+    );
+    canvas.width = Math.round(width * quality);
+    canvas.height = Math.round(height * quality);
 
     const ctx = canvas.getContext("2d");
     assert(ctx, "Could not acquire 2D canvas context!");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(cropped, 0, 0, width * dpr, height * dpr);
+    drawImageHighQuality(ctx, cropped, width * quality, height * quality);
 
     // Update display height so the height-wrapper can size correctly
     this.canvasDisplayHeight = height;
@@ -524,11 +671,134 @@ export default class BeltPreview extends LitElement {
     if (myToken === this.renderToken) {
       this.isRenderingBase = false;
       this.toggleAttribute("data-rendering", false);
+      this.dispatchEvent(new CustomEvent("base-render-end", { bubbles: true, composed: true }));
     }
   }
 }
 
 
+
+  // ---------- CAPTURE ----------
+
+  /**
+   * Composites all belt layers (base, buckle, loops, conchos, tip) onto a
+   * single canvas and returns the result as a JPEG data-URL string.
+   */
+  public async capturePreview(): Promise<string | null> {
+    const baseCanvas = this.#baseCanvas;
+    if (!baseCanvas || !this.base) return null;
+
+    const dpr = self.devicePixelRatio || 1;
+    const baseW = baseCanvas.width / dpr;
+    const baseH = baseCanvas.height / dpr;
+    if (baseW <= 0 || baseH <= 0) return null;
+
+    const safeLoad = async (url: string): Promise<HTMLImageElement | null> => {
+      try {
+        const img = await cacheImage(url);
+        // Ensure fully decoded before drawing to canvas
+        if ("decode" in img) await img.decode().catch(() => {});
+        return img;
+      } catch {
+        return null;
+      }
+    };
+
+    const [buckleImg, tipImg, loopImgs, conchoImgs] = await Promise.all([
+      this.buckle ? safeLoad(this.buckle) : null,
+      this.tip ? safeLoad(this.tip) : null,
+      Promise.all(this.loops.filter(Boolean).map(safeLoad)),
+      Promise.all(this.conchos.filter(Boolean).map(safeLoad)),
+    ]);
+
+    // Composite canvas: same width as base, scaled height to fit overlays
+    const hMult = this.componentHeightMultiplier;
+    const compH = baseH * hMult;
+    const comp = document.createElement("canvas");
+    comp.width = Math.round(baseW * dpr);
+    comp.height = Math.round(compH * dpr);
+    const ctx = comp.getContext("2d")!;
+    ctx.scale(dpr, dpr);
+
+    // White background (JPEG has no transparency)
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, baseW, compH);
+
+    const offsetY = (compH - baseH) / 2;
+    const cy = compH / 2;
+    const a = this.anchors;
+    const buckleOnTop = this.buckleOnTop || a.buckleOnTop;
+
+    const drawCentered = (
+      img: HTMLImageElement,
+      anchorPx: number,
+      height: number,
+    ) => {
+      if (!img.naturalWidth || !img.naturalHeight) return;
+      const w = height * (img.naturalWidth / img.naturalHeight);
+      ctx.drawImage(img, anchorPx - w / 2, cy - height / 2, w, height);
+    };
+
+    // 1. Buckle behind base (z-index: -1)
+    if (!buckleOnTop && buckleImg) {
+      drawCentered(buckleImg, this.convertToPixels(a.buckleX), baseH * hMult);
+    }
+
+    // 2. Belt base
+    ctx.drawImage(baseCanvas, 0, offsetY, baseW, baseH);
+
+    // 3. Loops (each at its own anchor position)
+    const validLoops = loopImgs.filter(Boolean) as HTMLImageElement[];
+    if (validLoops.length > 0) {
+      const loopPositions = [a.loop1X, a.loop2X];
+      validLoops.forEach((img, i) => {
+        const anchorX = this.convertToPixels(loopPositions[i] ?? loopPositions[0]);
+        const h = baseH * hMult;
+        const w = h * (img.naturalWidth / img.naturalHeight);
+        ctx.drawImage(img, anchorX - w / 2, cy - h / 2, w, h);
+      });
+    }
+
+    // 4. Conchos (distributed between conchosX and conchosEndX)
+    const validConchos = conchoImgs.filter(Boolean) as HTMLImageElement[];
+    if (validConchos.length > 0) {
+      const startX = this.convertToPixels(a.conchosX);
+      const endX = this.convertToPixels(a.conchosEndX);
+      const span = endX - startX;
+
+      validConchos.forEach((img, i) => {
+        if (!img.naturalWidth || !img.naturalHeight) return;
+        const h = Math.min(200, baseH * 2);
+        // Simulate clip-path: inset(0 30% 0 30%) — draw middle 40%
+        const srcX = img.naturalWidth * 0.3;
+        const srcW = img.naturalWidth * 0.4;
+        const drawW = h * (srcW / img.naturalHeight);
+
+        let x: number;
+        if (validConchos.length === 1) {
+          x = startX + span / 2;
+        } else {
+          x = startX + (span * i) / (validConchos.length - 1);
+        }
+        ctx.drawImage(
+          img, srcX, 0, srcW, img.naturalHeight,
+          x - drawW / 2, cy - h / 2, drawW, h,
+        );
+      });
+    }
+
+    // 5. Tip
+    if (tipImg) {
+      drawCentered(tipImg, this.convertToPixels(a.tipX), baseH * hMult);
+    }
+
+    // 6. Buckle in front (z-index: 10)
+    if (buckleOnTop && buckleImg) {
+      drawCentered(buckleImg, this.convertToPixels(a.buckleX), baseH * hMult);
+    }
+
+    return comp.toDataURL("image/jpeg", 0.85);
+  }
 
   // ---------- DRAG HANDLERS ----------
 
@@ -540,48 +810,35 @@ export default class BeltPreview extends LitElement {
     const index = Number(target.dataset.index);
     this.draggingLoopIndex = index;
     this.dragOriginalLoopIndex = index;
-    this.hoverLoopIndex = index;
 
     e.dataTransfer.setData("text/plain", "loop");
     e.dataTransfer.effectAllowed = "move";
     target.classList.add("dragging");
     this.createDragImageFrom(target, e);
-
-    // Snapshot original positions for hit-testing during drag
-    const container = this.shadowRoot?.querySelector('#loops');
-    if (container) {
-      this.loopItemRects = Array.from(
-        container.querySelectorAll('.loop-item')
-      ).map(el => el.getBoundingClientRect());
-    }
   }
 
   private onLoopDragOver(e: DragEvent) {
     e.preventDefault();
     if (this.dragOriginalLoopIndex == null) return;
-
-    const targetIndex = this.getDropIndex(e.clientX, this.loopItemRects, this.dragOriginalLoopIndex);
-    if (targetIndex === this.hoverLoopIndex) return;
-
-    this.hoverLoopIndex = targetIndex;
-    this.applyDragTransforms("loop");
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
   }
 
   private onLoopDrop(e: DragEvent) {
     e.preventDefault();
-    this.clearDragTransforms("loop");
+    const target = e.currentTarget as HTMLElement | null;
+    if (!target) return;
 
+    const dropIndex = Number(target.dataset.index);
     const from = this.dragOriginalLoopIndex;
-    const to = this.hoverLoopIndex;
 
-    if (from != null && to != null && from !== to) {
+    if (from != null && !isNaN(dropIndex) && from !== dropIndex) {
+      // Swap the two loops
       const updated = [...this.loops];
-      const [moved] = updated.splice(from, 1);
-      updated.splice(to, 0, moved);
+      [updated[from], updated[dropIndex]] = [updated[dropIndex], updated[from]];
       this.loops = updated;
 
       this.dispatchEvent(new CustomEvent("reorder-loops", {
-        detail: { fromIndex: from, toIndex: to },
+        detail: { fromIndex: from, toIndex: dropIndex },
         bubbles: true,
         composed: true,
       }));
@@ -589,14 +846,11 @@ export default class BeltPreview extends LitElement {
 
     this.draggingLoopIndex = null;
     this.dragOriginalLoopIndex = null;
-    this.hoverLoopIndex = null;
-    this.loopItemRects = [];
   }
 
   private onLoopDragEnd(e: DragEvent) {
     const target = e.currentTarget as HTMLElement | null;
     if (target) target.classList.remove("dragging");
-    this.clearDragTransforms("loop");
 
     if (this.draggingLoopIndex != null) {
       this.dispatchEvent(new CustomEvent("remove-loop", {
@@ -608,8 +862,6 @@ export default class BeltPreview extends LitElement {
 
     this.draggingLoopIndex = null;
     this.dragOriginalLoopIndex = null;
-    this.hoverLoopIndex = null;
-    this.loopItemRects = [];
   }
 
   // ---- Conchos ----
@@ -726,23 +978,27 @@ export default class BeltPreview extends LitElement {
 
     const items = Array.from(container.querySelectorAll(itemSelector)) as HTMLElement[];
 
-    // Slot width = space each item occupies in the flow
-    let slotWidth: number;
-    if (rects.length > 1) {
-      slotWidth = from < rects.length - 1
-        ? Math.abs(rects[from + 1].left - rects[from].left)
-        : Math.abs(rects[from].left - rects[from - 1].left);
-    } else {
-      slotWidth = rects[0]?.width ?? 0;
-    }
+    // Compute the actual screen→local scale by comparing the container's
+    // rendered width (getBoundingClientRect, includes ALL ancestor transforms)
+    // to its layout width (offsetWidth, transform-free).
+    const containerEl = container as HTMLElement;
+    const cumulativeScale = containerEl.getBoundingClientRect().width / (containerEl.offsetWidth || 1);
 
     items.forEach((el, index) => {
       if (index === from) { el.style.transform = ''; return; }
 
+      let targetIndex = index;
+
       if (from < to && index > from && index <= to) {
-        el.style.transform = `translateX(${-slotWidth}px)`;
+        targetIndex = index - 1;
       } else if (from > to && index >= to && index < from) {
-        el.style.transform = `translateX(${slotWidth}px)`;
+        targetIndex = index + 1;
+      }
+
+      if (targetIndex !== index) {
+        // rects are in screen coords; divide by cumulativeScale to get local coords
+        const pixelShift = (rects[targetIndex].left - rects[index].left) / cumulativeScale;
+        el.style.transform = `translateX(${pixelShift}px)`;
       } else {
         el.style.transform = '';
       }
@@ -820,10 +1076,57 @@ declare global {
   }
 }
 
+/**
+ * Draw an image onto a canvas at (targetW × targetH), stepping down by 2×
+ * increments when the source is more than 2× larger than the target.
+ * Single-step canvas drawImage uses bilinear interpolation which produces
+ * aliasing artifacts at large downscale ratios; halving iteratively avoids this.
+ */
+function drawImageHighQuality(
+  ctx: CanvasRenderingContext2D,
+  source: ImageBitmap,
+  targetW: number,
+  targetH: number,
+): void {
+  const srcW = source.width;
+  const srcH = source.height;
+
+  // If the downscale ratio is ≤ 2× in both dimensions, draw directly.
+  if (srcW <= targetW * 2 && srcH <= targetH * 2) {
+    ctx.drawImage(source, 0, 0, targetW, targetH);
+    return;
+  }
+
+  // Step down through intermediate canvases, halving each time.
+  let current: CanvasImageSource = source;
+  let curW = srcW;
+  let curH = srcH;
+
+  while (curW > targetW * 2 || curH > targetH * 2) {
+    const nextW = Math.max(Math.round(curW / 2), targetW);
+    const nextH = Math.max(Math.round(curH / 2), targetH);
+
+    const step = typeof OffscreenCanvas !== "undefined"
+      ? new OffscreenCanvas(nextW, nextH)
+      : Object.assign(document.createElement("canvas"), { width: nextW, height: nextH });
+
+    const sCtx = step.getContext("2d") as CanvasRenderingContext2D;
+    sCtx.imageSmoothingEnabled = true;
+    sCtx.imageSmoothingQuality = "high";
+    sCtx.drawImage(current, 0, 0, nextW, nextH);
+
+    current = step;
+    curW = nextW;
+    curH = nextH;
+  }
+
+  ctx.drawImage(current, 0, 0, targetW, targetH);
+}
+
 const cachedImages: Record<string, Promise<HTMLImageElement>> = {};
 
 async function cacheImage(url: string): Promise<HTMLImageElement> {
-  if (awaitcachedImages[url]) return cachedImages[url];
+  if (cachedImages[url]) return cachedImages[url];
 
   cachedImages[url] = new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();

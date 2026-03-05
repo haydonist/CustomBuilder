@@ -55,6 +55,7 @@ export function thumbnailOption(
     variantImages?: string[];
     popup?: ReturnType<typeof html> | null;
     isSet?: boolean;
+    thumbScale?: number;
   },
 ) {
   if (!options) options = {};
@@ -70,6 +71,7 @@ export function thumbnailOption(
       class="option thumbnail ${options.class ?? ""}"
       data-kind="${name}"
       data-is-set="${options.isSet ? "true" : "false"}"
+      style="${options.thumbScale ? `--thumb-scale: ${options.thumbScale}` : ""}"
       @click="${options.onClick}"
     >
       <input

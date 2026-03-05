@@ -30,9 +30,15 @@ export function toLineVariant(
 }
 export async function createCartAndGetCheckoutUrl(
   lines: CartLineInput[],
+  attributes?: { key: string; value: string }[],
+  note?: string,
 ): Promise<string> {
+  const input: Record<string, unknown> = { lines };
+  if (attributes?.length) input.attributes = attributes;
+  if (note) input.note = note;
+
   const resp = await client.request(cartCreateMutation, {
-    variables: { input: { lines } },
+    variables: { input },
   });
 
   if (resp.errors) {

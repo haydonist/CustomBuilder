@@ -162,6 +162,8 @@ button.btn.primary, a.btn.primary {
 #stepShortcut {
   position: relative;
   z-index: 5;
+  display: flex;
+  flex-direction: column;
 }
 
 .btn.primary:hover {
@@ -197,6 +199,20 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
     0 1px 2px 0 #0c0c0c0d,
     inset 0 -2px 1px 0 #0c0c0c0d,
     inset 0 0 0 1px #0c0c0c0d;
+}
+
+.policy-link {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.75rem;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 4px;
+}
+.policy-link:hover {
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .buckle-option {
@@ -243,13 +259,13 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 /* Options */
 .option {
   cursor: pointer;
-  max-width: 170px;
+  max-width: calc(var(--thumb-size, 160px) + 10px);
 }
 
 .option .selection-indicator {
   min-width: 128px;
   max-width: calc(50vw - 28px - 16px);
-  width: 160px;
+  width: var(--thumb-size, 160px);
   aspect-ratio: 1;
 }
 
@@ -344,7 +360,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   aspect-ratio: 1;
 }
 .option.thumbnail[data-kind="concho"] img.selection-indicator {
-  transform: scale(5);
+  transform: scale(var(--thumb-scale, 5));
 }
 
 .option.thumbnail[data-kind="buckle"][data-is-set="false"]
@@ -388,16 +404,19 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   inset: 0;
   opacity: 0;
   transition: opacity 300ms ease;
+  width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.option.thumbnail[data-kind="base"]:not(.summary):hover .hover-image {
-  opacity: 1;
-}
+@media (hover: hover) {
+  .option.thumbnail[data-kind="base"]:not(.summary):hover .hover-image {
+    opacity: 1;
+  }
 
-.option.thumbnail[data-kind="base"]:not(.summary):hover .selection-indicator {
-  opacity: 0;
+  .option.thumbnail[data-kind="base"]:not(.summary):hover .selection-indicator {
+    opacity: 0;
+  }
 }
 
 .option.thumbnail .option-count {
@@ -425,8 +444,8 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 }
 
 .option.thumbnail .variant-preview-item {
-  width: 22px;
-  height: 22px;
+  width: calc(var(--thumb-size, 160px) * 22 / 160);
+  height: calc(var(--thumb-size, 160px) * 22 / 160);
   border-radius: 4px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.92);
@@ -456,7 +475,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 }
 
 .option.thumbnail[data-kind="concho"] .variant-preview-item img {
-  transform: scale(3.5);
+  transform: scale(calc(var(--thumb-scale, 5) * 0.7));
 }
 
 .option.thumbnail[data-kind="tip"] .variant-preview-item img {
@@ -464,8 +483,8 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 }
 
 .option.thumbnail .variant-preview-more {
-  width: 22px;
-  height: 22px;
+  width: calc(var(--thumb-size, 160px) * 22 / 160);
+  height: calc(var(--thumb-size, 160px) * 22 / 160);
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
@@ -528,7 +547,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   display: block;
   width: 40px;
   height: 40px;
-  transform: scale(5);
+  transform: scale(var(--thumb-scale, 5));
   transform-origin: center;
   object-fit: cover;
 }
@@ -536,6 +555,10 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 .variant-popup[data-kind="base"] .variant-swatch img {
   transform: scale(1) !important;
   object-fit: contain;
+}
+
+.variant-popup[data-kind="buckle"] .variant-swatch img {
+  transform: scale(2) translateX(5px);
 }
 
 .variant-swatch.is-selected {
@@ -547,6 +570,7 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   opacity: 0;
   transform: translateX(120px);
   max-height: 150px;
+  clip-path: inset(-30% -100% -30% -100%);
 }
 
 /* When first base is selected, ease in from the side over 0.5s */
@@ -638,7 +662,7 @@ section.step.step-shifted {
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: none;
   }
 }
 
@@ -649,7 +673,7 @@ section.step.step-shifted {
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: none;
   }
 }
 
@@ -660,7 +684,7 @@ section.step.step-shifted {
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: none;
   }
 }
 
@@ -671,7 +695,7 @@ section.step.step-shifted {
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: none;
   }
 }
 
@@ -682,7 +706,7 @@ section.step.step-shifted {
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: none;
   }
 }
 
@@ -693,7 +717,7 @@ section.step.step-shifted {
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: none;
   }
 }
 
@@ -704,7 +728,7 @@ section.step.step-shifted {
   }
   to {
     opacity: 1;
-    transform: scale(1) translateY(0);
+    transform: none;
   }
 }
 
@@ -989,17 +1013,225 @@ belt-wizard #summary .summary-complete {
   font-weight: 600;
 }
 
+/* ===== VARIANT POPUP — MOBILE ADJUSTMENTS (tablet + mobile) ===== */
+@media screen and (max-width: 991px) {
+  /* Keep popup absolute on the card like desktop, but reduce scale
+     so it doesn't overflow on smaller screens. */
+  .variant-popup {
+    scale: 1.5;
+  }
+
+  .variant-popup-grid {
+    gap: 6px;
+    padding: 4px;
+  }
+
+  .variant-swatch img {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .variant-popup {
+    scale: 1.25;
+  }
+}
+
 /* ===== MOBILE RESPONSIVE STYLES (< 768px) ===== */
 @media screen and (max-width: 767px) {
 
-  /* Belt Builder Container */
-  .belt-builder {
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-    
+  /* ---- Global overflow prevention ---- */
+  belt-wizard {
+    margin-inline: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    box-sizing: border-box;
   }
 
-  /* Size Step - Position sizing chart below waist size choices */
+  belt-wizard > header,
+  belt-wizard > section.step {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+  }
+
+  .step-content {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+  }
+
+  .step-content form {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  #stepShortcut {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  #stepShortcut .btn {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .belt-builder {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    margin-bottom: 4rem !important;
+  }
+
+  body > main {
+    min-width: auto;
+  }
+
+  /* ---- Heading adjustments ---- */
+  h1, .heading-1 { font-size: 42px; }
+  h2, .heading-2 { font-size: 32px; }
+  h3, .heading-3 { font-size: 26px; }
+  h4, .heading-4 { font-size: 22px; }
+  h5, .heading-5 { font-size: 18px; }
+  h6, .heading-6 { font-size: 16px; }
+
+  /* ---- Stepper (single row, no wrap) ---- */
+  #stepper {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    gap: 0;
+  }
+
+  #stepper::before {
+    margin: 0 0.5rem;
+    width: calc(100% - 1rem);
+  }
+
+  #stepper button.step {
+    flex: 0 0 auto;
+    margin: 4px 2px;
+    width: 2rem !important;
+    height: 2rem !important;
+    max-width: 2rem !important;
+    min-width: 2rem;
+    min-height: 2rem;
+  }
+
+  /* ---- Step heading ---- */
+  #stepHeading {
+    margin-block-start: 0.75rem;
+    flex-direction: column;
+  }
+
+  #stepShortcut {
+    margin-top: 0.75rem;
+    width: 100%;
+  }
+
+  /* ---- Header ---- */
+  belt-wizard > header {
+    padding-block-start: 0.5rem;
+  }
+
+  /* ---- Belt preview ---- */
+  #preview {
+    min-height: auto;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+  }
+
+  #preview belt-preview {
+    min-height: 60px;
+  }
+
+  /* Step 0 – Belt Base: show entire belt */
+  #preview belt-preview.step-0 {
+    transform: scale(2) !important;
+  }
+
+  /* Step 1 – Size: belt is context, keep small */
+  #preview belt-preview.step-1 {
+    transform: scale(1.7) !important;
+  }
+
+  /* Step 2 – Buckle: zoom to the buckle (left end) */
+  #preview belt-preview.step-2 {
+    transform: scale(5) translateX(3%) !important;
+    transform-origin: left;
+  }
+
+  /* Step 3 – Loops: zoom to the loop area (just right of buckle) */
+  #preview belt-preview.step-3 {
+    transform: scale(5) translateX(-2%) !important;
+    transform-origin: left;
+  }
+
+  /* Step 4 – Conchos: moderate zoom to show the concho span */
+  #preview belt-preview.step-4 {
+    transform: scale(1.75) translateX(-15%) !important;
+    transform-origin: left;
+  }
+
+  /* Step 5 – Tip: zoom to the tip (right end) */
+  #preview belt-preview.step-5 {
+    transform: scale(4) translateX(1%) !important;
+    transform-origin: right;
+  }
+
+  /* Step 6 – Summary: full belt overview */
+  #preview belt-preview.step-6 {
+    transform: scale(1) translateX(3%) !important;
+  }
+
+  /* ---- Product option grid (CSS grid for no horizontal scroll) ---- */
+  .row.wrap.gap-medium:has(.option.thumbnail) {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .option {
+    max-width: none;
+    width: 100%;
+  }
+
+  .option .selection-indicator {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    aspect-ratio: 1;
+  }
+
+  .option.thumbnail .selection-indicator-wrapper {
+    width: 100%;
+  }
+
+  .option.thumbnail label span.label {
+    font-size: 1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .option label span.price {
+    font-size: 0.75rem;
+  }
+
+  /* ---- Text-only option grid ---- */
+  .row.wrap:has(.option.text-only) {
+    grid-template-columns: repeat(4, 1fr);
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  /* ---- Size step ---- */
   #size {
     background: none;
     margin-top: 0;
@@ -1012,7 +1244,7 @@ belt-wizard #summary .summary-complete {
     position: static;
     top: auto;
     width: 100%;
-    margin-top: 2rem;
+    margin-top: 1.5rem;
     order: 2;
   }
 
@@ -1022,69 +1254,20 @@ belt-wizard #summary .summary-complete {
     order: 1;
   }
 
-  /* Belt preview on mobile */
-  #preview belt-preview {
-    min-height: 75px;
-  }
-
-  /* Rework translate steps for mobile visibility */
-  #preview belt-preview.step-0 {
-    transform: none !important;
-  }
-
-  #preview belt-preview.step-1 {
-    transform: scale(0.75) !important;
-  }
-
-  #preview belt-preview.step-2 {
-    transform: scale(2.5) translateX(15%) !important;
-    transform-origin: left;
-  }
-
-  #preview belt-preview.step-3 {
-    transform: scale(1) !important;
-  }
-
-  #preview belt-preview.step-4 {
-    transform: scale(2.5) translateX(15%) !important;
-    transform-origin: left;
-  }
-
-  #preview belt-preview.step-5 {
-    transform: scale(1) translateX(-5%) !important;
-  }
-
-  #preview belt-preview.step-6 {
-    transform: scale(1) translateX(-5%) !important;
-  }
-
-  /* Adjust preview container for mobile */
-  #preview {
-    min-height: auto;
-    margin-bottom: 1rem;
-  }
-
-
-  /* Adjust option sizing for mobile */
-  .option .selection-indicator {
-    min-width: 100px;
-    max-width: 100%;
-    width: 100px;
-    aspect-ratio: 1;
-  }
-
-  /* Improve step tools layout on mobile */
+  /* ---- Step tools ---- */
   .step-tools {
-    gap: 1rem;
-    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .filter-btn {
-    width: 100%;
-    justify-content: center;
+    width: auto;
+    min-width: 44px;
+    min-height: 44px;
   }
 
-  /* Adjust filter popover for mobile */
+  /* ---- Filter popover → bottom sheet ---- */
   .filter-popover {
     position: fixed;
     top: auto;
@@ -1095,127 +1278,150 @@ belt-wizard #summary .summary-complete {
     border-radius: 16px 16px 0 0;
     max-height: 80vh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     z-index: 10000;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   }
 
-  /* Helper text styling for mobile */
+  /* ---- Concho helper text ---- */
   .concho-helper-text {
     max-width: 100%;
     margin-right: 0;
   }
 
-  /* Switch styling for mobile */
+  /* ---- Switch ---- */
   .switch {
     justify-content: center;
   }
 
-  /* Heading adjustments for mobile */
-  h1,
-  .heading-1 {
-    font-size: 48px;
-  }
-
-  h2,
-  .heading-2 {
-    font-size: 36px;
-  }
-
-  h3,
-  .heading-3 {
-    font-size: 28px;
-  }
-
-  h4,
-  .heading-4 {
-    font-size: 24px;
-  }
-
-  h5,
-  .heading-5 {
-    font-size: 20px;
-  }
-
-  h6,
-  .heading-6 {
-    font-size: 18px;
-  }
-
-  /* Stepper adjustments */
-  #stepper {
-    flex-wrap: wrap;
-    max-width: 100%;
-  }
-
-  #stepper::before {
-    margin: 0 1rem;
-    width: 90%;
-  }
-
-
-  #stepper button.step {
-    flex: 1;
-    margin: 4px 2px;
-    width: 2rem !important;
-    height: 2rem !important;
-    max-width: 2rem !important;
-  }
-
-  /* Step heading adjustments */
-  #stepHeading {
-    margin-block-start: 1rem;
-    flex-direction: column;
-  }
-
-  #stepShortcut {
-    margin-top: 1rem;
+  /* ---- Buttons (44px min touch target) ---- */
+  button.btn, a.btn {
+    padding: 12px 16px;
+    font-size: 14px;
     width: 100%;
+    min-height: 44px;
   }
 
-  /* Header adjustments */
-  belt-wizard>header {
-    padding-block-start: 0.5rem;
+  /* ---- Collection title ---- */
+  .collection-title {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
   }
 
-  body>main {
-    min-width: auto;
-  }
-
-  /* Section and form padding */
+  /* ---- Section ---- */
   section.step {
     padding: 0;
   }
+}
 
-  /* Adjust button sizing */
-  button.btn,
-  a.btn {
-    padding: 10px 16px;
-    font-size: 14px;
-    width: 100%;
+/* ===== SMALL PHONE PREVIEW CAP (<= 479px) ===== */
+@media screen and (max-width: 479px) {
+  /* Hard-cap the preview bounding box at viewport width so the belt
+     base canvas (which can be very wide) never inflates the layout. */
+  #preview {
+    max-width: 100vw;
+    overflow: hidden;
   }
 
-  /* Text option grid adjustment */
-  .row.wrap:has(.option.text-only) {
-    grid-template-columns: auto auto auto auto;
-    margin: 0 auto;
-    width: 100%;
+  #preview belt-preview {
+    max-width: 100vw;
   }
 
-  /* Adjust collection title */
-  .collection-title {
-    font-size: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  /* Variant popup scaling for mobile */
-  .variant-popup {
-    scale: 1.5;
-  }
-
-
-  /* Main belt-wizard sizing */
   belt-wizard {
-    margin-inline: 0;
-    max-width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+}
+
+/* ===== EXTRA SMALL SCREENS (< 375px) ===== */
+@media screen and (max-width: 374px) {
+  .row.wrap.gap-medium:has(.option.thumbnail) {
+    gap: 0.5rem;
   }
 
+  h1, .heading-1 { font-size: 36px; }
+  h2, .heading-2 { font-size: 28px; }
+  h3, .heading-3 { font-size: 22px; }
+  h4, .heading-4 { font-size: 20px; }
+
+  #stepper button.step {
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+    max-width: 1.75rem !important;
+    min-width: 1.75rem;
+    min-height: 1.75rem;
+  }
+
+  .option.text-only {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .option.text-only label {
+    font-size: 20px;
+  }
+
+  .variant-swatch img {
+    width: 48px;
+    height: 48px;
+  }
+
+  button.btn, a.btn {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+}
+
+/* ===== DESKTOP: BELT BASE VARIANT POPUP (>= 768px) ===== */
+@media screen and (min-width: 768px) {
+  .variant-popup[data-kind="base"] {
+    scale: 3.5;
+  }
+
+  .variant-popup[data-kind="base"] .variant-swatch img {
+    width: 56px;
+    height: 56px;
+  }
+}
+
+/* ===== Thumbnail Size Picker ===== */
+.thumb-size-picker {
+  display: none;
+}
+
+@media screen and (min-width: 768px) {
+  .thumb-size-picker {
+    display: inline-flex;
+    gap: 0;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .thumb-size-btn {
+    border: none;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.65);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 10px;
+    cursor: pointer;
+    transition: background 150ms ease, color 150ms ease;
+    line-height: 1;
+  }
+
+  .thumb-size-btn:not(:last-child) {
+    border-right: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .thumb-size-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .thumb-size-btn.is-active {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+  }
 }

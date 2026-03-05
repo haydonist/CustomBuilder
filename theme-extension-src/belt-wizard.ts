@@ -3,7 +3,7 @@ import { customElement, eventOptions, property, state } from "lit/decorators.js"
 import { classMap } from "lit/directives/class-map.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { createRef, Ref, ref } from "lit/directives/ref.js";
-import { delay, formatMoney } from "./utils.ts";
+import { delay, formatMoney, getConchoThumbScale } from "./utils.ts";
 import { renderLoader as loader } from "./components/loader.ts";
 
 // ===============
@@ -19,12 +19,11 @@ import {
   ProductVariant,
   queryProducts,
 } from "./api/index.ts";
-import { fetchBeltWizardSettings, applySettingsToDOM } from "./api/settings.ts";
 import BeltCheckout from "./components/belt-checkout.ts";
 import BeltPreview from "./components/belt-preview/index.ts";
 import { textOption, thumbnailOption } from "./components/option.ts";
 import Wizard, { renderView } from "./models/wizard/index.ts";
-import { getAnchorOverrides } from "./config/belt-anchors.ts";
+import { type BeltAnchors, getAnchorOverrides } from "./config/belt-anchors.ts";
 
 
 export enum Theme {
@@ -92,6 +91,16 @@ export class CustomBeltWizard extends LitElement {
   private showCollectionFilter = false;
   @state()
   private collectionFilters: Record<string, string[]> = {};
+  @state()
+  private debugAnchors: BeltAnchors | null = null;
+  @state()
+  private thumbnailSize: "small" | "medium" | "large" = "small";
+
+  private static readonly THUMB_SIZES = { small: 160, medium: 200, large: 240 } as const;
+
+  private get thumbSizePx(): number {
+    return CustomBeltWizard.THUMB_SIZES[this.thumbnailSize];
+  }
 
   private variantSelection = new Map<string, string>();
 
@@ -122,6 +131,12 @@ export class CustomBeltWizard extends LitElement {
   protected override connectedCallback() {
     super.connectedCallback();
     this.infiniteScrollObserver.observe(document.getElementById("scrollToken")!);
+
+    // Listen for debug anchor drag updates from belt-preview
+    this.addEventListener("debug-anchors-changed", ((e: CustomEvent<BeltAnchors>) => {
+      this.debugAnchors = e.detail;
+    }) as EventListener);
+
   }
 
   protected override disconnectedCallback() {
@@ -151,7 +166,7 @@ private getMaxLoopsAllowed(): number {
 }
 
   private shouldShowCollectionFilter(stepId: string): boolean {
-    return stepId === "buckle" || stepId === "loops" || stepId === "conchos" ||
+    return stepId === "base" || stepId === "buckle" || stepId === "loops" || stepId === "conchos" ||
       stepId === "tip";
   }
 
@@ -186,6 +201,7 @@ private getMaxLoopsAllowed(): number {
   };
 
   private getFilterStepKey(stepId: string): string | null {
+    if (stepId === "base") return "base";
     if (stepId === "buckle") return "buckle";
     if (stepId === "loops") return "loops";
     if (stepId === "conchos") return "conchos";
@@ -194,7 +210,9 @@ private getMaxLoopsAllowed(): number {
   }
 
   private getProductsForStep(stepId: string): Product[] {
-    const [_bases, _buckles, loops, conchos, tips] = this.beltData;
+    const [bases, _buckles, loops, conchos, tips] = this.beltData;
+
+    if (stepId === "base") return bases ?? [];
 
     if (stepId === "buckle") {
       // your buckle step uses buckleChoices (sets + buckles)
@@ -296,12 +314,6 @@ private getUniqueVariantImages(kind: string, product: Product): string[] {
   return images;
 }
 
-private findVariantForBaseColorAndSize(base: Product, color: string, size: string): ProductVariant | null {
-  return (base.variants ?? []).find(v =>
-    this.getVariantOption(v, "Color") === color &&
-    this.getVariantOption(v, "Size") === size
-  ) ?? null;
-}
 
 private getSelectedBaseColor(): string | null {
   return (this.selection?.get("baseColor") as string | null) ?? null;
@@ -341,6 +353,10 @@ private getSelectedBaseColor(): string | null {
   }
 
   private rebuildStepForFilter(stepId: string) {
+    if (stepId === "base") {
+      this.buildSingleSelectStep("base", this.beltData[0] ?? []);
+      return;
+    }
     if (stepId === "buckle") {
       this.buildSingleSelectStep("buckle", this.buckleChoices);
       return;
@@ -367,8 +383,8 @@ private getSelectedBaseColor(): string | null {
     while (nextIndex < steps.length) {
       const id = steps[nextIndex].id;
 
-      // If a Set is selected, skip loops & tip steps
-      if (hasSet && (id === "loops" || id === "tip")) {
+      // If a Set is selected, skip tip step; skip loops only if base allows just 1 loop
+      if (hasSet && (id === "tip" || (id === "loops" && this.getMaxLoopsAllowed() <= 1))) {
         nextIndex++;
         continue;
       }
@@ -397,8 +413,8 @@ private getSelectedBaseColor(): string | null {
     },
     {
       id: "size",
-      title: "What is your waist size?",
-      subtitle: "We will add 3” to meet your perfect fit belt size",
+      title: "What is your size?",
+      subtitle: "We suggest adding an extra 2 inches to your pant size",
       view: html`
         <div class="row wrap gap-medium"></div>
       `,
@@ -466,6 +482,11 @@ private getSelectedBaseColor(): string | null {
             this.triggerCheckoutFromShortcut()}">
             Checkout
           </button>
+          <button
+            type="button"
+            class="policy-link"
+            @click="${() => this.checkout.value?.scrollToPolicy()}"
+          >View cancellation policy</button>
         `,
 
       view: () => {
@@ -581,8 +602,16 @@ private getSelectedBaseColor(): string | null {
       }
     }
 
-    // Combine: regular collections first, then bottom collections
-    const result = new Map([...regular, ...bottom]);
+    // Sort collection groups alphabetically, keeping bottom collections last
+    const sortedRegular = [...regular.entries()].sort(([a], [b]) => a.localeCompare(b));
+    const sortedBottom = [...bottom.entries()].sort(([a], [b]) => a.localeCompare(b));
+    const result = new Map([...sortedRegular, ...sortedBottom]);
+
+    // Sort products within each group alphabetically by title
+    for (const [, items] of result) {
+      items.sort((a, b) => a.title.localeCompare(b.title));
+    }
+
     return result;
   }
 
@@ -650,17 +679,17 @@ private getSelectedBaseColor(): string | null {
 
     if (isLoopsStep) {
       const loopCount = this.selection?.getAll("loop").length ?? 0;
-      const maxLoops = this.getMaxLoopsAllowed();
-      const canContinueOnLoops = loopCount >= 1;
+      const canContinueOnLoops = loopCount >= 1 || this.hasSetSelected();
 
       canContinue = canContinueOnLoops;
 
       if (!canContinue) label = "1 loop required";
+      else if (loopCount === 0 && this.hasSetSelected()) label = skipLabel;
       else label = "Continue";
     }
       else if (isConchosStep) {
       const conchoCount = this.selection?.getAll("concho").length ?? 0;
-      const allowedCounts = [0, 1, 2, 3, 5, 7, 9];
+      const allowedCounts = [0, 1, 3, 5, 7, 9];
       canContinue = allowedCounts.includes(conchoCount);
       if (!canContinue) label = `Add or remove a concho (${conchoCount} not allowed)`;
       else label = conchoCount > 0 ? "Continue" : skipLabel;
@@ -721,12 +750,9 @@ private getSelectedBaseColor(): string | null {
       checkout.tipVariantId = this.hasSetSelected()
         ? undefined
         : this.getSelectedSingleVariantId("tip", this.beltTip);
-      checkout.loopsVariantIds = this.hasSetSelected()
-        ? []
-        : this.getSelectedMultiVariantIds("loop", 2);
+      checkout.loopsVariantIds = this.getSelectedMultiVariantIds("loop", 2);
       checkout.conchosVariantIds = this.getSelectedMultiVariantIds("concho", 9);
       checkout.baseVariantId = this.getSelectedSingleVariantId("base", this.beltBase);
-
     }
     if (changed.has("showCollectionFilter")) {
       if (this.showCollectionFilter) {
@@ -803,6 +829,47 @@ private getSelectedBaseColor(): string | null {
   summary: "https://cdn.shopify.com/s/files/1/0655/2856/1715/files/BeltMaster_Icon_Design_FEB2026-FinalBelt.svg?v=1770405095"
 };
 
+private renderDebugToolbar() {
+  const isDebug = typeof location !== "undefined" && new URLSearchParams(location.search).get("debug") === "anchors";
+  if (!isDebug) return null;
+
+  const a = this.debugAnchors ?? this.preview.value?.anchors;
+  if (!a) return null;
+
+  const fmt = (v: number) => `${Math.round(v * 10) / 10}/100`;
+  const items: { key: string; name: string; val: number; color: string }[] = [
+    { key: "buckleX",    name: "buckle",      val: a.buckleX,    color: "#ff4444" },
+    { key: "loop1X",     name: "loop 1",       val: a.loop1X,     color: "#44ff44" },
+    { key: "loop2X",     name: "loop 2",       val: a.loop2X,     color: "#44ff44" },
+    { key: "conchosX",   name: "conchos",     val: a.conchosX,   color: "#4488ff" },
+    { key: "conchosEndX", name: "conchos end", val: a.conchosEndX, color: "#88aaff" },
+    { key: "tipX",       name: "tip",         val: a.tipX,       color: "#ff44ff" },
+  ];
+
+  const copyVal = (e: MouseEvent, val: number) => {
+    const text = String(Math.round(val * 10) / 10);
+    const btn = e.currentTarget as HTMLElement;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.style.outline = "2px solid #fff";
+      setTimeout(() => btn.style.outline = "", 600);
+    });
+  };
+
+  return html`
+    <div style="display:flex; justify-content:center; flex-wrap:wrap; gap:4px; padding:6px 0;">
+      ${items.map(d => html`
+        <button
+          style="display:inline-flex; align-items:center; gap:4px; border:none; border-radius:4px; padding:4px 8px; font:600 11px/1 system-ui,sans-serif; cursor:pointer; color:#fff; background:${d.color}; white-space:nowrap;"
+          @click=${(e: MouseEvent) => copyVal(e, d.val)}
+        >
+          <span style="width:8px; height:8px; border-radius:50%; background:#fff; flex-shrink:0;"></span>
+          ${d.name} ${fmt(d.val)}
+        </button>
+      `)}
+    </div>
+  `;
+}
+
 private renderStepIndicator(stepId: string, stepNumber: number) {
   const iconSrc = this.stepperIcons[stepId];
 
@@ -873,11 +940,16 @@ private get selectedBaseColor(): string | null {
             .buckle="${buckleImage ?? ""}"
             .tip="${this.beltTip ? getImageAt(this.beltTip, 0) : undefined}"
             .buckleOnTop="${this.beltBuckle?.tags?.includes("top") ?? false}"
-            .anchorOverrides=${getAnchorOverrides(this.beltBase?.id ?? "", this.beltBase?.tags ?? [])}
+            .baseWidthMm=${parseFloat(this.getBaseWidthTag(this.beltBase ?? null) ?? "0") || 0}
+            .useDefaultComponentHeight=${this.beltBase?.tags?.includes("Ranger Core") ?? false}
+            .anchorOverrides=${getAnchorOverrides(this.beltBase?.id ?? "", this.beltBase?.tags ?? [], this.beltBase?.beltAnchors)}
             @reorder-loops="${(
               e: CustomEvent<{ fromIndex: number; toIndex: number }>,
-            ) =>
-              this.handleReorder("loop", e.detail.fromIndex, e.detail.toIndex)}"
+            ) => {
+              // When a set provides a loop at index 0, preview indices are offset by 1
+              const off = this.hasSetSelected() ? 1 : 0;
+              this.handleReorder("loop", e.detail.fromIndex - off, e.detail.toIndex - off);
+            }}"
             @reorder-conchos="${(
               e: CustomEvent<{ fromIndex: number; toIndex: number }>,
             ) =>
@@ -886,8 +958,11 @@ private get selectedBaseColor(): string | null {
                 e.detail.fromIndex,
                 e.detail.toIndex,
               )}"
-            @remove-loop="${(e: CustomEvent<{ index: number }>) =>
-              this.removeItem("loop", e.detail.index)}"
+            @remove-loop="${(e: CustomEvent<{ index: number }>) => {
+              // When a set provides a loop at index 0, preview indices are offset by 1
+              const off = this.hasSetSelected() ? 1 : 0;
+              this.removeItem("loop", e.detail.index - off);
+            }}"
             @remove-concho="${(e: CustomEvent<{ index: number }>) =>
               this.removeItem("concho", e.detail.index)}"
           >
@@ -954,7 +1029,9 @@ private get selectedBaseColor(): string | null {
           `}
         </section>
 
-        ${beltPreview} ${tools}
+        ${beltPreview}
+        ${this.renderDebugToolbar()}
+        ${tools}
       </header>
 
       <section id="${currentStep.id}" class="${classMap({
@@ -984,58 +1061,76 @@ private get selectedBaseColor(): string | null {
     `;
   }
 
+  /** Track the last base ID we filtered for, so we only re-query when it changes. */
+  private lastFilteredBaseId: string | null = null;
+
+  /**
+   * Re-query and rebuild buckle/loop/tip steps filtered by the selected base's width.
+   * Called immediately when a base is selected so that all steps are filtered
+   * regardless of whether the user clicks "Continue" or jumps via the stepper.
+   */
+  private async rebuildStepsForBaseWidth() {
+    const baseId = this.beltBase?.id ?? null;
+    if (!baseId || baseId === this.lastFilteredBaseId) return;
+    this.lastFilteredBaseId = baseId;
+
+    const baseWidth = this.beltBase?.tags?.find((t) => t.endsWith("mm")) ?? null;
+    const widthFilter = baseWidth ? ` AND tag:${baseWidth}` : "";
+
+    const [
+      { page: newBucklePage, products: beltBuckles },
+      { products: beltSets },
+      { page: newLoopPage, products: beltLoops },
+      { page: newTipPage, products: beltTips },
+    ] = await Promise.all([
+      queryProducts(`tag:buckle${widthFilter}`, { prefetchImages: false }),
+      queryProducts(`tag:set${widthFilter}`, { prefetchImages: false }),
+      queryProducts(`tag:Loop${widthFilter}`, { prefetchImages: false }),
+      queryProducts(`tag:tip${widthFilter}`, { prefetchImages: false }),
+    ]);
+
+    // Apply client-side filter as a safety net to ensure only exact width matches
+    const filteredBuckles = this.filterProductsByWidth(beltBuckles, baseWidth);
+    const filteredSets = this.filterProductsByWidth(beltSets, baseWidth);
+    const filteredLoops = this.filterProductsByWidth(beltLoops, baseWidth);
+    const filteredTips = this.filterProductsByWidth(beltTips, baseWidth);
+
+    this.beltData[1] = this.buckleChoices = [...filteredSets, ...filteredBuckles];
+    this.beltData[2] = filteredLoops;
+    this.beltData[4] = filteredTips;
+    this.beltData[6] = filteredSets;
+
+    // Update page cursors so infinite scroll paginates the filtered query
+    this.pages[1] = newBucklePage;
+    this.pages[2] = newLoopPage;
+    this.pages[4] = newTipPage;
+
+    console.debug(
+      "Rebuilt buckle, set, loop, and tip steps based on base width:",
+      baseWidth,
+      {
+        buckles: filteredBuckles.length,
+        sets: filteredSets.length,
+        loops: filteredLoops.length,
+        tips: filteredTips.length,
+      }
+    );
+
+    this.buildSingleSelectStep("buckle", this.buckleChoices);
+    this.buildMultiSelectStep("loop", filteredLoops, this.getMaxLoopsAllowed());
+    this.buildSingleSelectStep("tip", filteredTips);
+  }
+
   @eventOptions({ once: true })
   private async submitStep() {
     // This is only called when we actually want to move to the next step
     this.shouldAdvance = true;
     this.form.value?.requestSubmit();
 
+    // Width filtering now happens immediately on base selection via
+    // rebuildStepsForBaseWidth(), but ensure it's done before advancing.
     if (this.wizard.currentStep.id === "base") {
-      const baseWidth = this.beltBase?.tags?.find((t) => t.endsWith("mm"));
-      const widthFilter = baseWidth ? ` AND tag:${baseWidth}` : "";
-
-      const [
-        { page: newBucklePage, products: beltBuckles },
-        { products: beltSets },
-        { page: newLoopPage, products: beltLoops },
-        { page: newTipPage, products: beltTips },
-      ] = await Promise.all([
-        queryProducts(`tag:buckle${widthFilter}`, { prefetchImages: false }),
-        queryProducts(`tag:set${widthFilter}`, { prefetchImages: false }),
-        queryProducts(`tag:Loop${widthFilter}`, { prefetchImages: false }),
-        queryProducts(`tag:tip${widthFilter}`, { prefetchImages: false }),
-      ]);
-
-      // Apply client-side filter as a safety net to ensure only exact width matches
-      const filteredBuckles = this.filterProductsByWidth(beltBuckles, baseWidth);
-      const filteredSets = this.filterProductsByWidth(beltSets, baseWidth);
-      const filteredLoops = this.filterProductsByWidth(beltLoops, baseWidth);
-      const filteredTips = this.filterProductsByWidth(beltTips, baseWidth);
-
-      this.beltData[1] = this.buckleChoices = [...filteredSets, ...filteredBuckles];
-      this.beltData[2] = filteredLoops;
-      this.beltData[4] = filteredTips;
-      this.beltData[6] = filteredSets;
-
-      // Update page cursors so infinite scroll paginates the filtered query
-      this.pages[1] = newBucklePage;
-      this.pages[2] = newLoopPage;
-      this.pages[4] = newTipPage;
-
-      console.debug(
-        "Rebuilt buckle, set, loop, and tip steps based on base width:",
-        baseWidth,
-        {
-          buckles: filteredBuckles.length,
-          sets: filteredSets.length,
-          loops: filteredLoops.length,
-          tips: filteredTips.length,
-        }
-      );
-
-      this.buildSingleSelectStep("buckle", this.buckleChoices);
-      this.buildMultiSelectStep("loop", filteredLoops, this.getMaxLoopsAllowed());
-      this.buildSingleSelectStep("tip", filteredTips);
+      await this.rebuildStepsForBaseWidth();
     }
   }
   private triggerCheckoutFromShortcut(): void {
@@ -1117,6 +1212,24 @@ private get selectedBaseColor(): string | null {
             </label>
           `
           : null}
+
+        <div class="thumb-size-picker">
+          ${(["small", "medium", "large"] as const).map(
+            (size) => html`
+              <button
+                type="button"
+                class="thumb-size-btn ${this.thumbnailSize === size ? "is-active" : ""}"
+                title="${size[0].toUpperCase() + size.slice(1)} thumbnails"
+                @click="${() => {
+                  this.thumbnailSize = size;
+                  this.style.setProperty("--thumb-size", `${this.thumbSizePx}px`);
+                }}"
+              >
+                ${size[0].toUpperCase() + size.slice(1)}
+              </button>
+            `,
+          )}
+        </div>
 
         <div class="filter-wrap" ${ref(this.filterWrap)}>
           <button
@@ -1356,6 +1469,10 @@ private get selectedBaseColor(): string | null {
                     const hasVariants = variantImages.length > 1;
                     const popup = this.renderVariantPopup(variantKind, p, index);
 
+                    const thumbScale = variantKind === "concho"
+                      ? getConchoThumbScale(p)
+                      : undefined;
+
                     return thumbnailOption(
                       p.id,
                       getImageAt(p, 0)!,
@@ -1379,6 +1496,7 @@ private get selectedBaseColor(): string | null {
                         count,
                         variantImages,
                         popup,
+                        thumbScale,
                       },
                     );
                   })}
@@ -1402,7 +1520,7 @@ private get selectedBaseColor(): string | null {
       { page: sizePage, products: beltSizes },
       { page: setPage, products: beltSets },
     ] = await Promise.all([
-      queryProducts("tag:Belt Strap", { prefetchImages: true }),
+      queryProducts("tag:Base", { prefetchImages: true }),
       queryProducts(`tag:buckle`, { prefetchImages: false }),
       queryProducts(`tag:Loop`, { prefetchImages: false }),
       queryProducts("tag:concho", { prefetchImages: false }),
@@ -1449,10 +1567,6 @@ sizeStep.view = () => {
   if (!base) return html`<p>Please choose a belt base first.</p>`;
   if (!color) return html`<p>Please choose a color first.</p>`;
 
-  console.log("[Belt Wizard] Finding size options for color:", color, {
-    variants: base.variants,
-  });
-
   
   const matches = (base.variants ?? [])
     .map((v) => ({
@@ -1462,7 +1576,6 @@ sizeStep.view = () => {
     }))
     .filter((x) => x.color === color && !!x.size && this.isVariantInStock(x.variant));
     
-  console.log("[Belt Wizard] matches:", matches);
 
   if (!matches.length) {
     return html`
@@ -1557,7 +1670,7 @@ sizeStep.view = () => {
         page = this.pages[0];
         if (!page.hasNextPage) break;
         const { page: nextBeltPage, products: bases } = await queryProducts(
-          "tag:Belt Strap",
+          "tag:Base",
           {
             after: page.endCursor,
           },
@@ -1653,6 +1766,9 @@ sizeStep.view = () => {
     const hasBaseNow = !!this.beltBase;
     if (!hadBaseBefore && hasBaseNow) this.firstBaseSelected = true;
 
+    // Immediately filter buckle/loop/tip products by the selected base's width
+    if (hasBaseNow) this.rebuildStepsForBaseWidth();
+
     if (this.beltBase) {
   const selectedColor = this.getSelectedBaseColor();
   const colors = this.getBaseColors(this.beltBase);
@@ -1709,17 +1825,21 @@ sizeStep.view = () => {
 
     // LOOPS: allow duplicates, max depends on base tag "1loop"
     const maxLoops = this.getMaxLoopsAllowed();
+    const hasSet = this.isSetProduct(this.beltBuckle);
 
     if (this.selection?.has("loop")) {
       const loopIds = this.selection!.getAll("loop") as string[];
       const loopVariantIds = (this.selection!.getAll("loopVariant") as string[]) ?? [];
 
+      // If a set is selected, it takes up 1 loop slot
+      const maxAdditionalLoops = hasSet ? maxLoops - 1 : maxLoops;
+
       // Trim to max allowed
-      const limitedLoopIds = loopIds.slice(0, maxLoops);
+      const limitedLoopIds = loopIds.slice(0, maxAdditionalLoops);
       const limitedLoopVariantIds = loopVariantIds.slice(0, limitedLoopIds.length);
 
       // IMPORTANT: also trim FormData so other code can't resurrect extra loops later
-      if (loopIds.length > maxLoops) {
+      if (loopIds.length > maxAdditionalLoops) {
         this.selection!.delete("loop");
         this.selection!.delete("loopVariant");
         limitedLoopIds.forEach((id) => this.selection!.append("loop", id));
@@ -1731,7 +1851,8 @@ sizeStep.view = () => {
         .filter(Boolean);
 
       if (this.preview.value) {
-        this.preview.value.loops = this.beltLoops
+        // Build loop images array
+        const additionalLoopImages = this.beltLoops
           .map((loopProduct, index) => {
             const variantId = limitedLoopVariantIds[index];
             const variants = loopProduct.variants ?? [];
@@ -1743,10 +1864,26 @@ sizeStep.view = () => {
             return getImageAt(loopProduct, 0);
           })
           .filter((x) => x !== null && x !== undefined);
+
+        // If a set is selected, prepend the set's loop
+        if (hasSet) {
+          const setLoopImg = getImageAt(this.beltBuckle!, 2, { fallbackToFirst: false });
+          this.preview.value.loops = setLoopImg ? [setLoopImg, ...additionalLoopImages] : additionalLoopImages;
+        } else {
+          this.preview.value.loops = additionalLoopImages;
+        }
       }
     } else {
       this.beltLoops = [];
-      if (this.preview.value) this.preview.value.loops = [];
+      if (this.preview.value) {
+        // If a set is selected but no additional loops, show just the set's loop
+        if (hasSet) {
+          const setLoopImg = getImageAt(this.beltBuckle!, 2, { fallbackToFirst: false });
+          this.preview.value.loops = setLoopImg ? [setLoopImg] : [];
+        } else {
+          this.preview.value.loops = [];
+        }
+      }
     }
 
 
@@ -1797,19 +1934,14 @@ sizeStep.view = () => {
       this.beltSizeVariantId = null;
     }
 
+    // If a set is selected and no custom tip is chosen, use the set's tip
     if (
       this.beltBuckle && this.isSetProduct(this.beltBuckle) &&
-      this.preview.value
+      this.preview.value &&
+      !this.selection?.has("tip")
     ) {
-      const loopImg = getImageAt(this.beltBuckle, 2, {
-        fallbackToFirst: false,
-      });
       const tipImg = getImageAt(this.beltBuckle, 3, { fallbackToFirst: false });
-
-      if (!this.selection?.has("loop")) {
-        this.preview.value.loops = loopImg ? [loopImg] : [];
-      }
-      if (!this.selection?.has("tip")) this.preview.value.tip = tipImg ?? null;
+      this.preview.value.tip = tipImg ?? null;
     }
 
     this.requestUpdate();
@@ -1823,7 +1955,6 @@ sizeStep.view = () => {
   const key = this.getVariantKey(kind, product.id, instanceIndex);
   if (this.activeVariantKey !== key) return null;
 
-  // ✅ BASE SPECIAL CASE (keep your custom color UI)
   if (kind === "base") {
     const colors = this.getBaseColors(product);
     if (colors.length <= 1) return null;
@@ -2003,7 +2134,9 @@ sizeStep.view = () => {
       }
 
       case "loop": {
-        if (this.hasSetSelected()) this.resetBuckleLoopsAndTip();
+        if (this.hasSetSelected() && this.getMaxLoopsAllowed() === 1) {
+          this.resetBuckleLoopsAndTip();
+        }
 
         const maxLoops = this.getMaxLoopsAllowed();
         const totalLoops = this.getMultiTotal("loop");
@@ -2029,13 +2162,6 @@ sizeStep.view = () => {
     // Close popup
     this.activeVariantKey = null;
     this.requestUpdate();
-
-    // Wait for the render to complete before syncing preview images
-    await this.updateComplete;
-    this.applySelectionToPreview();
-
-    if (kind !== "buckle" && kind !== "tip") return;
-    this.submitStep();
   }
 
   private getMultiTotal(kind: "loop" | "concho"): number {
@@ -2072,24 +2198,33 @@ sizeStep.view = () => {
   ) {
     this.ensureSelection();
 
-    if (variantKind === "loop" && this.hasSetSelected()) {
+    if (variantKind === "loop" && this.hasSetSelected() && this.getMaxLoopsAllowed() === 1) {
       this.resetBuckleLoopsAndTip();
+    }
+
+    // When a set is selected it provides a loop, reducing available user slots by 1
+    let effectiveMax = maxCount;
+    if (variantKind === "loop" && this.hasSetSelected()) {
+      effectiveMax = Math.max(0, maxCount - 1);
     }
 
     let current = (this.selection!.getAll(variantKind) as string[]) ?? [];
     const sameCount = current.filter((id) => id === selectionId).length;
 
-    if (sameCount >= maxCount) {
+    if (sameCount >= effectiveMax) {
       // Every slot is filled with this item → toggle them all off
       current = current.filter((id) => id !== selectionId);
-    } else if (current.length >= maxCount && sameCount > 0) {
+    } else if (current.length >= effectiveMax && sameCount > 0) {
       // At max capacity, this item partially present → remove one instance
       const idx = current.indexOf(selectionId);
       current = [...current.slice(0, idx), ...current.slice(idx + 1)];
-    } else if (current.length >= maxCount) {
-      // At max capacity, clicking a new item → swap to the new item
-      current = [selectionId];
+    } else if (current.length >= effectiveMax) {
+      // At max capacity, clicking a new item → replace the last one
+      current = [...current.slice(0, effectiveMax - 1), selectionId];
+      // Trim variant IDs to match (drop the last one being replaced)
+      const variants = (this.selection!.getAll(`${variantKind}Variant`) as string[]) ?? [];
       this.selection!.delete(`${variantKind}Variant`);
+      variants.slice(0, effectiveMax - 1).forEach(v => this.selection!.append(`${variantKind}Variant`, v));
     } else {
       // Under capacity → add
       current = [...current, selectionId];

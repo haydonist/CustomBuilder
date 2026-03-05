@@ -43,7 +43,7 @@
     display: flex;
     flex-direction: column;
     color: #fff;
-    overflow: hidden;
+    overflow-x: clip;
     width: 100%;
     margin-left: 0;
     margin-right: 0;
@@ -54,6 +54,8 @@
 
   belt-wizard {
     flex-grow: 1;
+    min-width: 0;
+    max-width: 100%;
   }
 </style>
 

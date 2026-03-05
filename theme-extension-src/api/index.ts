@@ -58,6 +58,19 @@ const productQuery = `
               }
             }
           }
+          beltAnchors: metafields(identifiers: [
+            {namespace: "custom", key: "bucklex"},
+            {namespace: "custom", key: "buckleontop"},
+            {namespace: "custom", key: "loop1x"},
+            {namespace: "custom", key: "loop2x"},
+            {namespace: "custom", key: "conchosx"},
+            {namespace: "custom", key: "conchosendx"},
+            {namespace: "custom", key: "tipx"}
+          ]) {
+            key
+            value
+            type
+          }
           variants(first: 50) {
             edges {
               node {
@@ -137,6 +150,8 @@ export interface Product {
     maxVariantPrice: MoneyV2;
   };
   variants: ProductVariant[];
+  /** Parsed JSON from the `custom.belt_anchors` metafield, if present. */
+  beltAnchors: Record<string, unknown> | null;
 }
 
 export function isProductInStock(product: Product): boolean {
@@ -168,43 +183,65 @@ export async function queryProducts(
       ({ node }: any) => node.images.edges.map(({ node: img }: any) => img),
     );
 
-    await Promise.all(
-      images.map(async (image) => {
-        const img = new Image();
-        img.src = image.url;
-        try {
-          await img.decode();
-        } catch (error) {
-          console.debug(error, image.url);
-        }
-      }),
-    );
+    // Fire-and-forget: prefetch images in the background without blocking
+    // the caller so the UI can render immediately after the API response.
+    for (const image of images) {
+      const img = new Image();
+      img.src = image.url;
+    }
   }
 
   const page: PageInfo = resp.data.products.pageInfo;
-  const products = resp.data.products.edges.map(({ node: product }: any) => ({
-    id: product.id,
-    title: product.title,
-    tags: product.tags,
-    collections: (product.collections?.edges ?? []).map(({ node: c }: any) => ({
-      id: c.id,
-      title: c.title,
-      handle: c.handle,
-    })),
-    images: product.images.edges.map(({ node: img }: any) => img),
-    priceRange: product.priceRange,
-    variants: product.variants.edges.map(({ node: v }: any) => ({
-      id: v.id,
-      title: v.title,
-      sku: v.sku,
-      image: v.image,
-      price: v.price,
-      compareAtPrice: v.compareAtPrice,
-      selectedOptions: v.selectedOptions,
-      availableForSale: v.availableForSale,
-      quantityAvailable: v.quantityAvailable,
-    })),
-  }));
+  const products = resp.data.products.edges.map(({ node: product }: any) => {
+    let beltAnchors: Record<string, unknown> | null = null;
+    const rawFields = product.beltAnchors ?? [];
+    const KEY_MAP: Record<string, keyof import("../config/belt-anchors.ts").BeltAnchors> = {
+      bucklex: "buckleX",
+      buckleontop: "buckleOnTop",
+      loop1x: "loop1X",
+      loop2x: "loop2X",
+      conchosx: "conchosX",
+      conchosendx: "conchosEndX",
+      tipx: "tipX",
+    };
+    console.log("[anchors:api]", product.title, "metafields:", rawFields);
+    for (const field of rawFields) {
+      if (!field || !field.key || field.value == null) continue;
+      const camelKey = KEY_MAP[field.key] ?? field.key;
+      if (!beltAnchors) beltAnchors = {};
+      if (camelKey === "buckleOnTop") {
+        beltAnchors[camelKey] = field.value === "true";
+      } else {
+        const num = parseFloat(field.value);
+        if (!isNaN(num)) beltAnchors[camelKey] = num;
+      }
+    }
+
+    return {
+      id: product.id,
+      title: product.title,
+      tags: product.tags,
+      collections: (product.collections?.edges ?? []).map(({ node: c }: any) => ({
+        id: c.id,
+        title: c.title,
+        handle: c.handle,
+      })),
+      images: product.images.edges.map(({ node: img }: any) => img),
+      priceRange: product.priceRange,
+      beltAnchors,
+      variants: product.variants.edges.map(({ node: v }: any) => ({
+        id: v.id,
+        title: v.title,
+        sku: v.sku,
+        image: v.image,
+        price: v.price,
+        compareAtPrice: v.compareAtPrice,
+        selectedOptions: v.selectedOptions,
+        availableForSale: v.availableForSale,
+        quantityAvailable: v.quantityAvailable,
+      })),
+    };
+  });
   const inStockProducts = products.filter(isProductInStock);
 
   return { page, products: inStockProducts };

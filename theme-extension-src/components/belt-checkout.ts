@@ -6,7 +6,7 @@ import { getImageAt, Product, ProductVariant } from "../api/index.ts";
 import { createCartAndGetCheckoutUrl, toLineVariant } from "../api/cart.ts";
 
 import * as styles from "../styles.ts";
-import { formatMoney } from "../utils.ts";
+import { formatMoney, getConchoThumbScale } from "../utils.ts";
 import { thumbnailOption } from "./option.ts";
 
 
@@ -52,6 +52,19 @@ export default class BeltCheckout extends LitElement {
     }
     .checkout-policy p {
       margin: 0 0 0.4em;
+    }
+    .policy-link {
+      background: none;
+      border: none;
+      color: var(--color-foreground-secondary, #999);
+      font-size: 0.75rem;
+      text-decoration: underline;
+      cursor: pointer;
+      padding: 0;
+      margin-top: 4px;
+    }
+    .policy-link:hover {
+      color: var(--color-foreground, #fff);
     }`;
 
   override render() {
@@ -72,6 +85,10 @@ export default class BeltCheckout extends LitElement {
     ): TemplateResult => {
       const isSet = isSetProduct(product);
 
+      const thumbScale = name === "concho"
+        ? getConchoThumbScale(product)
+        : undefined;
+
       return thumbnailOption(
         product.id,
         getImageAt(product, 0)!,
@@ -89,6 +106,7 @@ export default class BeltCheckout extends LitElement {
           onClick: () => this.gotoStep(step),
           count,
           isSet,
+          thumbScale,
         },
       );
     };
@@ -154,10 +172,22 @@ export default class BeltCheckout extends LitElement {
       >
         ${this.isCheckingOut ? "Sending to checkout..." : "Checkout"}
       </button>
-      <div class="checkout-policy">
+      <button
+        type="button"
+        class="policy-link"
+        @click=${() => this.scrollToPolicy()}
+      >View cancellation policy</button>
+      <div class="checkout-policy" id="checkoutPolicy">
         ${unsafeHTML(this.checkoutPolicy)}
       </div>
     `;
+  }
+
+  public scrollToPolicy(): void {
+    const el = this.shadowRoot?.getElementById('checkoutPolicy');
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.45;
+    window.scrollTo({ top, behavior: 'smooth' });
   }
 
   private gotoStep(step: number): void {
@@ -183,11 +213,12 @@ export default class BeltCheckout extends LitElement {
         ...aggregateVariantCounts(conchos).map(({ variantId, count }) => toLineVariant(variantId, count)),
       ];
 
+      // Build cart attributes + note with belt configuration details.
+      // Attributes prefixed with _ are hidden from the customer during checkout
+      // but visible in Shopify admin when viewing the order.
+      const { attributes: cartAttributes, note } = this.buildBeltConfig();
 
-      const checkoutUrl = await createCartAndGetCheckoutUrl(lines);
-
-      // Create custom product separately in the background (fire and forget)
-      await this.createCustomProductInBackground();
+      const checkoutUrl = await createCartAndGetCheckoutUrl(lines, cartAttributes, note);
       self.location.assign(checkoutUrl);
 
     } finally {
@@ -195,81 +226,83 @@ export default class BeltCheckout extends LitElement {
     }
   }
 
-  private async createCustomProductInBackground(): Promise<void> {
-    try {
-      // Get product data for metafields
-      const [beltBases, beltBuckles, _beltLoops, _beltConchos, beltTips] = this.beltData;
-      const base = beltBases.find(x => x.id === this.base);
-      const buckle = beltBuckles.find(x => x.id === this.buckle);
-      const tipProduct = beltTips.find(x => x.id === this.tip) ?? null;
+  /**
+   * Builds cart attributes and a note describing the custom belt configuration.
+   * Returns { attributes, note } where note is a numbered list of every part
+   * in exact build order.
+   */
+  private buildBeltConfig(): {
+    attributes: Array<{ key: string; value: string }>;
+    note: string;
+  } {
+    const [beltBases, beltBuckles, , , beltTips] = this.beltData;
+    const base = beltBases.find(x => x.id === this.base);
+    const buckle = beltBuckles.find(x => x.id === this.buckle);
+    const tipProduct = beltTips.find(x => x.id === this.tip) ?? null;
 
-      // Calculate prices
-      const baseVariant = base ? getVariantById(base, this.baseVariantId) : null;
-      const buckleVariant = buckle ? getVariantById(buckle, this.buckleVariantId) : null;
-      const tipVariant = tipProduct ? getVariantById(tipProduct, this.tipVariantId) : null;
+    const baseVariant = base ? getVariantById(base, this.baseVariantId) : null;
+    const size = baseVariant
+      ? (findOption(baseVariant, "Size") ?? findOption(baseVariant, "Accessory size"))
+      : null;
+    const color = baseVariant
+      ? (findOption(baseVariant, "Color") ?? findOption(baseVariant, "Colour"))
+      : null;
 
-      const basePrice = baseVariant ? moneyToNumber(baseVariant.price.amount) : 0;
-      const bucklePrice = buckleVariant ? moneyToNumber(buckleVariant.price.amount) : 0;
-      const tipPrice = tipVariant ? moneyToNumber(tipVariant.price.amount) : 0;
+    const isSet = buckle && (buckle.tags ?? []).some(t => t.toLowerCase() === "set");
 
-      const variantPriceById = buildVariantPriceIndex(this.beltData);
-      const loopsPrice = aggregateVariantCounts(this.loopsVariantIds).reduce((sum, { variantId, count }) => {
-        return sum + (variantPriceById.get(variantId) ?? 0) * count;
-      }, 0);
-      const conchosPrice = aggregateVariantCounts(this.conchosVariantIds).reduce((sum, { variantId, count }) => {
-        return sum + (variantPriceById.get(variantId) ?? 0) * count;
-      }, 0);
+    // --- attributes (quick-reference fields for admin) ---
+    const attrs: Array<{ key: string; value: string }> = [];
+    const add = (key: string, value: string | null | undefined) => {
+      if (value) attrs.push({ key, value });
+    };
 
-      const currencyCode = baseVariant?.price.currencyCode ?? base?.priceRange.minVariantPrice.currencyCode ?? "USD";
+    add("_Belt Base", base?.title);
+    add("_Belt Buckle", buckle?.title);
+    if (!isSet) add("_Belt Tip", tipProduct?.title);
+    add("_Belt Size", size);
+    add("_Belt Color", color);
 
-      // Build selected products data for metafields
-      const loopCountMap = aggregateAndCount(this.loops);
-      const conchoCountMap = aggregateAndCount(this.conchos);
+    // --- build order note (numbered list of every part) ---
+    const orderLines: string[] = [];
+    let pos = 1;
 
-      const selectedProducts = {
-        base: base ? { id: base.id, title: base.title } : undefined,
-        buckle: buckle ? { id: buckle.id, title: buckle.title } : undefined,
-        tip: tipProduct ? { id: tipProduct.id, title: tipProduct.title } : undefined,
-        size: baseVariant ? { value: findOption(baseVariant, "Size") ?? findOption(baseVariant, "Accessory size") } : undefined,
-        color: baseVariant ? { value: findOption(baseVariant, "Color") ?? findOption(baseVariant, "Colour") } : undefined,
-
-        loops: Array.from(loopCountMap.values()).map(({ product, count }) => ({
-          id: product.id,
-          title: product.title,
-          count,
-        })),
-        conchos: Array.from(conchoCountMap.values()).map(({ product, count }) => ({
-          id: product.id,
-          title: product.title,
-          count,
-        })),
-      };
-
-      // Call backend API to create custom product bundle (fire and forget)
-      const shop = (window as any).Shopify?.shop;
-      if (!shop) throw new Error("Shop domain not found on window.Shopify.shop");
-
-      // App Proxy route on the SHOP domain (Shopify forwards to your app server)
-      const url = `https://${shop}/apps/custom-belt-builder/api/create-custom-product`;
-
-      const payload = {
-        basePrice,
-        bucklePrice,
-        tipPrice,
-        loopsPrice,
-        conchosPrice,
-        currencyCode,
-        selectedProducts,
-      };
-
-      const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
-      navigator.sendBeacon(url, blob);
-
-
-    } catch (error) {
-      // Log silently - don't interrupt checkout
-      console.debug("Background product creation error:", error);
+    // 1. Belt base (with size)
+    if (base) {
+      const sizeLabel = size ? ` (Size: ${size})` : "";
+      orderLines.push(`${pos}. Belt Base - ${base.title}${sizeLabel}`);
+      pos++;
     }
+
+    // 2. Buckle (or set)
+    if (buckle) {
+      const label = isSet ? "Buckle/Tip Set" : "Buckle";
+      orderLines.push(`${pos}. ${label} - ${buckle.title}`);
+      pos++;
+    }
+
+    // 3-4. Loops (each one individually numbered)
+    for (let i = 0; i < this.loops.length; i++) {
+      orderLines.push(`${pos}. Loop ${i + 1} - ${this.loops[i].title}`);
+      pos++;
+    }
+
+    // 5+. Conchos (each one individually numbered)
+    for (let i = 0; i < this.conchos.length; i++) {
+      orderLines.push(`${pos}. Concho ${i + 1} - ${this.conchos[i].title}`);
+      pos++;
+    }
+
+    // Last. Tip (only if buckle is NOT a set)
+    if (!isSet && tipProduct) {
+      orderLines.push(`${pos}. Tip - ${tipProduct.title}`);
+    }
+
+    const note = `Custom Belt Build Order:\n${orderLines.join("\n")}`;
+
+    // Also store the full order as an attribute for admin reference
+    attrs.push({ key: "_Belt Build Order", value: orderLines.join(" | ") });
+
+    return { attributes: attrs, note };
   }
 }
 
