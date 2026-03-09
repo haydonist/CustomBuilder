@@ -117,7 +117,7 @@ export default class BeltPreview extends LitElement {
       overflow: hidden;
     }
     .concho {
-      max-height: 100px !important;
+      max-height: 80px !important;
     }
     /* Collapse the invisible clip-path space (30% each side) so
        visible concho portions overlap instead of pushing apart. */
@@ -230,7 +230,7 @@ export default class BeltPreview extends LitElement {
 
   .concho {
     display: block;
-    max-height: 200px;
+    max-height: 160px;
     margin: 0 auto;
     clip-path: inset(0 30% 0 30%);
     cursor: grab;
@@ -768,7 +768,7 @@ export default class BeltPreview extends LitElement {
 
       validConchos.forEach((img, i) => {
         if (!img.naturalWidth || !img.naturalHeight) return;
-        const h = Math.min(200, baseH * 2);
+        const h = Math.min(160, baseH * 1.6);
         // Simulate clip-path: inset(0 30% 0 30%) — draw middle 40%
         const srcX = img.naturalWidth * 0.3;
         const srcW = img.naturalWidth * 0.4;
