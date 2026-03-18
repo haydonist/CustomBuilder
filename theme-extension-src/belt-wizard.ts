@@ -664,7 +664,7 @@ private getSelectedBaseColor(): string | null {
 
     newIds.forEach((id) => this.selection!.append(kind, id));
     newVariants.forEach((vId) => {
-      if (vId) this.selection!.append(`${kind}Variant`, vId);
+      this.selection!.append(`${kind}Variant`, vId);
     });
   }
 
@@ -1858,7 +1858,8 @@ sizeStep.view = () => {
             const variants = loopProduct.variants ?? [];
 
             if (variantId && Array.isArray(variants)) {
-              return variants.find((v) => v.id === variantId)?.image?.url;
+              const variantImg = variants.find((v) => v.id === variantId)?.image?.url;
+              if (variantImg) return variantImg;
             }
 
             return getImageAt(loopProduct, 0);
@@ -1909,7 +1910,8 @@ sizeStep.view = () => {
             const variantId = limitedConchoVariantIds[index];
             const variants = conchoProduct.variants ?? [];
             if (variantId && Array.isArray(variants)) {
-              return variants.find((v) => v.id === variantId)?.image?.url;
+              const variantImg = variants.find((v) => v.id === variantId)?.image?.url;
+              if (variantImg) return variantImg;
             }
 
             return getImageAt(conchoProduct, 0);
@@ -2087,9 +2089,7 @@ sizeStep.view = () => {
     const key = this.getVariantKey(kind, product.id, instanceIndex);
     this.variantSelection.set(key, variant.id);
 
-    if (kind === "loop" || kind === "concho") {
-      this.selection!.append(`${kind}Variant`, variant.id);
-    } else {
+    if (kind !== "loop" && kind !== "concho") {
       this.selection!.set(`${kind}Variant`, variant.id);
     }
 
@@ -2143,6 +2143,7 @@ sizeStep.view = () => {
         if (totalLoops >= maxLoops) break;
 
         this.selection!.append("loop", product.id);
+        this.selection!.append("loopVariant", variant.id);
 
         this.applySelectionToPreview();
         break;
@@ -2153,6 +2154,7 @@ sizeStep.view = () => {
         if (totalConchos >= 9) break;
 
         this.selection!.append("concho", product.id);
+        this.selection!.append("conchoVariant", variant.id);
 
         this.applySelectionToPreview();
         break;
@@ -2209,30 +2211,37 @@ sizeStep.view = () => {
     }
 
     let current = (this.selection!.getAll(variantKind) as string[]) ?? [];
+    let variants = (this.selection!.getAll(`${variantKind}Variant`) as string[]) ?? [];
+    // Pad variants to same length as current so indices stay aligned
+    while (variants.length < current.length) variants.push("");
     const sameCount = current.filter((id) => id === selectionId).length;
 
     if (sameCount >= effectiveMax) {
       // Every slot is filled with this item → toggle them all off
-      current = current.filter((id) => id !== selectionId);
+      const keepIndices = current.map((id, i) => id !== selectionId ? i : -1).filter(i => i >= 0);
+      current = keepIndices.map(i => current[i]);
+      variants = keepIndices.map(i => variants[i]);
     } else if (current.length >= effectiveMax && sameCount > 0) {
       // At max capacity, this item partially present → remove one instance
       const idx = current.indexOf(selectionId);
       current = [...current.slice(0, idx), ...current.slice(idx + 1)];
+      variants = [...variants.slice(0, idx), ...variants.slice(idx + 1)];
     } else if (current.length >= effectiveMax) {
       // At max capacity, clicking a new item → replace the last one
       current = [...current.slice(0, effectiveMax - 1), selectionId];
-      // Trim variant IDs to match (drop the last one being replaced)
-      const variants = (this.selection!.getAll(`${variantKind}Variant`) as string[]) ?? [];
-      this.selection!.delete(`${variantKind}Variant`);
-      variants.slice(0, effectiveMax - 1).forEach(v => this.selection!.append(`${variantKind}Variant`, v));
+      variants = variants.slice(0, effectiveMax - 1);
+      variants.push("");
     } else {
       // Under capacity → add
       current = [...current, selectionId];
+      variants.push("");
     }
 
-    // Reset variant selection
+    // Rebuild both arrays in sync
     this.selection!.delete(variantKind);
+    this.selection!.delete(`${variantKind}Variant`);
     current.forEach((id) => this.selection!.append(variantKind, id));
+    variants.forEach((v) => this.selection!.append(`${variantKind}Variant`, v));
 
     this.applySelectionToPreview();
   }

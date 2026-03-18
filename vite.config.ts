@@ -54,9 +54,6 @@ const copyBeltWizardStaticAssets: Plugin = {
   buildStart() {
     const to = "extensions/belt-wizard/assets";
 
-    cpSync("theme-extension-src/assets/app.css", `${to}/app.css`, {
-      force: true,
-    });
     cpSync("theme-extension-src/assets/theme.css", `${to}/theme.css`, {
       force: true,
     });
@@ -83,10 +80,8 @@ const createCombinedCSS: Plugin = {
   name: "create-combined-css",
   apply: "build",
   closeBundle() {
-    const appCSS = readFileSync("theme-extension-src/assets/app.css", "utf-8");
     const themeCSS = readFileSync("theme-extension-src/assets/theme.css", "utf-8");
-    const combined = `${themeCSS}\n\n${appCSS}`;
-    writeFileSync("extensions/belt-wizard/assets/belt-wizard.css", combined);
+    writeFileSync("extensions/belt-wizard/assets/belt-wizard.css", themeCSS);
   },
 };
 

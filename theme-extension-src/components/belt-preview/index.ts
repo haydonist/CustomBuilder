@@ -168,7 +168,7 @@ export default class BeltPreview extends LitElement {
   }
   #buckle,
   #tip {
-    height: var(--component-h, 400%);
+    height: var(--component-h, 600%);
     max-height: none;
     z-index: 1;
     pointer-events: auto;
@@ -197,7 +197,7 @@ export default class BeltPreview extends LitElement {
   }
 
   .loop {
-    max-height: var(--component-h, 400%);
+    max-height: var(--component-h, 600%);
     cursor: grab;
     pointer-events: none;
     transition: opacity 150ms ease;
@@ -398,8 +398,8 @@ export default class BeltPreview extends LitElement {
    * Falls back to 4× (400%) when no mm width is set.
    */
   private get componentHeightMultiplier(): number {
-    if (this.useDefaultComponentHeight) return 4;
-    if (!this.baseWidthMm || this.baseWidthMm <= 0) return 4;
+    if (this.useDefaultComponentHeight) return 6;
+    if (!this.baseWidthMm || this.baseWidthMm <= 0) return 6;
     return 6.5 * (25 / this.baseWidthMm);
   }
 

@@ -1,4 +1,3 @@
-
 :root {
   /* Colors */
   --neutral-white: #fff;
@@ -28,7 +27,6 @@
   /* Sizes */
   --gap-small: 1rem;
   --gap-medium: 1rem;
-  --radius-large: 16px;
   --radius-medium: 16px;
   --radius-large: 16px;
 
@@ -42,11 +40,29 @@
   --shadow-xxl: 0 32px 64px -12px #00000024;
 }
 
+html,
 body {
+  margin: 0;
+  padding: 0;
   font-family: "Work Sans", sans-serif;
+  background-color: var(--belt-wizard-background-color);
+}
+
+body {
   font-optical-sizing: auto;
   font-weight: normal;
   font-style: normal;
+  color: var(--neutral);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 100vh;
+  margin: 0 auto;
+  overflow-x: hidden;
+}
+
+a {
+  color: var(--potters-clay-light);
 }
 
 belt-wizard {
@@ -55,7 +71,17 @@ belt-wizard {
   font-family: var(--belt-wizard-font-family, "Work Sans", sans-serif);
   display: block;
   min-height: 100vh;
+  flex-grow: 1;
+  margin-inline: 8px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
+@media screen and (min-width: 769px) {
+  belt-wizard {
+    width: 1200px;
+  }
+}
+
 .belt-builder {
   margin-bottom: 12rem !important;
 }
@@ -151,9 +177,6 @@ button.btn, a.btn {
 
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
-a.btn {
-  text-decoration: none;
-}
 
 button.btn.primary, a.btn.primary {
   color: var(--neutral-white);
@@ -245,10 +268,6 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 .buckle-variant-swatch.is-selected {
   outline: 2px solid var(--old-gold);
   outline-offset: 2px;
-}
-
-.variant-popup[data-kind="base"] .variant-swatch img {
-  scale: 1;
 }
 
 .collection-title {
@@ -613,115 +632,24 @@ section.step.step-shifted {
   transform: scale(0.96) translateY(8px);
 }
 
-/* STEP 0 */
 .step-title.step-enter-0,
-.step-content.step-enter-0 {
-  animation: stepGrowIn-0 0.5s ease forwards;
-}
-
-/* STEP 1 */
+.step-content.step-enter-0,
 .step-title.step-enter-1,
-.step-content.step-enter-1 {
-  animation: stepGrowIn-1 0.5s ease forwards;
-}
-
-/* STEP 2 */
+.step-content.step-enter-1,
 .step-title.step-enter-2,
-.step-content.step-enter-2 {
-  animation: stepGrowIn-2 0.5s ease forwards;
-}
-
-/* STEP 3 */
+.step-content.step-enter-2,
 .step-title.step-enter-3,
-.step-content.step-enter-3 {
-  animation: stepGrowIn-3 0.5s ease forwards;
-}
-
-/* STEP 4 */
+.step-content.step-enter-3,
 .step-title.step-enter-4,
-.step-content.step-enter-4 {
-  animation: stepGrowIn-4 0.5s ease forwards;
-}
-
-/* STEP 5 */
+.step-content.step-enter-4,
 .step-title.step-enter-5,
-.step-content.step-enter-5 {
-  animation: stepGrowIn-5 0.5s ease forwards;
-}
-
-/* STEP 6 */
+.step-content.step-enter-5,
 .step-title.step-enter-6,
 .step-content.step-enter-6 {
-  animation: stepGrowIn-6 0.5s ease forwards;
+  animation: stepGrowIn 0.5s ease forwards;
 }
 
-@keyframes stepGrowIn-0 {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes stepGrowIn-1 {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes stepGrowIn-2 {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes stepGrowIn-3 {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes stepGrowIn-4 {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes stepGrowIn-5 {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes stepGrowIn-6 {
+@keyframes stepGrowIn {
   from {
     opacity: 0;
     transform: scale(0.96) translateY(8px);
@@ -852,7 +780,6 @@ belt-wizard #summary .summary-complete {
   justify-content: flex-end;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
 }
 
 .filter-wrap {
@@ -945,6 +872,8 @@ belt-wizard #summary .summary-complete {
 .filter-popover-body {
   margin-top: 10px;
   min-height: 80px;
+  max-height: 50vh;
+  overflow-y: auto;
 }
 
 .filter-item {
@@ -956,7 +885,6 @@ belt-wizard #summary .summary-complete {
   width: 100%;
   border: 1px solid rgba(0, 0, 0, 0.10);
   background: transparent;
-  color: inherit;
   border-radius: 10px;
   padding: 10px 12px;
   text-align: left;
@@ -1005,12 +933,359 @@ belt-wizard #summary .summary-complete {
 
 .concho-helper-text p {
   margin: 0;
-  font-size: 14px;
+  font-size: 12px;
   color: inherit;
+  line-height: .9;
 }
 
 .concho-helper-text strong {
   font-weight: 600;
+}
+
+/* ===== Header & Navbar ===== */
+body > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-inline: 20px;
+  height: 75px;
+}
+
+@media screen and (min-width: 500px) {
+  body > header {
+    padding-inline: 64px;
+    justify-content: unset;
+  }
+}
+
+header#navbar {
+  color: var(--neutral-darkest);
+  background-color: var(--potters-clay-lightest);
+}
+
+header#navbar .logo {
+  height: 28px;
+}
+
+header#navbar nav {
+  display: none;
+}
+
+@media screen and (min-width: 500px) {
+  header#navbar nav {
+    display: unset;
+    flex-grow: 1;
+  }
+}
+
+header#navbar ul {
+  display: flex;
+  justify-content: center;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 32px;
+}
+
+header#navbar li {
+  padding: 0;
+}
+
+header#navbar li a {
+  color: var(--neutral-darkest);
+  font-weight: 400;
+  text-decoration: none;
+}
+
+header#navbar li a:hover {
+  text-decoration: underline;
+}
+
+body > main {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  margin: 0 auto;
+}
+
+@media screen and (min-width: 769px) {
+  body > main {
+    min-width: 1260px;
+    max-width: min(1260px, 100%);
+  }
+}
+
+/* Jumbotron */
+#jumbotron {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex-grow: 1;
+  margin-inline: -8px;
+  padding-inline-start: 24px;
+  background:
+    url(/assets/belts/jumbotron-belts.png),
+    radial-gradient(#433f3c, #2d2d2d);
+  background-repeat: no-repeat, no-repeat;
+  background-size: 55vw, auto;
+  /* Fallback that's good enough. */
+  background-position-x: -25%, center;
+  background-position-y: center, center;
+  /* Future forward, see https://caniuse.com/mdn-css_properties_background-position-x_side-relative_values */
+  background-position-y: bottom 10%, center;
+}
+#jumbotron[hidden] {
+  display: none;
+}
+
+@media screen and (min-width: 500px) {
+  #jumbotron {
+    padding-inline-start: 50vw;
+    background-size: 57vw, auto;
+    /* Fallback that's good enough. */
+    background-position-x: left, center;
+    background-position-y: 130%, center;
+    /* Future forward, see https://caniuse.com/mdn-css_properties_background-position-x_side-relative_values */
+    background-position-y: bottom 10%, center;
+  }
+}
+
+@media screen and (max-width: 500px) {
+  #jumbotron {
+    background-size: 90vw, auto;
+    /* Fallback that's good enough. */
+    background-position-x: left, center;
+    background-position-y: 20%, center;
+    /* Future forward, see https://caniuse.com/mdn-css_properties_background-position-x_side-relative_values */
+    background-position-y: bottom 10%, center;
+  }
+}
+
+#jumbotron h1 {
+  font-family: "Founders Grotesque X Condensed Light";
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+#jumbotron h2 {
+  margin-block-start: 0;
+  margin-block-end: 0.5em;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 44px;
+}
+
+@media screen and (min-width: 500px) {
+  #jumbotron h2 {
+    font-size: 60px;
+  }
+}
+
+#jumbotron p {
+  margin-block-start: 0;
+  color: var(--potters-clay-light);
+}
+
+#jumbotron button.btn {
+  align-self: flex-start;
+}
+
+/* Stepper */
+#stepper {
+  position: relative;
+  display: flex;
+  flex-grow: 1;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 1260px;
+}
+#stepper:before {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 1px;
+  background-color: var(--stepper-line-color, var(--neutral-white));
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 0;
+}
+
+#stepper button.step {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: var(--stepper-dot-incomplete-color, gray);
+  z-index: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+#stepper .step-indicator {
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Completed steps: filled, but still subtle */
+#stepper button.step.is-complete {
+  background-color: var(--stepper-dot-complete-color, rgba(71, 111, 255, 0.85));
+  border-color: var(--stepper-dot-complete-color, rgba(71, 111, 255, 0.85));
+  color: #fff;
+}
+
+/* Current step: strongest emphasis */
+#stepper button.step.is-current {
+  background-color: var(--stepper-dot-current-color, #476fff);
+  border-color: var(--stepper-dot-current-color, #476fff);
+  cursor: not-allowed;
+  color: #fff;
+}
+
+#stepper button.step.is-current .step-indicator {
+  color: #fff;
+}
+
+/* Upcoming: quiet */
+#stepper button.step.is-upcoming .step-indicator {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.step-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step-indicator--icon {
+  width: 20px;
+  height: 20px;
+}
+.step-indicator--mask {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+
+  background-color: currentColor;
+
+  -webkit-mask-image: var(--icon-url);
+  mask-image: var(--icon-url);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.step-icon {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+/* Steps */
+#stepHeading {
+  margin-block-start: 1em;
+}
+
+#stepHeading h2 {
+  margin-block: 0;
+}
+#stepHeading h2 ~ .subtitle {
+  margin-block-start: 0;
+}
+
+#stepTitle {
+  flex-grow: 1;
+}
+
+belt-wizard section.step h2 {
+  margin-block-start: 0;
+  margin-block-end: 0.5em;
+}
+
+/* Belt Preview */
+belt-wizard > header {
+  position: sticky;
+  top: 0;
+  padding-block-start: 1rem;
+  padding-bottom: 1rem;
+  background: var(--belt-wizard-background-color);
+  z-index: 5;
+}
+
+/* Belt Preview Animation */
+#preview belt-preview {
+  display: block;
+  position: relative;
+  left: -8px;
+  min-height: 150px;
+  pointer-events: none;
+  transition: transform 0.5s ease-in-out;
+  align-content: center;
+}
+#preview belt-preview.step-0 {
+  transform: scale(1.3) !important;
+}
+#preview belt-preview.step-1 {
+  transform: scale(1.5) translateX(130%);
+  transform-origin: left;
+}
+#preview belt-preview.step-2 {
+  transform: scale(2.5) translateX(14%);
+  transform-origin: left;
+}
+#preview belt-preview.step-3 {
+  transform: scale(2.5) translateX(12.5%);
+  transform-origin: left;
+}
+#preview belt-preview.step-4 {
+  transform: scale(2) translateX(7.5%);
+}
+#preview belt-preview.step-5 {
+  transform: scale(1.5) translateX(-25%);
+  transform-origin: right;
+}
+
+/* Belt Size */
+#size {
+  background-position: right 30%;
+  background-size: 80vw auto;
+  background-repeat: no-repeat;
+  position: relative;
+  margin-top: -10%;
+  z-index: 5;
+}
+
+@media screen and (min-width: 500px) {
+  #size {
+    background-position-x: right;
+    background-position-y: 20%;
+    background-size: 450px auto;
+  }
+}
+
+#sizingChart {
+  width: auto;
+  border-radius: 8px;
+}
+
+@media screen and (min-width: 500px) {
+  #sizingChart {
+    max-width: 50%;
+  }
+}
+
+/* Checkout Summary */
+#checkoutTotal {
+  margin-block: 28px 16px;
 }
 
 /* ===== VARIANT POPUP — MOBILE ADJUSTMENTS (tablet + mobile) ===== */
@@ -1032,14 +1307,12 @@ belt-wizard #summary .summary-complete {
   }
 }
 
+/* ===== MOBILE RESPONSIVE STYLES (< 768px) ===== */
 @media screen and (max-width: 767px) {
+
   .variant-popup {
     scale: 1.25;
   }
-}
-
-/* ===== MOBILE RESPONSIVE STYLES (< 768px) ===== */
-@media screen and (max-width: 767px) {
 
   /* ---- Global overflow prevention ---- */
   belt-wizard {
@@ -1375,7 +1648,7 @@ belt-wizard #summary .summary-complete {
 /* ===== DESKTOP: BELT BASE VARIANT POPUP (>= 768px) ===== */
 @media screen and (min-width: 768px) {
   .variant-popup[data-kind="base"] {
-    scale: 3.5;
+    scale: 3;
   }
 
   .variant-popup[data-kind="base"] .variant-swatch img {
