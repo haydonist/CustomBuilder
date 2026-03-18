@@ -1671,6 +1671,16 @@ belt-wizard > header {
     overflow: hidden;
   }
 
+  .thumb-size-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 5px 8px;
+    line-height: 1;
+    white-space: nowrap;
+    align-self: center;
+  }
+
   .thumb-size-btn {
     border: none;
     background: rgba(255, 255, 255, 0.06);

@@ -1214,6 +1214,7 @@ private get selectedBaseColor(): string | null {
           : null}
 
         <div class="thumb-size-picker">
+          <span class="thumb-size-label">Thumbnail Size</span>
           ${(["small", "medium", "large"] as const).map(
             (size) => html`
               <button
