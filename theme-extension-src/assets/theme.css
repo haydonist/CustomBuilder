@@ -1413,12 +1413,16 @@ belt-wizard > header {
   /* ---- Belt preview ---- */
   #preview {
     min-height: auto;
+    height: 150px;
     margin-bottom: 0.75rem;
     overflow: hidden;
+    display: flex;
+    align-items: center;
   }
 
   #preview belt-preview {
     min-height: 60px;
+    max-height: 150px;
   }
 
   /* Step 0 – Belt Base: show entire belt */
