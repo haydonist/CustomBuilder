@@ -248,6 +248,66 @@ export async function queryProducts(
 
 }
 
+const collectionDiscoveryQuery = `
+  query CollectionDiscovery($query: String!, $after: String) {
+    products(first: 1000, query: $query, after: $after) {
+      pageInfo {
+        endCursor
+        hasNextPage
+      }
+      edges {
+        node {
+          collections(first: 20) {
+            edges {
+              node {
+                title
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+async function fetchCollectionPage(
+  tag: string,
+  after: string | null,
+): Promise<{ titles: string[]; nextCursor: string | null }> {
+  const resp = await client.request(collectionDiscoveryQuery, {
+    variables: { query: tag, after },
+  });
+  if (resp.errors) throw new Error(JSON.stringify(resp.errors));
+
+  const edges: { node: { collections: { edges: { node: { title: string } }[] } } }[] =
+    resp.data.products.edges;
+  const pageInfo: { endCursor: string; hasNextPage: boolean } = resp.data.products.pageInfo;
+
+  const titles = edges.flatMap(({ node: product }) =>
+    product.collections.edges.length
+      ? product.collections.edges.map(({ node: col }) => col.title)
+      : ["Other"],
+  );
+
+  return { titles, nextCursor: pageInfo.hasNextPage ? pageInfo.endCursor : null };
+}
+
+export async function queryAllCollectionsForTag(
+  tag: string,
+  hiddenCollections: Set<string>,
+): Promise<string[]> {
+  const set = new Set<string>();
+  let cursor: string | null = null;
+
+  do {
+    const { titles, nextCursor } = await fetchCollectionPage(tag, cursor);
+    titles.filter((t) => !hiddenCollections.has(t)).forEach((t) => set.add(t));
+    cursor = nextCursor;
+  } while (cursor !== null);
+
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
+}
+
 export function totalProductQuantity(product: Product): number | null {
   const quantities = product.variants
     .map((v) => v.quantityAvailable)

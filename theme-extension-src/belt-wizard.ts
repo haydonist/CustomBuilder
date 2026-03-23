@@ -232,14 +232,15 @@ private getMaxLoopsAllowed(): number {
     return [];
   }
 
+  private static readonly HIDDEN_COLLECTIONS = new Set([
+    "Belt Base",
+    "Loops",
+    "Buckles",
+    "Tips",
+    "Conchos",
+  ]);
+
   private getAllCollectionsForStep(stepId: string): string[] {
-    const hiddenCollections = new Set([
-      "Belt Base",
-      "Loops",
-      "Buckles",
-      "Tips",
-      "Conchos",
-    ]);
     const products = this.getProductsForStep(stepId);
     const set = new Set<string>();
 
@@ -247,13 +248,58 @@ private getMaxLoopsAllowed(): number {
       const titles = p.collections?.length
         ? p.collections
           .map((c) => c.title)
-          .filter((title) => !hiddenCollections.has(title))
+          .filter((title) => !CustomBeltWizard.HIDDEN_COLLECTIONS.has(title))
         : ["Other"];
 
       titles.forEach((t) => set.add(t));
     }
 
     return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }
+
+  private async preloadAllProducts() {
+    const dedup = (existing: Product[], incoming: Product[]): Product[] => {
+      const ids = new Set(existing.map((p) => p.id));
+      return existing.concat(incoming.filter((p) => !ids.has(p.id)));
+    };
+
+    const loadAll = async (index: number, query: string): Promise<Product[]> => {
+      let all = [...(this.beltData[index] ?? [])];
+      while (this.pages[index]?.hasNextPage) {
+        const { page, products } = await queryProducts(query, {
+          after: this.pages[index].endCursor,
+          prefetchImages: false,
+        });
+        this.pages[index] = page;
+        all = dedup(all, products);
+      }
+      return all;
+    };
+
+    const [bases, buckles, loops, conchos, tips, sets] = await Promise.all([
+      loadAll(0, "tag:Base"),
+      loadAll(1, "tag:buckle"),
+      loadAll(2, "tag:Loop"),
+      loadAll(3, "tag:concho"),
+      loadAll(4, "tag:tip"),
+      loadAll(6, "tag:Set"),
+    ]);
+
+    this.beltData[0] = bases;
+    this.beltData[1] = buckles;
+    this.beltData[2] = loops;
+    this.beltData[3] = conchos;
+    this.beltData[4] = tips;
+    this.beltData[6] = sets;
+
+    const seenSets = new Set(sets.map((p) => p.id));
+    this.buckleChoices = [...sets, ...buckles.filter((p) => !seenSets.has(p.id))];
+
+    this.buildSingleSelectStep("base", this.beltData[0]);
+    this.buildSingleSelectStep("buckle", this.buckleChoices);
+    this.buildMultiSelectStep("loop", this.beltData[2], this.getMaxLoopsAllowed());
+    this.buildMultiSelectStep("concho", this.beltData[3], 9);
+    this.buildSingleSelectStep("tip", this.beltData[4]);
   }
 
   private getSelectedCollectionsForStep(stepId: string): string[] {
@@ -1549,6 +1595,9 @@ private get selectedBaseColor(): string | null {
     ];
 
     this.beltData[1] = this.buckleChoices;
+
+    // Fire-and-forget: load all remaining pages so the collection filter has complete data
+    this.preloadAllProducts().catch(console.error);
 
     this.buildSingleSelectStep("base", beltBases);
     this.buildSingleSelectStep(
