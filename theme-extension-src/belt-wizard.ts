@@ -45,7 +45,18 @@ export class CustomBeltWizard extends LitElement {
 
   @property({ type: String, attribute: 'checkout-policy' })
   checkoutPolicy = '<p>Free cancellation is available within 24 business hours of placing your order. After an order is placed, our team will contact you to confirm all order details.</p><p>Each belt is custom-tailored to your specifications. Because custom belts cannot be reused or resold, a <strong>30% restocking fee</strong> will apply if a return is requested after the order has been completed.</p>';
-  
+
+  @property({ type: String, attribute: 'collection-order-base' })
+  collectionOrderBase = '';
+  @property({ type: String, attribute: 'collection-order-buckle' })
+  collectionOrderBuckle = '';
+  @property({ type: String, attribute: 'collection-order-loops' })
+  collectionOrderLoops = '';
+  @property({ type: String, attribute: 'collection-order-conchos' })
+  collectionOrderConchos = '';
+  @property({ type: String, attribute: 'collection-order-tip' })
+  collectionOrderTip = '';
+
   private selection: FormData | null = null;
   private form: Ref<HTMLFormElement> = createRef();
   private preview: Ref<BeltPreview> = createRef();
@@ -605,9 +616,22 @@ private getSelectedBaseColor(): string | null {
     return copy;
   }
 
+  private getCollectionOrderForStep(stepId: string): string[] {
+    const orderMap: Record<string, string> = {
+      base: this.collectionOrderBase,
+      buckle: this.collectionOrderBuckle,
+      loops: this.collectionOrderLoops,
+      conchos: this.collectionOrderConchos,
+      tip: this.collectionOrderTip,
+    };
+    const raw = orderMap[stepId] ?? '';
+    if (!raw.trim()) return [];
+    return raw.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+
   private groupProductsByCollection(
     products: Product[],
-    options?: { hideSets?: boolean },
+    options?: { hideSets?: boolean; stepId?: string },
   ): Map<string, Product[]> {
     const bottomCollections = [
       "Belt Base",
@@ -648,8 +672,25 @@ private getSelectedBaseColor(): string | null {
       }
     }
 
-    // Sort collection groups alphabetically, keeping bottom collections last
-    const sortedRegular = [...regular.entries()].sort(([a], [b]) => a.localeCompare(b));
+    // If a custom order is configured for this step, use it
+    const customOrder = options?.stepId
+      ? this.getCollectionOrderForStep(options.stepId)
+      : [];
+
+    let sortedRegular: [string, Product[]][];
+    if (customOrder.length > 0) {
+      // Ordered collections first (in specified order), then remaining alphabetically
+      const ordered = customOrder
+        .filter((title) => regular.has(title))
+        .map((title) => [title, regular.get(title)!] as [string, Product[]]);
+      const remaining = [...regular.entries()]
+        .filter(([title]) => !customOrder.includes(title))
+        .sort(([a], [b]) => a.localeCompare(b));
+      sortedRegular = [...ordered, ...remaining];
+    } else {
+      sortedRegular = [...regular.entries()].sort(([a], [b]) => a.localeCompare(b));
+    }
+
     const sortedBottom = [...bottom.entries()].sort(([a], [b]) => a.localeCompare(b));
     const result = new Map([...sortedRegular, ...sortedBottom]);
 
@@ -1337,7 +1378,7 @@ private get selectedBaseColor(): string | null {
           ? products.filter((p) => !this.isSetProduct(p))
           : products,
       );
-      const groups = this.groupProductsByCollection(visibleProducts);
+      const groups = this.groupProductsByCollection(visibleProducts, { stepId });
 
       return html`
         ${Array.from(groups.entries()).map(
@@ -1493,7 +1534,7 @@ private get selectedBaseColor(): string | null {
         stepId,
         products,
       );
-      const groups = this.groupProductsByCollection(filteredProducts);
+      const groups = this.groupProductsByCollection(filteredProducts, { stepId });
 
       return html`
         ${Array.from(groups.entries()).map(
