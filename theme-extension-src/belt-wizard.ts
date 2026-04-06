@@ -1,6 +1,7 @@
 import { html, LitElement, PropertyValues } from "lit";
 import { customElement, eventOptions, property, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
+import { ifDefined } from "lit/directives/if-defined.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { createRef, Ref, ref } from "lit/directives/ref.js";
 import { delay, formatMoney, getConchoThumbScale } from "./utils.ts";
@@ -31,6 +32,27 @@ export enum Theme {
   dark = "dark",
 }
 type VariantKind = "base" | "buckle" | "loop" | "concho" | "tip";
+
+/** Snapshot of a completed belt, stored when the user clicks "Make Another". */
+export interface SavedBelt {
+  /** Display label, e.g. "Belt 1" */
+  label: string;
+  base: Product | null;
+  basePreviewImage: string | null;
+  baseVariantId: string | undefined;
+  buckle: Product | null;
+  buckleVariantId: string | undefined;
+  tip: Product | null;
+  tipVariantId: string | undefined;
+  loops: Product[];
+  loopsVariantIds: string[];
+  conchos: Product[];
+  conchosVariantIds: string[];
+  /** Whether the buckle is a set product */
+  isSet: boolean;
+  /** Snapshot of the FormData selection for this belt */
+  selection: Map<string, string[]>;
+}
 
 @customElement("belt-wizard")
 export class CustomBeltWizard extends LitElement {
@@ -106,6 +128,9 @@ export class CustomBeltWizard extends LitElement {
   private debugAnchors: BeltAnchors | null = null;
   @state()
   private thumbnailSize: "small" | "medium" | "large" = "small";
+
+  @state()
+  private savedBelts: SavedBelt[] = [];
 
   private static readonly THUMB_SIZES = { small: 160, medium: 200, large: 240 } as const;
 
@@ -533,18 +558,34 @@ private getSelectedBaseColor(): string | null {
       id: "summary",
       title: "Your Belt",
       subtitle: "Here's your chosen belt.",
-      shortcut: () =>
-        html`
-          <button type="button" class="btn primary" @click="${() =>
+      shortcut: () => {
+        const canMakeAnother = this.beltBase && this.beltBuckle
+          && (this.beltLoops.length > 0 || this.hasSetSelected())
+          && this.selection?.get("baseVariant");
+
+        return html`
+          ${canMakeAnother
+            ? html`<button
+                type="button"
+                class="btn-make-another-sm"
+                @click="${() => this.saveBeltAndStartNew()}"
+              >+ Make Another</button>`
+            : ""}
+            <div class="mainBtn-wrapper"><button type="button" class="btn primary" @click="${() =>
             this.triggerCheckoutFromShortcut()}">
-            Checkout
+            Checkout${this.savedBelts.length > 0
+              ? ` (${this.savedBelts.length + 1} belts)`
+              : ""}
           </button>
           <button
             type="button"
             class="policy-link"
             @click="${() => this.checkout.value?.scrollToPolicy()}"
           >View cancellation policy</button>
-        `,
+        </div>
+          
+        `;
+      },
 
       view: () => {
         const missingParts: { label: string; stepId: number }[] = [];
@@ -562,48 +603,216 @@ private getSelectedBaseColor(): string | null {
           missingParts.push({ label: "Size", stepId: 1 });
         }
 
-
         const hasMissing = missingParts.length > 0;
+        const currentBeltLabel = this.savedBelts.length > 0
+          ? `Belt ${this.savedBelts.length + 1} (Current)`
+          : null;
 
         return html`
-          <div class="summary-header">
-            <h2 class="heading-5">Selections</h2>
+          ${this.savedBelts.length > 0
+            ? html`
+              ${this.savedBelts.map((saved, idx) => {
+                const loopCounts = new Map<string, { product: Product; count: number }>();
+                for (const p of saved.loops) {
+                  const e = loopCounts.get(p.id);
+                  if (e) e.count++;
+                  else loopCounts.set(p.id, { product: p, count: 1 });
+                }
+                const conchoCounts = new Map<string, { product: Product; count: number }>();
+                for (const p of saved.conchos) {
+                  const e = conchoCounts.get(p.id);
+                  if (e) e.count++;
+                  else conchoCounts.set(p.id, { product: p, count: 1 });
+                }
+                const subtotal = this.calcSavedBeltTotal(saved);
 
-            ${hasMissing
-              ? html`
-                <div class="summary-warning">
-                  <p>Your belt is missing:</p>
-                  <ul>
-                    ${missingParts.map(
-                      (part) =>
-                        html`
-                          <li>
-                            <button
-                              type="button"
-                              class="summary-missing-link"
-                              @click="${() => this.wizard.goTo(part.stepId)}"
-                            >
-                              Add ${part.label}
-                            </button>
-                          </li>
-                        `,
-                    )}
-                  </ul>
+                const savedThumb = (product: Product, name: string, count?: number) =>
+                  thumbnailOption(
+                    `saved-${idx}-${product.id}`,
+                    getImageAt(product, 0)!,
+                    name,
+                    product.id,
+                    product.title,
+                    product.priceRange.minVariantPrice,
+                    {
+                      class: `summary kind-${name} saved-thumb`,
+                      count,
+                      isSet: this.isSetProduct(product),
+                      thumbScale: name === "concho" ? getConchoThumbScale(product) : undefined,
+                    },
+                  );
+
+                const baseVariant = saved.base?.variants.find(v => v.id === saved.baseVariantId);
+                const baseSize = baseVariant?.selectedOptions?.find(
+                  o => o.name.toLowerCase() === "size" || o.name.toLowerCase() === "accessory size"
+                )?.value ?? null;
+
+                return html`
+                  <div class="saved-belt-section">
+                    <div class="saved-belt-header">
+                      <h2 class="heading-5">${saved.label}</h2>
+                      <div class="saved-belt-meta">
+                        ${baseSize ? html`<span class="saved-belt-size">Size: ${baseSize}</span>` : null}
+                        <span class="saved-belt-subtotal">${formatMoney(subtotal)}</span>
+                      </div>
+                      <button
+                        type="button"
+                        class="btn-remove-belt"
+                        title="Remove ${saved.label}"
+                        @click="${() => this.removeSavedBelt(idx)}"
+                      >&times;</button>
+                    </div>
+                    <div class="row wrap gap-medium saved-belt-thumbs">
+                      ${saved.base ? savedThumb(saved.base, "base") : null}
+                      ${saved.buckle ? savedThumb(saved.buckle, "buckle") : null}
+                      ${Array.from(loopCounts.values()).map(
+                        ({ product, count }) => savedThumb(product, "loop", count)
+                      )}
+                      ${Array.from(conchoCounts.values()).map(
+                        ({ product, count }) => savedThumb(product, "concho", count)
+                      )}
+                      ${saved.tip ? savedThumb(saved.tip, "beltTip") : null}
+                    </div>
+                  </div>
+                `;
+              })}
+            `
+            : ""}
+
+          ${(() => {
+            const currentLoopCounts = new Map<string, { product: Product; count: number }>();
+            for (const p of this.beltLoops) {
+              const e = currentLoopCounts.get(p.id);
+              if (e) e.count++;
+              else currentLoopCounts.set(p.id, { product: p, count: 1 });
+            }
+            const currentConchoCounts = new Map<string, { product: Product; count: number }>();
+            for (const p of this.beltConchos) {
+              const e = currentConchoCounts.get(p.id);
+              if (e) e.count++;
+              else currentConchoCounts.set(p.id, { product: p, count: 1 });
+            }
+
+            const currentSubtotal = this.beltBase
+              ? this.calcSavedBeltTotal({
+                  label: "", base: this.beltBase, basePreviewImage: null,
+                  baseVariantId: this.getSelectedSingleVariantId("base", this.beltBase),
+                  buckle: this.beltBuckle,
+                  buckleVariantId: this.getSelectedSingleVariantId("buckle", this.beltBuckle),
+                  tip: this.hasSetSelected() ? null : this.beltTip,
+                  tipVariantId: this.hasSetSelected() ? undefined : this.getSelectedSingleVariantId("tip", this.beltTip),
+                  loops: this.beltLoops,
+                  loopsVariantIds: this.getSelectedMultiVariantIds("loop", 2),
+                  conchos: this.beltConchos,
+                  conchosVariantIds: this.getSelectedMultiVariantIds("concho", 9),
+                  isSet: this.hasSetSelected(),
+                  selection: new Map(),
+                })
+              : null;
+
+            const currentThumb = (product: Product, name: string, count?: number) =>
+              thumbnailOption(
+                `current-${product.id}`,
+                getImageAt(product, 0)!,
+                name,
+                product.id,
+                product.title,
+                product.priceRange.minVariantPrice,
+                {
+                  class: `summary kind-${name} saved-thumb`,
+                  count,
+                  isSet: this.isSetProduct(product),
+                  thumbScale: name === "concho" ? getConchoThumbScale(product) : undefined,
+                },
+              );
+
+            const baseVariant = this.beltBase?.variants.find(
+              v => v.id === this.getSelectedSingleVariantId("base", this.beltBase)
+            );
+            const currentSize = baseVariant?.selectedOptions?.find(
+              o => o.name.toLowerCase() === "size" || o.name.toLowerCase() === "accessory size"
+            )?.value ?? null;
+
+            return html`
+              <div class="saved-belt-section">
+                <div class="saved-belt-header">
+                  <h2 class="heading-5">${currentBeltLabel ?? "Selections"}</h2>
+                  ${!hasMissing && currentSubtotal
+                    ? html`
+                      <div class="saved-belt-meta">
+                        ${currentSize ? html`<span class="saved-belt-size">Size: ${currentSize}</span>` : null}
+                        <span class="saved-belt-subtotal">${formatMoney(currentSubtotal)}</span>
+                      </div>
+                    `
+                    : ""}
+                  <button
+                    type="button"
+                    class="btn-remove-belt"
+                    title="Clear current belt"
+                    @click="${() => this.resetCurrentBelt()}"
+                  >&times;</button>
                 </div>
-              `
-              : ""}
-          </div>
+
+                ${hasMissing
+                  ? html`
+                    <div class="summary-warning">
+                      <p>Your belt is missing:</p>
+                      <ul>
+                        ${missingParts.map(
+                          (part) =>
+                            html`
+                              <li>
+                                <button
+                                  type="button"
+                                  class="summary-missing-link"
+                                  @click="${() => this.wizard.goTo(part.stepId)}"
+                                >
+                                  Add ${part.label}
+                                </button>
+                              </li>
+                            `,
+                        )}
+                      </ul>
+                    </div>
+                  `
+                  : html`
+                    <div class="row wrap gap-medium saved-belt-thumbs">
+                      ${this.beltBase ? currentThumb(this.beltBase, "base") : null}
+                      ${this.beltBuckle ? currentThumb(this.beltBuckle, "buckle") : null}
+                      ${Array.from(currentLoopCounts.values()).map(
+                        ({ product, count }) => currentThumb(product, "loop", count)
+                      )}
+                      ${Array.from(currentConchoCounts.values()).map(
+                        ({ product, count }) => currentThumb(product, "concho", count)
+                      )}
+                      ${this.beltTip && !this.hasSetSelected() ? currentThumb(this.beltTip, "beltTip") : null}
+                    </div>
+                  `}
+              </div>
+            `;
+          })()}
 
           <belt-checkout
             ${ref(this.checkout)}
-            base="${this.beltBase?.id}"
-            buckle="${this.beltBuckle?.id}"
-            tip="${this.beltTip?.id}"
+            base="${ifDefined(this.beltBase?.id)}"
+            buckle="${ifDefined(this.beltBuckle?.id)}"
+            tip="${ifDefined(this.beltTip?.id)}"
+            .savedBelts=${this.savedBelts}
             checkout-policy="${this.checkoutPolicy}"
-            @step-change="${({ detail: step }: CustomEvent<number>) =>
-              this.wizard.goTo(step)}"
           >
           </belt-checkout>
+
+          ${!hasMissing
+            ? html`
+              <button
+                type="button"
+                class="btn secondary make-another-btn"
+                @click="${() => this.saveBeltAndStartNew()}"
+              >
+                + Make Another Belt
+              </button>
+            `
+            : ""}
         `;
       },
     },
@@ -2335,6 +2544,149 @@ sizeStep.view = () => {
     variants.forEach((v) => this.selection!.append(`${variantKind}Variant`, v));
 
     this.applySelectionToPreview();
+  }
+
+  /** Snapshot the current belt's FormData into a simple Map<string, string[]>. */
+  private snapshotSelection(): Map<string, string[]> {
+    const snap = new Map<string, string[]>();
+    if (!this.selection) return snap;
+
+    // FormData can have duplicate keys (loops, conchos). Capture all values.
+    const seen = new Set<string>();
+    for (const [key] of this.selection.entries()) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+      snap.set(key, this.selection.getAll(key) as string[]);
+    }
+    return snap;
+  }
+
+  /**
+   * Save the current belt configuration and reset the wizard for a new belt.
+   */
+  private saveBeltAndStartNew() {
+    const saved: SavedBelt = {
+      label: `Belt ${this.savedBelts.length + 1}`,
+      base: this.beltBase,
+      basePreviewImage: this.basePreviewImage,
+      baseVariantId: this.getSelectedSingleVariantId("base", this.beltBase),
+      buckle: this.beltBuckle,
+      buckleVariantId: this.getSelectedSingleVariantId("buckle", this.beltBuckle),
+      tip: this.hasSetSelected() ? null : this.beltTip,
+      tipVariantId: this.hasSetSelected()
+        ? undefined
+        : this.getSelectedSingleVariantId("tip", this.beltTip),
+      loops: [...this.beltLoops],
+      loopsVariantIds: this.getSelectedMultiVariantIds("loop", 2),
+      conchos: [...this.beltConchos],
+      conchosVariantIds: this.getSelectedMultiVariantIds("concho", 9),
+      isSet: this.hasSetSelected(),
+      selection: this.snapshotSelection(),
+    };
+
+    this.savedBelts = [...this.savedBelts, saved];
+
+    // Reset all state for a fresh belt
+    this.selection = null;
+    this.beltBase = null;
+    this.basePreviewImage = null;
+    this.beltBuckle = null;
+    this.buckleVariantImage = null;
+    this.beltLoops = [];
+    this.beltConchos = [];
+    this.beltTip = null;
+    this.beltSize = null;
+    this.beltSizeVariantId = null;
+    this.firstBaseSelected = false;
+    this.lastFilteredBaseId = null;
+
+    // Reset UI state
+    this.showCollectionFilter = false;
+    this.collectionFilters = {};
+    this.activeVariantKey = null;
+    this.variantSelection.clear();
+
+    // Clear preview
+    if (this.preview.value) {
+      this.preview.value.base = null;
+      this.preview.value.buckle = "";
+      this.preview.value.loops = [];
+      this.preview.value.conchos = [];
+      this.preview.value.tip = null;
+    }
+
+    // Go back to step 0
+    this.wizard.goTo(0);
+  }
+
+  private resetCurrentBelt() {
+    this.selection = null;
+    this.beltBase = null;
+    this.basePreviewImage = null;
+    this.beltBuckle = null;
+    this.buckleVariantImage = null;
+    this.beltLoops = [];
+    this.beltConchos = [];
+    this.beltTip = null;
+    this.beltSize = null;
+    this.beltSizeVariantId = null;
+    this.firstBaseSelected = false;
+    this.lastFilteredBaseId = null;
+    this.showCollectionFilter = false;
+    this.collectionFilters = {};
+    this.activeVariantKey = null;
+    this.variantSelection.clear();
+
+    if (this.preview.value) {
+      this.preview.value.base = null;
+      this.preview.value.buckle = "";
+      this.preview.value.loops = [];
+      this.preview.value.conchos = [];
+      this.preview.value.tip = null;
+    }
+
+    this.wizard.goTo(0);
+  }
+
+  private removeSavedBelt(index: number) {
+    this.savedBelts = this.savedBelts.filter((_, i) => i !== index)
+      .map((belt, i) => ({ ...belt, label: `Belt ${i + 1}` }));
+  }
+
+  /** Calculate the total price for a saved belt from its stored variant IDs. */
+  private calcSavedBeltTotal(saved: SavedBelt): { amount: string; currencyCode: string } {
+    const priceOf = (product: Product | null, variantId: string | undefined): number => {
+      if (!product || !variantId) return 0;
+      const v = product.variants.find(v => v.id === variantId);
+      return v ? parseFloat(v.price.amount) || 0 : 0;
+    };
+
+    const variantPrice = (variantId: string): number => {
+      // Search all product arrays for this variant
+      for (const group of this.beltData) {
+        if (!group) continue;
+        for (const p of group) {
+          const v = p.variants.find(v => v.id === variantId);
+          if (v) return parseFloat(v.price.amount) || 0;
+        }
+      }
+      return 0;
+    };
+
+    let total = priceOf(saved.base, saved.baseVariantId)
+      + priceOf(saved.buckle, saved.buckleVariantId);
+
+    if (!saved.isSet) total += priceOf(saved.tip, saved.tipVariantId);
+
+    for (const vid of saved.loopsVariantIds) {
+      total += variantPrice(vid);
+    }
+    for (const vid of saved.conchosVariantIds) {
+      total += variantPrice(vid);
+    }
+
+    const currencyCode = saved.base?.priceRange?.minVariantPrice?.currencyCode ?? "USD";
+    return { amount: total.toFixed(2), currencyCode };
   }
 
   private resetBuckleLoopsAndTip() {

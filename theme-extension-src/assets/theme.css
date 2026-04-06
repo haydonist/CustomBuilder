@@ -186,6 +186,12 @@ button.btn.primary, a.btn.primary {
   position: relative;
   z-index: 5;
   display: flex;
+  flex-direction: row;
+  gap: 1rem;
+}
+
+#stepShortcut .mainBtn-wrapper{
+  display: flex;
   flex-direction: column;
 }
 
@@ -709,6 +715,125 @@ belt-wizard #summary .summary-complete {
   font-size: 0.9rem;
   color: #15803d;
   font-weight: 500;
+}
+
+/* ===== Multi-belt (Make Another) ===== */
+belt-wizard #summary .saved-belt-section {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+belt-wizard #summary .saved-belt-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+belt-wizard #summary .saved-belt-header h2 {
+  margin: 0;
+  white-space: nowrap;
+}
+
+belt-wizard #summary .saved-belt-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+belt-wizard #summary .saved-belt-size {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+belt-wizard #summary .saved-belt-subtotal {
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+belt-wizard #summary .saved-belt-thumbs .option.thumbnail {
+  --thumb-size: 80px;
+}
+
+belt-wizard #summary .saved-belt-thumbs .option.thumbnail img.thumbnail {
+  width: 80px;
+  height: 80px;
+  min-width: unset;
+}
+
+belt-wizard #summary .saved-belt-thumbs .option.thumbnail .label {
+  font-size: 0.5rem;
+  max-width: 100px;
+}
+
+belt-wizard #summary .saved-belt-thumbs .option.thumbnail .price {
+  font-size: 0.7rem;
+}
+
+belt-wizard #summary .btn-remove-belt {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ccc;
+  font-size: 1.25rem;
+  line-height: 1;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+belt-wizard #summary .btn-remove-belt:hover {
+  background: rgba(217, 119, 87, 0.25);
+  border-color: #d97757;
+  color: #fff;
+}
+
+belt-wizard #summary .make-another-btn {
+  margin-top: 1rem;
+  width: 100%;
+  text-align: center;
+  border: 2px dashed rgba(255, 255, 255, 0.25);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: var(--color-foreground, #fff);
+  transition: border-color 0.2s, background 0.2s;
+}
+
+belt-wizard #summary .make-another-btn:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+belt-wizard .btn-make-another-sm {
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  color: var(--color-foreground, #fff);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.75rem 0.75rem;
+  margin-bottom: auto;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+belt-wizard .btn-make-another-sm:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .size-step-wrapper {
@@ -1485,6 +1610,8 @@ belt-wizard > header {
 
   .option.thumbnail .selection-indicator-wrapper {
     width: 100%;
+    display: flex;
+    justify-content: center;
   }
 
   .option.thumbnail label span.label {
@@ -1492,12 +1619,12 @@ belt-wizard > header {
     overflow: hidden;
     text-overflow: ellipsis;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
   }
 
-  .option label span.price {
+  .option label span.price {option.thumbnail .selection-indicator-wrapper
     font-size: 0.75rem;
   }
 

@@ -1,16 +1,15 @@
-import { css, html, LitElement, TemplateResult } from "lit";
+import { css, html, LitElement } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { customElement, property, state } from "lit/decorators.js";
 
-import { getImageAt, Product, ProductVariant } from "../api/index.ts";
+import { Product, ProductVariant } from "../api/index.ts";
 import { createCartAndGetCheckoutUrl, toLineVariant } from "../api/cart.ts";
 
 import * as styles from "../styles.ts";
-import { formatMoney, getConchoThumbScale } from "../utils.ts";
-import { thumbnailOption } from "./option.ts";
+import { formatMoney } from "../utils.ts";
+import type { SavedBelt } from "../belt-wizard.ts";
 
 
-type ProductCountById = Map<string, { product: Product, count: number }>;
 
 @customElement('belt-checkout')
 export default class BeltCheckout extends LitElement {
@@ -27,6 +26,10 @@ export default class BeltCheckout extends LitElement {
   @state() beltData: Product[][] = [];
   @state() loops: Product[] = [];
   @state() conchos: Product[] = [];
+
+  /** Previously completed belts to include in checkout. */
+  @state() savedBelts: SavedBelt[] = [];
+
   @property({ type: String, attribute: 'checkout-policy' })
   checkoutPolicy = '<p>Free cancellation is available within 24 business hours of placing your order. After an order is placed, our team will contact you to confirm all order details.</p><p>Each belt is custom-tailored to your specifications. Because custom belts cannot be reused or resold, a <strong>30% restocking fee</strong> will apply if a return is requested after the order has been completed.</p>';
 
@@ -68,69 +71,20 @@ export default class BeltCheckout extends LitElement {
     }`;
 
   override render() {
-    const [beltBases, beltBuckles, _beltLoops, _beltConchos, beltTips] = this.beltData;
-    const base = beltBases.find(x => x.id === this.base);
-    const buckle = beltBuckles.find(x => x.id === this.buckle);
-
-    // Group loops and conchos by product id and count occurrences
-    const loopCounts = aggregateAndCount(this.loops);
-    const conchoCounts = aggregateAndCount(this.conchos);
-    const isSetProduct = (p: Product) => (p?.tags ?? []).some((t) => t.toLowerCase() === "set");
-
-    const productToThumbnail = (
-      product: Product,
-      name: string,
-      step: number,
-      count?: number,
-    ): TemplateResult => {
-      const isSet = isSetProduct(product);
-
-      const thumbScale = name === "concho"
-        ? getConchoThumbScale(product)
-        : undefined;
-
-      return thumbnailOption(
-        product.id,
-        getImageAt(product, 0)!,
-        name,
-        product.id,
-        product.title,
-        product.priceRange.minVariantPrice,
-        {
-          class: [
-            "summary",
-            // kind-buckle, kind-loop, kind-concho, etc.
-            `kind-${name}`,
-            isSet ? "set" : "",
-          ].filter(Boolean).join(" "),
-          onClick: () => this.gotoStep(step),
-          count,
-          isSet,
-          thumbScale,
-        },
-      );
-    };
-
-    const loopSelection = Array.from(loopCounts.values()).map(
-      ({ product, count }) => productToThumbnail(product, "loop", 3, count)
-    );
-    const conchoSelection = Array.from(conchoCounts.values()).map(
-      ({ product, count }) => productToThumbnail(product, "concho", 4, count)
-    );
-
-    const tipProduct = beltTips.find(x => x.id === this.tip) ?? null;
-    const tipVariant = tipProduct ? getVariantById(tipProduct, this.tipVariantId) : null;
+    const [beltBases, beltBuckles, , , beltTips] = this.beltData;
+    const base = beltBases?.find(x => x.id === this.base);
+    const buckle = beltBuckles?.find(x => x.id === this.buckle);
+    const tipProduct = beltTips?.find(x => x.id === this.tip) ?? null;
 
     const baseVariant = base ? getVariantById(base, this.baseVariantId) : null;
-    const baseSize = getSelectedOption(baseVariant, "Size") ?? getSelectedOption(baseVariant, "Accessory size");
-
     const buckleVariant = buckle ? getVariantById(buckle, this.buckleVariantId) : null;
+    const tipVariant = tipProduct ? getVariantById(tipProduct, this.tipVariantId) : null;
     // If render happens before variant ids are set, do nothing
     if (!baseVariant || !buckleVariant) return;
 
-    // Calculate price
-    const basePrice = baseVariant ? moneyToNumber(baseVariant.price.amount) : 0;
-    const bucklePrice = buckleVariant ? moneyToNumber(buckleVariant.price.amount) : 0;
+    // Calculate current belt price
+    const basePrice = moneyToNumber(baseVariant.price.amount);
+    const bucklePrice = moneyToNumber(buckleVariant.price.amount);
     const tipPrice = tipVariant ? moneyToNumber(tipVariant.price.amount) : 0;
     const variantPriceById = buildVariantPriceIndex(this.beltData);
     const loopsPrice = aggregateVariantCounts(this.loopsVariantIds).reduce((sum, { variantId, count }) => {
@@ -140,30 +94,24 @@ export default class BeltCheckout extends LitElement {
       return sum + (variantPriceById.get(variantId) ?? 0) * count;
     }, 0);
 
-    const amount = (basePrice + bucklePrice + tipPrice + loopsPrice + conchosPrice).toFixed(2);
-    const currencyCode = baseVariant?.price.currencyCode ?? base?.priceRange.minVariantPrice.currencyCode ?? "en-US";
+    const currentBeltTotal = basePrice + bucklePrice + tipPrice + loopsPrice + conchosPrice;
+    const amount = currentBeltTotal.toFixed(2);
+    const currencyCode = baseVariant.price.currencyCode ?? base?.priceRange.minVariantPrice.currencyCode ?? "en-US";
 
-    function getSelectedOption(productVariant: ProductVariant | null, name: string): string | null {
-  if (!productVariant) return null;
-  const hit = productVariant.selectedOptions?.find(
-    (o) => o.name.toLowerCase() === name.toLowerCase(),
-  );
-  return hit?.value ?? null;
-}
-
+    // Calculate grand total including saved belts
+    let grandTotal = currentBeltTotal;
+    for (const saved of this.savedBelts) {
+      grandTotal += this.calcBeltTotal(saved);
+    }
+    const grandAmount = grandTotal.toFixed(2);
 
     return html`
-      <div class="row wrap gap-medium">
-        ${base ? productToThumbnail(base, "base", 0) : null}
-        ${buckle ? productToThumbnail(buckle, "buckle", 2) : null}
-        ${loopSelection}
-        ${conchoSelection}
-        ${tipProduct ? productToThumbnail(tipProduct, "beltTip", 5) : null}
-      </div>
-      ${baseSize ? html`<p><strong>Size:</strong> ${baseSize}</p>` : null}
-
       <div id="checkoutTotal">
-        Total: <span class="price">${formatMoney({ amount, currencyCode })}</span>
+        ${this.savedBelts.length > 0
+          ? html`
+            <div><strong>Grand Total (${this.savedBelts.length + 1} belts):</strong> <span class="price">${formatMoney({ amount: grandAmount, currencyCode })}</span></div>
+          `
+          : html`Total: <span class="price">${formatMoney({ amount, currencyCode })}</span>`}
       </div>
       <button
         class="btn primary"
@@ -183,6 +131,23 @@ export default class BeltCheckout extends LitElement {
     `;
   }
 
+  /** Calculate the total price for a saved belt using the shared variant price index. */
+  private calcBeltTotal(saved: SavedBelt): number {
+    const variantPriceById = buildVariantPriceIndex(this.beltData);
+    const price = (id: string | undefined) => id ? (variantPriceById.get(id) ?? 0) : 0;
+
+    let total = price(saved.baseVariantId) + price(saved.buckleVariantId);
+    if (!saved.isSet) total += price(saved.tipVariantId);
+
+    total += aggregateVariantCounts(saved.loopsVariantIds).reduce(
+      (sum, { variantId, count }) => sum + (variantPriceById.get(variantId) ?? 0) * count, 0,
+    );
+    total += aggregateVariantCounts(saved.conchosVariantIds).reduce(
+      (sum, { variantId, count }) => sum + (variantPriceById.get(variantId) ?? 0) * count, 0,
+    );
+    return total;
+  }
+
   public scrollToPolicy(): void {
     const el = this.shadowRoot?.getElementById('checkoutPolicy');
     if (!el) return;
@@ -190,8 +155,24 @@ export default class BeltCheckout extends LitElement {
     window.scrollTo({ top, behavior: 'smooth' });
   }
 
-  private gotoStep(step: number): void {
-    this.dispatchEvent(new CustomEvent('step-change', { detail: step, bubbles: false, composed: true }));
+  /** Build cart line items for a single belt given its variant IDs. */
+  private buildLinesForBelt(
+    baseVariantId: string,
+    buckleVariantId: string,
+    tipVariantId: string | undefined,
+    loopsVariantIds: string[],
+    conchosVariantIds: string[],
+  ) {
+    const loops = loopsVariantIds.filter(Boolean);
+    const conchos = conchosVariantIds.filter(Boolean);
+
+    return [
+      toLineVariant(baseVariantId, 1),
+      toLineVariant(buckleVariantId, 1),
+      ...(tipVariantId ? [toLineVariant(tipVariantId, 1)] : []),
+      ...aggregateVariantCounts(loops).map(({ variantId, count }) => toLineVariant(variantId, count)),
+      ...aggregateVariantCounts(conchos).map(({ variantId, count }) => toLineVariant(variantId, count)),
+    ];
   }
 
   public async checkoutNow(): Promise<void> {
@@ -202,16 +183,27 @@ export default class BeltCheckout extends LitElement {
       if (!this.baseVariantId) throw new Error("Missing baseVariantId");
       if (!this.buckleVariantId) throw new Error("Missing buckleVariantId");
 
-      const loops = (this.loopsVariantIds ?? []).filter(Boolean);
-      const conchos = (this.conchosVariantIds ?? []).filter(Boolean);
+      // Collect lines from all saved belts first
+      const lines = [];
+      for (const saved of this.savedBelts) {
+        if (!saved.baseVariantId || !saved.buckleVariantId) continue;
+        lines.push(...this.buildLinesForBelt(
+          saved.baseVariantId,
+          saved.buckleVariantId,
+          saved.tipVariantId,
+          saved.loopsVariantIds,
+          saved.conchosVariantIds,
+        ));
+      }
 
-      const lines = [
-        toLineVariant(this.baseVariantId, 1),
-        toLineVariant(this.buckleVariantId, 1),
-        ...(this.tipVariantId ? [toLineVariant(this.tipVariantId, 1)] : []),
-        ...aggregateVariantCounts(loops).map(({ variantId, count }) => toLineVariant(variantId, count)),
-        ...aggregateVariantCounts(conchos).map(({ variantId, count }) => toLineVariant(variantId, count)),
-      ];
+      // Then add the current belt
+      lines.push(...this.buildLinesForBelt(
+        this.baseVariantId,
+        this.buckleVariantId,
+        this.tipVariantId,
+        this.loopsVariantIds ?? [],
+        this.conchosVariantIds ?? [],
+      ));
 
       // Build cart attributes + note with belt configuration details.
       // Attributes prefixed with _ are hidden from the customer during checkout
@@ -227,80 +219,140 @@ export default class BeltCheckout extends LitElement {
   }
 
   /**
+   * Build the order-note lines for a single belt.
+   */
+  private buildSingleBeltOrderLines(
+    base: Product | null | undefined,
+    buckle: Product | null | undefined,
+    tipProduct: Product | null | undefined,
+    loops: Product[],
+    conchos: Product[],
+    baseVariantId: string | undefined,
+    isSet: boolean,
+  ): string[] {
+    const baseVariant = base ? getVariantById(base, baseVariantId) : null;
+    const size = baseVariant
+      ? (findOption(baseVariant, "Size") ?? findOption(baseVariant, "Accessory size"))
+      : null;
+
+    const orderLines: string[] = [];
+    let pos = 1;
+
+    if (base) {
+      const sizeLabel = size ? ` (Size: ${size})` : "";
+      orderLines.push(`${pos}. Belt Base - ${base.title}${sizeLabel}`);
+      pos++;
+    }
+    if (buckle) {
+      const label = isSet ? "Buckle/Tip Set" : "Buckle";
+      orderLines.push(`${pos}. ${label} - ${buckle.title}`);
+      pos++;
+    }
+    for (let i = 0; i < loops.length; i++) {
+      orderLines.push(`${pos}. Loop ${i + 1} - ${loops[i].title}`);
+      pos++;
+    }
+    for (let i = 0; i < conchos.length; i++) {
+      orderLines.push(`${pos}. Concho ${i + 1} - ${conchos[i].title}`);
+      pos++;
+    }
+    if (!isSet && tipProduct) {
+      orderLines.push(`${pos}. Tip - ${tipProduct.title}`);
+    }
+
+    return orderLines;
+  }
+
+  /**
    * Builds cart attributes and a note describing the custom belt configuration.
-   * Returns { attributes, note } where note is a numbered list of every part
-   * in exact build order.
+   * When savedBelts are present, produces a multi-belt note with sections.
    */
   private buildBeltConfig(): {
     attributes: Array<{ key: string; value: string }>;
     note: string;
   } {
     const [beltBases, beltBuckles, , , beltTips] = this.beltData;
-    const base = beltBases.find(x => x.id === this.base);
-    const buckle = beltBuckles.find(x => x.id === this.buckle);
-    const tipProduct = beltTips.find(x => x.id === this.tip) ?? null;
-
-    const baseVariant = base ? getVariantById(base, this.baseVariantId) : null;
-    const size = baseVariant
-      ? (findOption(baseVariant, "Size") ?? findOption(baseVariant, "Accessory size"))
-      : null;
-    const color = baseVariant
-      ? (findOption(baseVariant, "Color") ?? findOption(baseVariant, "Colour"))
-      : null;
-
-    const isSet = buckle && (buckle.tags ?? []).some(t => t.toLowerCase() === "set");
-
-    // --- attributes (quick-reference fields for admin) ---
     const attrs: Array<{ key: string; value: string }> = [];
     const add = (key: string, value: string | null | undefined) => {
       if (value) attrs.push({ key, value });
     };
 
-    add("_Belt Base", base?.title);
-    add("_Belt Buckle", buckle?.title);
-    if (!isSet) add("_Belt Tip", tipProduct?.title);
-    add("_Belt Size", size);
-    add("_Belt Color", color);
+    const totalBelts = this.savedBelts.length + 1;
+    const noteSections: string[] = [];
 
-    // --- build order note (numbered list of every part) ---
-    const orderLines: string[] = [];
-    let pos = 1;
+    // --- Saved belts ---
+    for (let i = 0; i < this.savedBelts.length; i++) {
+      const saved = this.savedBelts[i];
+      const prefix = totalBelts > 1 ? `Belt ${i + 1}` : "";
 
-    // 1. Belt base (with size)
-    if (base) {
-      const sizeLabel = size ? ` (Size: ${size})` : "";
-      orderLines.push(`${pos}. Belt Base - ${base.title}${sizeLabel}`);
-      pos++;
+      const orderLines = this.buildSingleBeltOrderLines(
+        saved.base, saved.buckle, saved.tip,
+        saved.loops, saved.conchos,
+        saved.baseVariantId, saved.isSet,
+      );
+
+      if (prefix) {
+        noteSections.push(`--- ${prefix} ---\n${orderLines.join("\n")}`);
+      } else {
+        noteSections.push(orderLines.join("\n"));
+      }
+
+      // Attributes for this belt
+      const baseVariant = saved.base ? getVariantById(saved.base, saved.baseVariantId) : null;
+      const attrPrefix = totalBelts > 1 ? `_Belt ${i + 1}` : "_Belt";
+      add(`${attrPrefix} Base`, saved.base?.title);
+      add(`${attrPrefix} Buckle`, saved.buckle?.title);
+      if (!saved.isSet) add(`${attrPrefix} Tip`, saved.tip?.title);
+      add(`${attrPrefix} Size`, baseVariant
+        ? (findOption(baseVariant, "Size") ?? findOption(baseVariant, "Accessory size"))
+        : null);
+      add(`${attrPrefix} Color`, baseVariant
+        ? (findOption(baseVariant, "Color") ?? findOption(baseVariant, "Colour"))
+        : null);
+      add(`${attrPrefix} Build Order`, orderLines.join(" | "));
     }
 
-    // 2. Buckle (or set)
-    if (buckle) {
-      const label = isSet ? "Buckle/Tip Set" : "Buckle";
-      orderLines.push(`${pos}. ${label} - ${buckle.title}`);
-      pos++;
+    // --- Current belt ---
+    const base = beltBases.find(x => x.id === this.base);
+    const buckle = beltBuckles.find(x => x.id === this.buckle);
+    const tipProduct = beltTips.find(x => x.id === this.tip) ?? null;
+    const isSet = buckle && (buckle.tags ?? []).some(t => t.toLowerCase() === "set");
+
+    const currentOrderLines = this.buildSingleBeltOrderLines(
+      base, buckle, tipProduct,
+      this.loops, this.conchos,
+      this.baseVariantId, !!isSet,
+    );
+
+    const currentPrefix = totalBelts > 1 ? `Belt ${totalBelts}` : "";
+    if (currentPrefix) {
+      noteSections.push(`--- ${currentPrefix} ---\n${currentOrderLines.join("\n")}`);
+    } else {
+      noteSections.push(currentOrderLines.join("\n"));
     }
 
-    // 3-4. Loops (each one individually numbered)
-    for (let i = 0; i < this.loops.length; i++) {
-      orderLines.push(`${pos}. Loop ${i + 1} - ${this.loops[i].title}`);
-      pos++;
+    // Current belt attributes
+    const baseVariant = base ? getVariantById(base, this.baseVariantId) : null;
+    const attrPrefix = totalBelts > 1 ? `_Belt ${totalBelts}` : "_Belt";
+    add(`${attrPrefix} Base`, base?.title);
+    add(`${attrPrefix} Buckle`, buckle?.title);
+    if (!isSet) add(`${attrPrefix} Tip`, tipProduct?.title);
+    add(`${attrPrefix} Size`, baseVariant
+      ? (findOption(baseVariant, "Size") ?? findOption(baseVariant, "Accessory size"))
+      : null);
+    add(`${attrPrefix} Color`, baseVariant
+      ? (findOption(baseVariant, "Color") ?? findOption(baseVariant, "Colour"))
+      : null);
+    add(`${attrPrefix} Build Order`, currentOrderLines.join(" | "));
+
+    if (totalBelts > 1) {
+      add("_Total Belts", String(totalBelts));
     }
 
-    // 5+. Conchos (each one individually numbered)
-    for (let i = 0; i < this.conchos.length; i++) {
-      orderLines.push(`${pos}. Concho ${i + 1} - ${this.conchos[i].title}`);
-      pos++;
-    }
-
-    // Last. Tip (only if buckle is NOT a set)
-    if (!isSet && tipProduct) {
-      orderLines.push(`${pos}. Tip - ${tipProduct.title}`);
-    }
-
-    const note = `Custom Belt Build Order:\n${orderLines.join("\n")}`;
-
-    // Also store the full order as an attribute for admin reference
-    attrs.push({ key: "_Belt Build Order", value: orderLines.join(" | ") });
+    const header = totalBelts > 1
+      ? `Custom Belt Order (${totalBelts} belts):`
+      : "Custom Belt Build Order:";
+    const note = `${header}\n\n${noteSections.join("\n\n")}`;
 
     return { attributes: attrs, note };
   }
@@ -310,19 +362,6 @@ declare global {
   interface HTMLElementTagNameMap {
     "belt-checkout": BeltCheckout;
   }
-}
-
-function aggregateAndCount(products: Product[]): ProductCountById {
-  const result: ProductCountById = new Map();
-  for (const product of products) {
-    const existing = result.get(product.id);
-    if (existing) {
-      existing.count += 1;
-    } else {
-      result.set(product.id, { product, count: 1 });
-    }
-  }
-  return result;
 }
 
 
