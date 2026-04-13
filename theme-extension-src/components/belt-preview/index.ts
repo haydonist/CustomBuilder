@@ -25,6 +25,8 @@ export default class BeltPreview extends LitElement {
   @property({ type: String }) buckle: string | null = null;
   @property({ type: String }) tip: string | null = null;
   @property({ type: Boolean }) buckleOnTop: boolean = false;
+  /** When true, hide remove badges and disable drag/reorder interactions. */
+  @property({ type: Boolean }) readonly: boolean = false;
   /** Belt base width in mm (from product tag). Used to scale accessory overlays. */
   @property({ type: Number }) baseWidthMm: number = 0;
   /** When true, skip the mm-based height calculation and use the default multiplier. */
@@ -232,7 +234,6 @@ export default class BeltPreview extends LitElement {
     display: block;
     max-height: 160px;
     margin: 0 auto;
-    clip-path: inset(0 30% 0 30%);
     cursor: grab;
     pointer-events: none;
     transition: opacity 150ms ease;
@@ -252,6 +253,12 @@ export default class BeltPreview extends LitElement {
   .loop-item:active,
   .concho-wrapper:active {
     cursor: grabbing;
+  }
+
+  :host([readonly]) .loop-item,
+  :host([readonly]) .concho-wrapper,
+  :host([readonly]) .concho {
+    cursor: default;
   }
 
   /* While dragging, hide the original so shifted items fill the gap */
@@ -306,7 +313,7 @@ export default class BeltPreview extends LitElement {
     pointer-events: auto;
   }
 
-  /* Debug overlay — visible with ?debug=anchors */
+  /* Debug overlay — visible with ?debug */
   .debug-dot {
     position: absolute;
     width: 14px;
@@ -338,6 +345,26 @@ export default class BeltPreview extends LitElement {
     width: 1px;
     z-index: 99;
     pointer-events: none;
+  }
+
+  /* Debug source labels — visible with ?debug */
+  .debug-source {
+    position: absolute;
+    font: 600 9px/1.2 system-ui, sans-serif;
+    background: rgba(255, 165, 0, 0.92);
+    color: #000;
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+    z-index: 110;
+    pointer-events: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+  .debug-source--below {
+    transform: translateX(-50%) translateY(4px);
+  }
+  .debug-source--above {
+    transform: translateX(-50%) translateY(-100%) translateY(-4px);
   }
 `;
 
@@ -463,20 +490,20 @@ export default class BeltPreview extends LitElement {
               <div
                 class="loop-item"
                 style="left: ${this.convertToPixels(anchorX)}px; ${clip}"
-                draggable="true"
+                draggable="${!this.readonly}"
                 data-index=${index}
-                @dragstart=${this.onLoopDragStart}
-                @dragend=${this.onLoopDragEnd}
-                @dragover=${this.onLoopDragOver}
-                @drop=${this.onLoopDrop}
+                @dragstart=${this.readonly ? undefined : this.onLoopDragStart}
+                @dragend=${this.readonly ? undefined : this.onLoopDragEnd}
+                @dragover=${this.readonly ? undefined : this.onLoopDragOver}
+                @drop=${this.readonly ? undefined : this.onLoopDrop}
               >
-                <button
+                ${this.readonly ? '' : html`<button
                   type="button"
                   class="remove-badge"
                   @click=${(e: MouseEvent) =>
                     this.handleRemoveClick("loop", index, e)}
                   aria-label="Remove loop"
-                ></button>
+                ></button>`}
                 <img class="loop" crossorigin="anonymous" src=${loop} aria-hidden="true" style="opacity: ${this.isImageReady(loop) ? 1 : 0}" />
               </div>
             `},
@@ -489,18 +516,18 @@ export default class BeltPreview extends LitElement {
             (concho, index) => html`
               <div
                 class="concho-wrapper"
-                draggable="true"
+                draggable="${!this.readonly}"
                 data-index=${index}
-                @dragstart=${this.onConchoDragStart}
-                @dragend=${this.onConchoDragEnd}
+                @dragstart=${this.readonly ? undefined : this.onConchoDragStart}
+                @dragend=${this.readonly ? undefined : this.onConchoDragEnd}
               >
-                <button
+                ${this.readonly ? '' : html`<button
                   type="button"
                   class="remove-badge"
                   @click=${(e: MouseEvent) =>
                     this.handleRemoveClick("concho", index, e)}
                   aria-label="Remove concho"
-                ></button>
+                ></button>`}
                 <img class="concho" crossorigin="anonymous" src=${concho} aria-hidden="true" style="opacity: ${this.isImageReady(concho) ? 1 : 0}" />
               </div>
             `,
@@ -515,14 +542,59 @@ export default class BeltPreview extends LitElement {
           style="left: ${this.convertToPixels(a.tipX)}px; opacity: ${this.isImageReady(this.tip) ? 1 : 0}"
         />
         ${this.renderDebugOverlay()}
+        ${this.renderDebugSourceLabels()}
       </div>
     </div>
   </div>
     `;
   }
 
-  private get isDebugAnchors() {
-    return typeof location !== "undefined" && new URLSearchParams(location.search).get("debug") === "anchors";
+  private get isDebug() {
+    return typeof location !== "undefined" && new URLSearchParams(location.search).has("debug");
+  }
+
+  /** Source labels on each belt piece — rendered inside base-wrapper with ?debug. */
+  private renderDebugSourceLabels() {
+    if (!this.isDebug) return null;
+    const a = this.anchors;
+    const labels: { left: string; top: string; text: string; above: boolean }[] = [];
+
+    // Base belt
+    labels.push({ left: "50%", top: "95%", text: "Base: Product image (Step 1)", above: false });
+
+    // Buckle
+    if (this.buckle) {
+      labels.push({ left: `${this.convertToPixels(a.buckleX)}px`, top: "0", text: "Buckle: Product image (Step 2)", above: false });
+    }
+
+    // Loops
+    if (this.loops.length > 0) {
+      labels.push({ left: `${this.convertToPixels(a.loop1X)}px`, top: "0", text: "Loops: Product images (Step 3)", above: false });
+    }
+
+    // Conchos
+    if (this.conchos.length > 0) {
+      const mid = (this.convertToPixels(a.conchosX) + this.convertToPixels(a.conchosEndX)) / 2;
+      labels.push({ left: `${mid}px`, top: "100%", text: "Conchos: Product images (Step 4)", above: false });
+    }
+
+    // Tip
+    if (this.tip) {
+      labels.push({ left: `${this.convertToPixels(a.tipX)}px`, top: "0", text: "Tip: Product image (Step 5)", above: false });
+    }
+
+    // Anchor source
+    const anchorSource = this.anchorOverrides
+      ? "Anchors: Metafields / tag overrides + auto-detect"
+      : "Anchors: Auto-detected from image shape";
+    labels.push({ left: "50%", top: "0", text: anchorSource, above: true });
+
+    return labels.map(l => html`
+      <span
+        class="debug-source ${l.above ? 'debug-source--above' : 'debug-source--below'}"
+        style="left:${l.left}; top:${l.top}"
+      >${l.text}</span>
+    `);
   }
 
   private get debugDots() {
@@ -539,7 +611,7 @@ export default class BeltPreview extends LitElement {
 
   /** Dots, leaders, and labels on the belt — rendered inside base-wrapper. */
   private renderDebugOverlay() {
-    if (!this.isDebugAnchors) return null;
+    if (!this.isDebug) return null;
     const fmt = (v: number) => `${Math.round(v * 10) / 10}/100`;
     return this.debugDots.map(d => {
       const above = d.labelOffset < 0;

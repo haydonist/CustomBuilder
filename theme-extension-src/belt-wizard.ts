@@ -132,6 +132,14 @@ export class CustomBeltWizard extends LitElement {
   @state()
   private savedBelts: SavedBelt[] = [];
 
+  /** When non-null, the current belt is being edited and should be inserted at this position. */
+  @state()
+  private editingBeltIndex: number | null = null;
+
+  /** Product ID whose info popup is currently visible. */
+  @state()
+  private infoProductId: string | null = null;
+
   private static readonly THUMB_SIZES = { small: 160, medium: 200, large: 240 } as const;
 
   private get thumbSizePx(): number {
@@ -230,6 +238,29 @@ private getMaxLoopsAllowed(): number {
       this.activeVariantKey = null;
     }
   };
+
+  private onInfoPointerDown = (e: PointerEvent) => {
+    if (!this.infoProductId) return;
+    const target = e.target as Node | null;
+    const popup = this.renderRoot.querySelector(".info-popup-overlay");
+    if (popup && target && !popup.querySelector(".info-popup-card")?.contains(target)) {
+      this.infoProductId = null;
+    }
+  };
+
+  private onInfoKeyDown = (e: KeyboardEvent) => {
+    if (!this.infoProductId) return;
+    if (e.key === "Escape") this.infoProductId = null;
+  };
+
+  private findProductById(id: string): Product | null {
+    for (const group of this.beltData) {
+      if (!group) continue;
+      const found = group.find((p) => p.id === id);
+      if (found) return found;
+    }
+    return null;
+  }
 
   private onVariantKeyDown = (e: KeyboardEvent) => {
     if (!this.activeVariantKey) return;
@@ -604,95 +635,105 @@ private getSelectedBaseColor(): string | null {
         }
 
         const hasMissing = missingParts.length > 0;
-        const currentBeltLabel = this.savedBelts.length > 0
-          ? `Belt ${this.savedBelts.length + 1} (Current)`
-          : null;
+        const totalBelts = this.savedBelts.length + 1;
+        // Current belt's position: editing slot if set, otherwise last
+        const currentBeltPosition = this.editingBeltIndex ?? this.savedBelts.length;
+        // Build ordered list of belt slots: saved belts + current belt interleaved
+        type BeltSlot =
+          | { kind: "saved"; saved: SavedBelt; savedIndex: number }
+          | { kind: "current" };
+
+        const slots: BeltSlot[] = [];
+        let savedIdx = 0;
+        for (let pos = 0; pos < totalBelts; pos++) {
+          if (pos === currentBeltPosition) {
+            slots.push({ kind: "current" });
+          } else {
+            slots.push({ kind: "saved", saved: this.savedBelts[savedIdx], savedIndex: savedIdx });
+            savedIdx++;
+          }
+        }
+
+        // Helper to aggregate product counts
+        const countProducts = (products: Product[]) => {
+          const map = new Map<string, { product: Product; count: number }>();
+          for (const p of products) {
+            const e = map.get(p.id);
+            if (e) e.count++;
+            else map.set(p.id, { product: p, count: 1 });
+          }
+          return map;
+        };
+
+        // Helper to make a small thumbnail
+        const smallThumb = (key: string, product: Product, name: string, count?: number) =>
+          thumbnailOption(
+            `${key}-${product.id}`,
+            getImageAt(product, 0)!,
+            name,
+            product.id,
+            product.title,
+            product.priceRange.minVariantPrice,
+            {
+              class: `summary kind-${name} saved-thumb`,
+              count,
+              isSet: this.isSetProduct(product),
+              thumbScale: name === "concho" ? getConchoThumbScale(product) : undefined,
+            },
+          );
+
+        const getVariantSize = (product: Product | null, variantId: string | undefined) => {
+          if (!product || !variantId) return null;
+          const v = product.variants.find(v => v.id === variantId);
+          return v?.selectedOptions?.find(
+            o => o.name.toLowerCase() === "size" || o.name.toLowerCase() === "accessory size"
+          )?.value ?? null;
+        };
 
         return html`
-          ${this.savedBelts.length > 0
-            ? html`
-              ${this.savedBelts.map((saved, idx) => {
-                const loopCounts = new Map<string, { product: Product; count: number }>();
-                for (const p of saved.loops) {
-                  const e = loopCounts.get(p.id);
-                  if (e) e.count++;
-                  else loopCounts.set(p.id, { product: p, count: 1 });
-                }
-                const conchoCounts = new Map<string, { product: Product; count: number }>();
-                for (const p of saved.conchos) {
-                  const e = conchoCounts.get(p.id);
-                  if (e) e.count++;
-                  else conchoCounts.set(p.id, { product: p, count: 1 });
-                }
-                const subtotal = this.calcSavedBeltTotal(saved);
+          ${slots.map((slot, pos) => {
+            const beltNumber = pos + 1;
 
-                const savedThumb = (product: Product, name: string, count?: number) =>
-                  thumbnailOption(
-                    `saved-${idx}-${product.id}`,
-                    getImageAt(product, 0)!,
-                    name,
-                    product.id,
-                    product.title,
-                    product.priceRange.minVariantPrice,
-                    {
-                      class: `summary kind-${name} saved-thumb`,
-                      count,
-                      isSet: this.isSetProduct(product),
-                      thumbScale: name === "concho" ? getConchoThumbScale(product) : undefined,
-                    },
-                  );
+            if (slot.kind === "saved") {
+              const saved = slot.saved;
+              const loopCounts = countProducts(saved.loops);
+              const conchoCounts = countProducts(saved.conchos);
+              const subtotal = this.calcSavedBeltTotal(saved);
+              const baseSize = getVariantSize(saved.base, saved.baseVariantId);
 
-                const baseVariant = saved.base?.variants.find(v => v.id === saved.baseVariantId);
-                const baseSize = baseVariant?.selectedOptions?.find(
-                  o => o.name.toLowerCase() === "size" || o.name.toLowerCase() === "accessory size"
-                )?.value ?? null;
-
-                return html`
-                  <div class="saved-belt-section">
-                    <div class="saved-belt-header">
-                      <h2 class="heading-5">${saved.label}</h2>
-                      <div class="saved-belt-meta">
-                        ${baseSize ? html`<span class="saved-belt-size">Size: ${baseSize}</span>` : null}
-                        <span class="saved-belt-subtotal">${formatMoney(subtotal)}</span>
-                      </div>
-                      <button
-                        type="button"
-                        class="btn-remove-belt"
-                        title="Remove ${saved.label}"
-                        @click="${() => this.removeSavedBelt(idx)}"
-                      >&times;</button>
+              return html`
+                <div class="saved-belt-section">
+                  <div class="saved-belt-header">
+                    <h2 class="heading-5">Belt ${beltNumber}</h2>
+                    <div class="saved-belt-meta">
+                      ${baseSize ? html`<span class="saved-belt-size">Size: ${baseSize}</span>` : null}
+                      <span class="saved-belt-subtotal">${formatMoney(subtotal)}</span>
                     </div>
-                    <div class="row wrap gap-medium saved-belt-thumbs">
-                      ${saved.base ? savedThumb(saved.base, "base") : null}
-                      ${saved.buckle ? savedThumb(saved.buckle, "buckle") : null}
-                      ${Array.from(loopCounts.values()).map(
-                        ({ product, count }) => savedThumb(product, "loop", count)
-                      )}
-                      ${Array.from(conchoCounts.values()).map(
-                        ({ product, count }) => savedThumb(product, "concho", count)
-                      )}
-                      ${saved.tip ? savedThumb(saved.tip, "beltTip") : null}
-                    </div>
+                    <button type="button" class="btn-edit-belt" title="Edit Belt ${beltNumber}"
+                      @click="${() => this.editSavedBelt(slot.savedIndex)}">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                    </button>
+                    <button type="button" class="btn-remove-belt" title="Remove Belt ${beltNumber}"
+                      @click="${() => this.removeSavedBelt(slot.savedIndex)}">&times;</button>
                   </div>
-                `;
-              })}
-            `
-            : ""}
-
-          ${(() => {
-            const currentLoopCounts = new Map<string, { product: Product; count: number }>();
-            for (const p of this.beltLoops) {
-              const e = currentLoopCounts.get(p.id);
-              if (e) e.count++;
-              else currentLoopCounts.set(p.id, { product: p, count: 1 });
-            }
-            const currentConchoCounts = new Map<string, { product: Product; count: number }>();
-            for (const p of this.beltConchos) {
-              const e = currentConchoCounts.get(p.id);
-              if (e) e.count++;
-              else currentConchoCounts.set(p.id, { product: p, count: 1 });
+                  <div class="row wrap gap-medium saved-belt-thumbs">
+                    ${saved.base ? smallThumb(`saved-${slot.savedIndex}`, saved.base, "base") : null}
+                    ${saved.buckle ? smallThumb(`saved-${slot.savedIndex}`, saved.buckle, "buckle") : null}
+                    ${Array.from(loopCounts.values()).map(
+                      ({ product, count }) => smallThumb(`saved-${slot.savedIndex}`, product, "loop", count)
+                    )}
+                    ${Array.from(conchoCounts.values()).map(
+                      ({ product, count }) => smallThumb(`saved-${slot.savedIndex}`, product, "concho", count)
+                    )}
+                    ${saved.tip ? smallThumb(`saved-${slot.savedIndex}`, saved.tip, "beltTip") : null}
+                  </div>
+                </div>
+              `;
             }
 
+            // Current belt
+            const currentLoopCounts = countProducts(this.beltLoops);
+            const currentConchoCounts = countProducts(this.beltConchos);
             const currentSubtotal = this.beltBase
               ? this.calcSavedBeltTotal({
                   label: "", base: this.beltBase, basePreviewImage: null,
@@ -701,56 +742,31 @@ private getSelectedBaseColor(): string | null {
                   buckleVariantId: this.getSelectedSingleVariantId("buckle", this.beltBuckle),
                   tip: this.hasSetSelected() ? null : this.beltTip,
                   tipVariantId: this.hasSetSelected() ? undefined : this.getSelectedSingleVariantId("tip", this.beltTip),
-                  loops: this.beltLoops,
-                  loopsVariantIds: this.getSelectedMultiVariantIds("loop", 2),
-                  conchos: this.beltConchos,
-                  conchosVariantIds: this.getSelectedMultiVariantIds("concho", 9),
-                  isSet: this.hasSetSelected(),
-                  selection: new Map(),
+                  loops: this.beltLoops, loopsVariantIds: this.getSelectedMultiVariantIds("loop", 2),
+                  conchos: this.beltConchos, conchosVariantIds: this.getSelectedMultiVariantIds("concho", 9),
+                  isSet: this.hasSetSelected(), selection: new Map(),
                 })
               : null;
-
-            const currentThumb = (product: Product, name: string, count?: number) =>
-              thumbnailOption(
-                `current-${product.id}`,
-                getImageAt(product, 0)!,
-                name,
-                product.id,
-                product.title,
-                product.priceRange.minVariantPrice,
-                {
-                  class: `summary kind-${name} saved-thumb`,
-                  count,
-                  isSet: this.isSetProduct(product),
-                  thumbScale: name === "concho" ? getConchoThumbScale(product) : undefined,
-                },
-              );
-
-            const baseVariant = this.beltBase?.variants.find(
-              v => v.id === this.getSelectedSingleVariantId("base", this.beltBase)
-            );
-            const currentSize = baseVariant?.selectedOptions?.find(
-              o => o.name.toLowerCase() === "size" || o.name.toLowerCase() === "accessory size"
-            )?.value ?? null;
+            const currentSize = getVariantSize(this.beltBase, this.getSelectedSingleVariantId("base", this.beltBase));
+            const label = totalBelts > 1 ? `Belt ${beltNumber} (Current)` : "Selections";
 
             return html`
               <div class="saved-belt-section">
                 <div class="saved-belt-header">
-                  <h2 class="heading-5">${currentBeltLabel ?? "Selections"}</h2>
+                  <h2 class="heading-5">${label}</h2>
                   ${!hasMissing && currentSubtotal
                     ? html`
                       <div class="saved-belt-meta">
                         ${currentSize ? html`<span class="saved-belt-size">Size: ${currentSize}</span>` : null}
                         <span class="saved-belt-subtotal">${formatMoney(currentSubtotal)}</span>
                       </div>
-                    `
-                    : ""}
-                  <button
-                    type="button"
-                    class="btn-remove-belt"
-                    title="Clear current belt"
-                    @click="${() => this.resetCurrentBelt()}"
-                  >&times;</button>
+                    ` : ""}
+                  <button type="button" class="btn-edit-belt" title="Edit current belt"
+                    @click="${() => this.wizard.goTo(0)}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                  </button>
+                  <button type="button" class="btn-remove-belt" title="Clear current belt"
+                    @click="${() => this.resetCurrentBelt()}">&times;</button>
                 </div>
 
                 ${hasMissing
@@ -758,39 +774,31 @@ private getSelectedBaseColor(): string | null {
                     <div class="summary-warning">
                       <p>Your belt is missing:</p>
                       <ul>
-                        ${missingParts.map(
-                          (part) =>
-                            html`
-                              <li>
-                                <button
-                                  type="button"
-                                  class="summary-missing-link"
-                                  @click="${() => this.wizard.goTo(part.stepId)}"
-                                >
-                                  Add ${part.label}
-                                </button>
-                              </li>
-                            `,
-                        )}
+                        ${missingParts.map((part) => html`
+                          <li>
+                            <button type="button" class="summary-missing-link"
+                              @click="${() => this.wizard.goTo(part.stepId)}">Add ${part.label}</button>
+                          </li>
+                        `)}
                       </ul>
                     </div>
                   `
                   : html`
                     <div class="row wrap gap-medium saved-belt-thumbs">
-                      ${this.beltBase ? currentThumb(this.beltBase, "base") : null}
-                      ${this.beltBuckle ? currentThumb(this.beltBuckle, "buckle") : null}
+                      ${this.beltBase ? smallThumb("current", this.beltBase, "base") : null}
+                      ${this.beltBuckle ? smallThumb("current", this.beltBuckle, "buckle") : null}
                       ${Array.from(currentLoopCounts.values()).map(
-                        ({ product, count }) => currentThumb(product, "loop", count)
+                        ({ product, count }) => smallThumb("current", product, "loop", count)
                       )}
                       ${Array.from(currentConchoCounts.values()).map(
-                        ({ product, count }) => currentThumb(product, "concho", count)
+                        ({ product, count }) => smallThumb("current", product, "concho", count)
                       )}
-                      ${this.beltTip && !this.hasSetSelected() ? currentThumb(this.beltTip, "beltTip") : null}
+                      ${this.beltTip && !this.hasSetSelected() ? smallThumb("current", this.beltTip, "beltTip") : null}
                     </div>
                   `}
               </div>
             `;
-          })()}
+          })}
 
           <belt-checkout
             ${ref(this.checkout)}
@@ -1068,6 +1076,15 @@ private getSelectedBaseColor(): string | null {
         self.removeEventListener("keydown", this.onVariantKeyDown);
       }
     }
+    if (changed.has("infoProductId")) {
+      if (this.infoProductId) {
+        self.addEventListener("pointerdown", this.onInfoPointerDown);
+        self.addEventListener("keydown", this.onInfoKeyDown);
+      } else {
+        self.removeEventListener("pointerdown", this.onInfoPointerDown);
+        self.removeEventListener("keydown", this.onInfoKeyDown);
+      }
+    }
   }
 
   private getSelectedSingleVariantId(
@@ -1125,9 +1142,17 @@ private getSelectedBaseColor(): string | null {
   summary: "https://cdn.shopify.com/s/files/1/0655/2856/1715/files/BeltMaster_Icon_Design_FEB2026-FinalBelt.svg?v=1770405095"
 };
 
+private get isDebug() {
+  return typeof location !== "undefined" && new URLSearchParams(location.search).has("debug");
+}
+
+private debugSourceBadge(settingPath: string) {
+  if (!this.isDebug) return null;
+  return html`<span style="display:inline-block;font:600 10px/1.2 system-ui,sans-serif;background:rgba(255,165,0,0.92);color:#000;padding:2px 8px;border-radius:3px;margin-bottom:4px;box-shadow:0 1px 3px rgba(0,0,0,0.3);">Source: ${settingPath}</span>`;
+}
+
 private renderDebugToolbar() {
-  const isDebug = typeof location !== "undefined" && new URLSearchParams(location.search).get("debug") === "anchors";
-  if (!isDebug) return null;
+  if (!this.isDebug) return null;
 
   const a = this.debugAnchors ?? this.preview.value?.anchors;
   if (!a) return null;
@@ -1239,6 +1264,7 @@ private get selectedBaseColor(): string | null {
             .baseWidthMm=${parseFloat(this.getBaseWidthTag(this.beltBase ?? null) ?? "0") || 0}
             .useDefaultComponentHeight=${this.beltBase?.tags?.includes("Ranger Core") ?? false}
             .anchorOverrides=${getAnchorOverrides(this.beltBase?.id ?? "", this.beltBase?.tags ?? [], this.beltBase?.beltAnchors)}
+            .readonly=${currentStep.id === "summary"}
             @reorder-loops="${(
               e: CustomEvent<{ fromIndex: number; toIndex: number }>,
             ) => {
@@ -1275,6 +1301,7 @@ private get selectedBaseColor(): string | null {
 
 
     return html`
+      ${this.debugSourceBadge("Colors & Stepper: Theme Editor → Belt Builder → Background/Text/Stepper Color settings")}
       <header>
         <section id="stepper">
           ${this.wizard.steps.map((step, i) => {
@@ -1354,6 +1381,37 @@ private get selectedBaseColor(): string | null {
           </form>
         </div>
       </section>
+
+      ${this.infoProductId
+        ? (() => {
+            const product = this.findProductById(this.infoProductId);
+            if (!product) return null;
+            const img = getImageAt(product, 0);
+            return html`
+              <div class="info-popup-overlay" @click="${(ev: Event) => {
+                if ((ev.target as HTMLElement).classList.contains("info-popup-overlay")) {
+                  this.infoProductId = null;
+                }
+              }}">
+                <div class="info-popup-card">
+                  <button
+                    type="button"
+                    class="info-popup-close"
+                    @click="${() => { this.infoProductId = null; }}"
+                  >&times;</button>
+                  ${img
+                    ? html`<img class="info-popup-img" src="${img}" alt="${product.title}" />`
+                    : null}
+                  <h3 class="info-popup-title">${product.title}</h3>
+                  ${product.priceRange?.minVariantPrice
+                    ? html`<span class="info-popup-price">${formatMoney(product.priceRange.minVariantPrice)}</span>`
+                    : null}
+                  <div class="info-popup-desc">${unsafeHTML(product.descriptionHtml)}</div>
+                </div>
+              </div>
+            `;
+          })()
+        : null}
     `;
   }
 
@@ -1486,6 +1544,7 @@ private get selectedBaseColor(): string | null {
         ${stepId === "conchos"
           ? html`
             <div class="concho-helper-text">
+              ${this.debugSourceBadge("Theme Editor → Belt Builder → Concho Step Settings → Recommendation Message")}
               <p>${unsafeHTML(this.conchoRecommendation)}</p>
             </div>
           `
@@ -1568,6 +1627,7 @@ private get selectedBaseColor(): string | null {
             </div>
 
             <div class="filter-popover-body">
+              ${this.debugSourceBadge(`Collection order: Theme Editor → Belt Builder → ${stepId.charAt(0).toUpperCase() + stepId.slice(1)} Collections Order`)}
               ${collectionOptions}
             </div>
           </div>
@@ -1648,6 +1708,19 @@ private get selectedBaseColor(): string | null {
                               }
                             }
 
+                            // Toggle tip off if already selected
+                            if (variantKind === "tip" && this.selection!.get("tip") === p.id) {
+                              this.selection!.delete("tip");
+                              this.selection!.delete("tipVariant");
+                              this.beltTip = null;
+                              if (this.preview.value) {
+                                this.preview.value.tip = null;
+                              }
+                              this.applySelectionToPreview();
+                              this.shouldAdvance = false;
+                              return;
+                            }
+
                             if (
                               variantKind === "tip" && this.hasSetSelected()
                             ) {
@@ -1668,10 +1741,22 @@ private get selectedBaseColor(): string | null {
                           name="${variantKind}"
                           value="${p.id}"
                         />
-                        <label for="${p.id}">
+                        <label>
                           <div class="selection-indicator-wrapper ${selected
                             ? "selected"
                             : ""}">
+                            ${p.descriptionHtml
+                              ? html`<button
+                                  type="button"
+                                  class="info-btn"
+                                  title="Product info"
+                                  @click="${(ev: Event) => {
+                                    ev.stopPropagation();
+                                    ev.preventDefault();
+                                    this.infoProductId = p.id;
+                                  }}"
+                                >i</button>`
+                              : null}
                             <img
                               class="thumbnail selection-indicator"
                               src="${thumbnailImage}"
@@ -1789,6 +1874,9 @@ private get selectedBaseColor(): string | null {
                             this.requestUpdate();
                           },
                         ),
+                        onInfoClick: p.descriptionHtml
+                          ? () => { this.infoProductId = p.id; }
+                          : undefined,
                         selected,
                         count,
                         variantImages,
@@ -1931,6 +2019,7 @@ sizeStep.view = () => {
         })}
       </div>
 
+      ${this.debugSourceBadge("Theme Editor → Belt Builder → sizing-chart-src attribute (hardcoded in liquid)")}
       <img
           id="sizingChart"
           src=${this.sizingChartSrc}
@@ -2226,6 +2315,23 @@ sizeStep.view = () => {
     this.beltTip = beltTips.find((b) => b.id === this.selection!.get("tip")) ??
       null;
 
+    // TIP preview image
+    if (this.beltTip && this.preview.value) {
+      const tipVariantId = this.selection?.get("tipVariant") as string | undefined;
+      const tipVariant = tipVariantId
+        ? this.beltTip.variants?.find((v) => v.id === tipVariantId)
+        : null;
+      this.preview.value.tip = tipVariant?.image?.url ?? getImageAt(this.beltTip, 0);
+    } else if (!this.beltTip && this.preview.value) {
+      // If a set is selected and no custom tip is chosen, use the set's tip
+      if (this.beltBuckle && this.isSetProduct(this.beltBuckle)) {
+        const tipImg = getImageAt(this.beltBuckle, 3, { fallbackToFirst: false });
+        this.preview.value.tip = tipImg ?? null;
+      } else {
+        this.preview.value.tip = null;
+      }
+    }
+
     // SIZE: get the selected size variant
     if (this.selection?.has("size")) {
       const sizeVariantId = this.selection!.get("size") as string;
@@ -2234,16 +2340,6 @@ sizeStep.view = () => {
     } else {
       this.beltSize = null;
       this.beltSizeVariantId = null;
-    }
-
-    // If a set is selected and no custom tip is chosen, use the set's tip
-    if (
-      this.beltBuckle && this.isSetProduct(this.beltBuckle) &&
-      this.preview.value &&
-      !this.selection?.has("tip")
-    ) {
-      const tipImg = getImageAt(this.beltBuckle, 3, { fallbackToFirst: false });
-      this.preview.value.tip = tipImg ?? null;
     }
 
     this.requestUpdate();
@@ -2421,6 +2517,19 @@ sizeStep.view = () => {
         break;
       }
       case "tip": {
+        // Toggle tip off if same product is already selected
+        if (this.selection!.get("tip") === product.id) {
+          this.selection!.delete("tip");
+          this.selection!.delete("tipVariant");
+          this.beltTip = null;
+          if (this.preview.value) {
+            this.preview.value.tip = null;
+          }
+          this.activeVariantKey = null;
+          this.applySelectionToPreview();
+          break;
+        }
+
         if (this.hasSetSelected()) {
           this.resetBuckleLoopsAndTip();
         }
@@ -2566,7 +2675,7 @@ sizeStep.view = () => {
    */
   private saveBeltAndStartNew() {
     const saved: SavedBelt = {
-      label: `Belt ${this.savedBelts.length + 1}`,
+      label: "",  // will be set by renumbering below
       base: this.beltBase,
       basePreviewImage: this.basePreviewImage,
       baseVariantId: this.getSelectedSingleVariantId("base", this.beltBase),
@@ -2584,7 +2693,20 @@ sizeStep.view = () => {
       selection: this.snapshotSelection(),
     };
 
-    this.savedBelts = [...this.savedBelts, saved];
+    // Insert at original position if editing, otherwise append
+    if (this.editingBeltIndex !== null) {
+      this.savedBelts = [
+        ...this.savedBelts.slice(0, this.editingBeltIndex),
+        saved,
+        ...this.savedBelts.slice(this.editingBeltIndex),
+      ];
+      this.editingBeltIndex = null;
+    } else {
+      this.savedBelts = [...this.savedBelts, saved];
+    }
+
+    // Renumber all labels
+    this.savedBelts = this.savedBelts.map((belt, i) => ({ ...belt, label: `Belt ${i + 1}` }));
 
     // Reset all state for a fresh belt
     this.selection = null;
@@ -2620,6 +2742,7 @@ sizeStep.view = () => {
   }
 
   private resetCurrentBelt() {
+    this.editingBeltIndex = null;
     this.selection = null;
     this.beltBase = null;
     this.basePreviewImage = null;
@@ -2645,12 +2768,132 @@ sizeStep.view = () => {
       this.preview.value.tip = null;
     }
 
+    // Stay on summary if there are other saved belts; otherwise start fresh
+    if (this.savedBelts.length === 0) {
+      this.wizard.goTo(0);
+    }
+  }
+
+  private async editSavedBelt(index: number) {
+    // Save the current belt back into savedBelts before overwriting wizard state,
+    // so it isn't lost when we load the target belt for editing.
+    let adjustedIndex = index;
+    if (this.beltBase) {
+      const currentBelt: SavedBelt = {
+        label: "",
+        base: this.beltBase,
+        basePreviewImage: this.basePreviewImage,
+        baseVariantId: this.getSelectedSingleVariantId("base", this.beltBase),
+        buckle: this.beltBuckle,
+        buckleVariantId: this.getSelectedSingleVariantId("buckle", this.beltBuckle),
+        tip: this.hasSetSelected() ? null : this.beltTip,
+        tipVariantId: this.hasSetSelected()
+          ? undefined
+          : this.getSelectedSingleVariantId("tip", this.beltTip),
+        loops: [...this.beltLoops],
+        loopsVariantIds: this.getSelectedMultiVariantIds("loop", 2),
+        conchos: [...this.beltConchos],
+        conchosVariantIds: this.getSelectedMultiVariantIds("concho", 9),
+        isSet: this.hasSetSelected(),
+        selection: this.snapshotSelection(),
+      };
+
+      if (this.editingBeltIndex !== null) {
+        // Re-insert at original editing position
+        this.savedBelts = [
+          ...this.savedBelts.slice(0, this.editingBeltIndex),
+          currentBelt,
+          ...this.savedBelts.slice(this.editingBeltIndex),
+        ];
+        if (this.editingBeltIndex <= index) adjustedIndex = index + 1;
+      } else {
+        this.savedBelts = [...this.savedBelts, currentBelt];
+      }
+    }
+
+    const saved = this.savedBelts[adjustedIndex];
+
+    // Remember the position so the current belt keeps this slot on summary
+    this.editingBeltIndex = adjustedIndex;
+
+    // Remove from saved list (don't renumber — rendering uses editingBeltIndex)
+    this.savedBelts = this.savedBelts.filter((_, i) => i !== adjustedIndex);
+
+    // Restore FormData from snapshot
+    this.selection = new FormData();
+    for (const [key, values] of saved.selection.entries()) {
+      for (const value of values) {
+        this.selection.append(key, value);
+      }
+    }
+
+    // Restore component state
+    this.beltBase = saved.base;
+    this.basePreviewImage = saved.basePreviewImage;
+    this.beltBuckle = saved.buckle;
+    this.beltTip = saved.tip;
+    this.beltLoops = [...saved.loops];
+    this.beltConchos = [...saved.conchos];
+    this.lastFilteredBaseId = null;
+    this.firstBaseSelected = !!saved.base;
+
+    // Sync preview — this triggers rebuildStepsForBaseWidth() which is async
+    // and can overwrite buckleChoices, so re-assert the saved products after.
+    this.applySelectionToPreview();
+
+    // Re-assert saved products in case applySelectionToPreview couldn't find
+    // them in the (possibly stale) buckleChoices/beltData arrays.
+    this.beltBuckle = saved.buckle;
+    this.buckleVariantImage = saved.buckle
+      ? (this.isSetProduct(saved.buckle)
+          ? (getImageAt(saved.buckle, 1, { fallbackToFirst: false }) ?? getImageAt(saved.buckle, 0))
+          : getImageAt(saved.buckle, 0))
+      : null;
+    this.beltTip = saved.tip;
+    this.beltLoops = [...saved.loops];
+    this.beltConchos = [...saved.conchos];
+
+    // Ensure the saved buckle is in buckleChoices so the preview/checkout can find it
+    if (saved.buckle && !this.buckleChoices.some(b => b.id === saved.buckle!.id)) {
+      this.buckleChoices = [...this.buckleChoices, saved.buckle];
+    }
+
+    // Wait for Lit to render so the preview element exists in the DOM
+    // (it only renders when beltBase is non-null).
+    await this.updateComplete;
+
+    // Sync the preview component with restored products
+    if (this.preview.value) {
+      if (this.buckleVariantImage) this.preview.value.buckle = this.buckleVariantImage;
+      if (saved.tip) this.preview.value.tip = getImageAt(saved.tip, 0);
+
+      const loopImages = saved.loops.map(p => getImageAt(p, 0)).filter(Boolean) as string[];
+      if (saved.isSet && saved.buckle) {
+        const setLoopImg = getImageAt(saved.buckle, 2, { fallbackToFirst: false });
+        this.preview.value.loops = setLoopImg ? [setLoopImg, ...loopImages] : loopImages;
+      } else {
+        this.preview.value.loops = loopImages;
+      }
+
+      this.preview.value.conchos = saved.conchos
+        .map(p => getImageAt(p, 0))
+        .filter(Boolean) as string[];
+    }
+
+    // Navigate to step 0 after the preview is fully loaded
     this.wizard.goTo(0);
   }
 
   private removeSavedBelt(index: number) {
     this.savedBelts = this.savedBelts.filter((_, i) => i !== index)
       .map((belt, i) => ({ ...belt, label: `Belt ${i + 1}` }));
+
+    // Adjust editing position if a belt before it was removed
+    if (this.editingBeltIndex !== null) {
+      if (index < this.editingBeltIndex) {
+        this.editingBeltIndex--;
+      }
+    }
   }
 
   /** Calculate the total price for a saved belt from its stored variant IDs. */

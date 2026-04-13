@@ -48,6 +48,7 @@ export function thumbnailOption(
   price?: MoneyV2,
   options?: {
     onClick?: EventHandler;
+    onInfoClick?: EventHandler;
     class?: string;
     type?: unknown;
     selected?: boolean;
@@ -83,6 +84,18 @@ export function thumbnailOption(
       />
       <label for="${id}">
         <div class="selection-indicator-wrapper ${options.class ?? ""}">
+          ${options.onInfoClick
+            ? html`<button
+                type="button"
+                class="info-btn"
+                title="Product info"
+                @click="${(ev: Event) => {
+                  ev.stopPropagation();
+                  ev.preventDefault();
+                  options!.onInfoClick!(ev);
+                }}"
+              >i</button>`
+            : null}
           <img
             class="thumbnail selection-indicator"
             src="${img}"

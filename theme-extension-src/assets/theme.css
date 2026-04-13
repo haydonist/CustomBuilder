@@ -182,12 +182,19 @@ button.btn.primary, a.btn.primary {
   color: var(--neutral-white);
   background-color: #8b5e3c;
 }
+
+belt-checkout{
+  max-width: 72ch;
+}
+
 #stepShortcut {
   position: relative;
   z-index: 5;
   display: flex;
   flex-direction: row;
+  align-items: flex-start;
   gap: 1rem;
+  height: 44px;
 }
 
 #stepShortcut .mainBtn-wrapper{
@@ -794,6 +801,28 @@ belt-wizard #summary .btn-remove-belt {
 belt-wizard #summary .btn-remove-belt:hover {
   background: rgba(217, 119, 87, 0.25);
   border-color: #d97757;
+  color: #fff;
+}
+
+belt-wizard #summary .btn-edit-belt {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ccc;
+  font-size: 1rem;
+  line-height: 1;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+belt-wizard #summary .btn-edit-belt:hover {
+  background: rgba(212, 175, 55, 0.25);
+  border-color: var(--old-gold);
   color: #fff;
 }
 
@@ -1838,4 +1867,129 @@ belt-wizard > header {
     background: rgba(255, 255, 255, 0.2);
     color: #fff;
   }
+}
+
+.info-btn {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 5;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  font-style: italic;
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.2s ease;
+}
+
+.info-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+  border-color: #fff;
+}
+
+/* Info Popup Overlay */
+.info-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: infoFadeIn 0.2s ease;
+}
+
+@keyframes infoFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.info-popup-card {
+  position: relative;
+  background: var(--potters-clay-darkest, #291c12);
+  color: var(--neutral-white, #fff);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  max-width: 420px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 24px;
+  box-shadow: var(--shadow-xl);
+  animation: infoSlideUp 0.25s ease;
+}
+
+@keyframes infoSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.info-popup-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.info-popup-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.info-popup-img {
+  display: block;
+  width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.info-popup-title {
+  font-family: "Founders Grotesque X Condensed", sans-serif;
+  font-size: 24px;
+  font-weight: normal;
+  margin: 0 0 4px;
+}
+
+.info-popup-price {
+  display: inline-block;
+  font-size: 14px;
+  color: var(--potters-clay-light, #ad8e76);
+  margin-bottom: 12px;
+}
+
+.info-popup-desc {
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.info-popup-desc p {
+  margin: 0 0 8px;
+}
+
+.info-popup-desc p:last-child {
+  margin-bottom: 0;
 }

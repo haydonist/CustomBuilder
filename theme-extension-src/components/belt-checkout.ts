@@ -35,6 +35,10 @@ export default class BeltCheckout extends LitElement {
 
   @state() private isCheckingOut = false;
 
+  private get isDebug() {
+    return typeof location !== "undefined" && new URLSearchParams(location.search).has("debug");
+  }
+
   static override styles = css`
     ${styles.theme}
     :host {
@@ -51,7 +55,7 @@ export default class BeltCheckout extends LitElement {
       margin-top: var(--gap-small);
       font-size: 0.8rem;
       line-height: 1.4;
-      color: var(--color-foreground-secondary, #666);
+      color: var(--color-foreground-secondary, #cdcdcd);
     }
     .checkout-policy p {
       margin: 0 0 0.4em;
@@ -126,6 +130,7 @@ export default class BeltCheckout extends LitElement {
         @click=${() => this.scrollToPolicy()}
       >View cancellation policy</button>
       <div class="checkout-policy" id="checkoutPolicy">
+        ${this.isDebug ? html`<span style="display:inline-block;font:600 10px/1.2 system-ui,sans-serif;background:rgba(255,165,0,0.92);color:#000;padding:2px 8px;border-radius:3px;margin-bottom:4px;box-shadow:0 1px 3px rgba(0,0,0,0.3);">Source: Theme Editor → Belt Builder → Checkout Policy → Checkout Policy Notice</span>` : null}
         ${unsafeHTML(this.checkoutPolicy)}
       </div>
     `;

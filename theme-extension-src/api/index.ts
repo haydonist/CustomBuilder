@@ -29,6 +29,7 @@ const productQuery = `
         node {
           id
           title
+          descriptionHtml
           tags
           collections(first: 10) {
             edges {
@@ -142,6 +143,7 @@ export interface ProductCollection {
 export interface Product {
   id: string;
   title: string;
+  descriptionHtml: string;
   tags: string[];
   collections: ProductCollection[];
   images: ProductImage[];
@@ -220,6 +222,7 @@ export async function queryProducts(
     return {
       id: product.id,
       title: product.title,
+      descriptionHtml: product.descriptionHtml ?? "",
       tags: product.tags,
       collections: (product.collections?.edges ?? []).map(({ node: c }: any) => ({
         id: c.id,
