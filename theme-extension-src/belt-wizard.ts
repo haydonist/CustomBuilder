@@ -305,6 +305,7 @@ private getMaxLoopsAllowed(): number {
     "Buckles",
     "Tips",
     "Conchos",
+    "Straps",
   ]);
 
   private getAllCollectionsForStep(stepId: string): string[] {
