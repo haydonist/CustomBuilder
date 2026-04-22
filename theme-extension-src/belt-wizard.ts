@@ -918,9 +918,10 @@ private getSelectedBaseColor(): string | null {
         continue;
       }
 
-      const titles = product.collections?.length
-        ? product.collections.map((c) => c.title)
-        : ["Other"];
+      const visibleTitles = product.collections
+        ?.map((c) => c.title)
+        .filter((title) => !CustomBeltWizard.HIDDEN_COLLECTIONS.has(title)) ?? [];
+      const titles = visibleTitles.length ? visibleTitles : ["Other"];
 
       for (const title of titles) {
         if (!map.has(title)) map.set(title, []);
