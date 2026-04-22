@@ -22,7 +22,7 @@ import {
 } from "./api/index.ts";
 import BeltCheckout from "./components/belt-checkout.ts";
 import BeltPreview from "./components/belt-preview/index.ts";
-import { textOption, thumbnailOption } from "./components/option.ts";
+import { onThumbLoad, textOption, thumbnailOption } from "./components/option.ts";
 import Wizard, { renderView } from "./models/wizard/index.ts";
 import { type BeltAnchors, getAnchorOverrides } from "./config/belt-anchors.ts";
 
@@ -148,13 +148,62 @@ export class CustomBeltWizard extends LitElement {
 
   private variantSelection = new Map<string, string>();
 
+  private lastStepIndex = 0;
+
   constructor() {
     super();
 
-    // Update the view when the wizard's step changes
-    this.wizard.changed.subscribe(() => this.requestUpdate());
+    // On every step change, clone the outgoing title + content into overlay
+    // elements and animate them out, then trigger the re-render so the new
+    // step fades in underneath. Gives a clear exit-then-enter handoff.
+    this.wizard.changed.subscribe((newIndex) => {
+      const direction: "forward" | "backward" =
+        newIndex >= this.lastStepIndex ? "forward" : "backward";
+      this.setAttribute("data-step-direction", direction);
+      this.lastStepIndex = newIndex;
+
+      this.spawnExitClone(".step-content", direction);
+      this.spawnExitClone(".step-title", direction);
+
+      this.requestUpdate();
+    });
 
     this.updateProducts();
+  }
+
+  /** Freeze the outgoing element's current position and let CSS animate a
+   *  detached copy of it out of view. CSS also drives a reverse cascade on
+   *  each thumbnail inside the clone. */
+  private spawnExitClone(selector: string, direction: "forward" | "backward") {
+    const source = this.querySelector(selector) as HTMLElement | null;
+    if (!source) return;
+    const rect = source.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+
+    const clone = source.cloneNode(true) as HTMLElement;
+    clone.setAttribute("aria-hidden", "true");
+    clone.style.position = "fixed";
+    clone.style.left = `${rect.left}px`;
+    clone.style.top = `${rect.top}px`;
+    clone.style.width = `${rect.width}px`;
+    clone.style.margin = "0";
+    clone.style.pointerEvents = "none";
+    clone.style.zIndex = "9999";
+    // Force the clone fully visible at t=0. The source's .step-content /
+    // .step-title base rules set opacity: 0 for animation setup.
+    clone.style.opacity = "1";
+    // Strip entry-animation trigger classes so the entry animation rules
+    // (with their 420ms delay) don't pin the clone to an invisible frame
+    // during the entire exit window.
+    Array.from(clone.classList).forEach((c) => {
+      if (c.startsWith("step-enter-")) clone.classList.remove(c);
+    });
+    clone.classList.add("step-exit-clone", `step-exit-clone--${direction}`);
+    document.body.appendChild(clone);
+
+    // Longest exit: thumb cascade at 10ms * 19 stagger + 200ms duration = 390ms,
+    // or the container's 360ms. Remove the clone once both have finished.
+    window.setTimeout(() => clone.remove(), 460);
   }
 
   /** Disable the shadow DOM for this root-level component. */
@@ -1304,7 +1353,12 @@ private get selectedBaseColor(): string | null {
     return html`
       ${this.debugSourceBadge("Colors & Stepper: Theme Editor → Belt Builder → Background/Text/Stepper Color settings")}
       <header>
-        <section id="stepper">
+        <section
+          id="stepper"
+          style="--stepper-progress: ${this.wizard.steps.length > 1
+            ? this.wizard.stepIndex / (this.wizard.steps.length - 1)
+            : 0};"
+        >
           ${this.wizard.steps.map((step, i) => {
             const isCurrent = this.wizard.stepIndex === i;
             const isComplete = i < this.wizard.stepIndex;
@@ -1764,6 +1818,9 @@ private get selectedBaseColor(): string | null {
                               alt="${p.title}"
                               width="160"
                               height="160"
+                              loading="lazy"
+                              decoding="async"
+                              @load="${onThumbLoad}"
                             />
                             ${hoverImage
                               ? html`
@@ -1773,6 +1830,8 @@ private get selectedBaseColor(): string | null {
                                   alt="${p.title}"
                                   width="160"
                                   height="160"
+                                  loading="lazy"
+                                  decoding="async"
                                 />
                               `
                               : null}
@@ -1781,7 +1840,7 @@ private get selectedBaseColor(): string | null {
                                   ${variantImages.slice(0, 3).map(
                                     (url) => html`
                                       <div class="variant-preview-item">
-                                        <img src="${url}" alt="" />
+                                        <img data-src="${url}" alt="" loading="lazy" decoding="async" />
                                       </div>
                                     `,
                                   )}

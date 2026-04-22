@@ -418,13 +418,59 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   margin: 3px;
   border: 1px solid var(--neutral-white);
   border-radius: 8px;
-  background: #ffffff33;
+  background-color: #ffffff33;
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.12) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: thumb-shimmer 1.4s ease-in-out infinite;
   transition: background-color 0.3s ease, border-color 0.3s ease;
   overflow: hidden;
 }
 
+.option.thumbnail .selection-indicator-wrapper:has(img.selection-indicator[data-loaded]) {
+  background-image: none;
+  animation: none;
+}
+
+@keyframes thumb-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Fade the main thumbnail in once it's decoded instead of painting line-by-line. */
+.option.thumbnail img.selection-indicator {
+  opacity: 0;
+  transition: opacity 350ms ease;
+}
+
+.option.thumbnail img.selection-indicator[data-loaded] {
+  opacity: 1;
+}
+
 .option.thumbnail[data-kind="base"] .selection-indicator-wrapper {
   position: relative;
+  background-image:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.12) 50%,
+      transparent 100%
+    ),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 2000 2021'><g fill='white' fill-opacity='0.04' stroke='white' stroke-opacity='0.3' stroke-width='26' stroke-linejoin='round' stroke-linecap='round'><path d='M173.111 1857C124.107 1838.5 138.105 1739 173.111 1659L492.61 780C610.433 525.014 678.338 386.118 824.11 192.5C915.105 82.5 1009.11 20.0001 1139.61 20L1367.61 37C1415.11 42 1541.94 92.7666 1602.11 125.5C1609.42 129.479 1619.74 165.55 1623.61 169.5C1702.61 632.5 1747.6 641.5 1517.61 1559.5C1465.61 1625.03 1331.61 1755.5 1237.11 1746L920.61 1683C845.871 1647.68 814.413 1623.67 790.11 1568L723.11 1896.5C705.105 1963.69 646.605 2005.76 620.11 1999.5C465.418 1962.97 182.273 1860.46 173.111 1857Z'/><path fill='none' d='M790.11 1568L984.641 842C1197.7 172.163 1410.61 43.9214 1602.11 125.5'/><path d='M1557.55 102.41C1590.74 107.606 1622.03 131.46 1649.49 175.939C1676.9 220.338 1698.94 283.016 1714 360.321C1744.07 514.757 1745.39 723.149 1710.1 948.557C1674.81 1173.96 1609.86 1371.98 1534.02 1509.84C1496.06 1578.84 1455.91 1631.78 1416.25 1665.68C1376.51 1699.64 1339.42 1712.79 1306.24 1707.59C1273.05 1702.39 1241.76 1678.54 1214.3 1634.06C1186.89 1589.66 1164.85 1526.98 1149.79 1449.68C1119.72 1295.24 1118.4 1086.85 1153.69 861.443C1188.98 636.036 1253.93 438.019 1329.77 300.164C1367.73 231.16 1407.88 178.219 1447.54 144.321C1487.28 110.362 1524.37 97.2142 1557.55 102.41Z'/><path d='M1598.67 220.347C1622.79 224.123 1646.83 243.599 1668.32 283.771C1689.6 323.575 1706.37 380.259 1717.25 450.579C1738.99 590.982 1736.58 781.127 1704.29 987.416C1671.99 1193.71 1616.16 1375.49 1552.56 1502.53C1520.7 1566.16 1487.41 1615 1454.97 1646.4C1422.24 1678.08 1393.39 1689.27 1369.27 1685.5C1345.15 1681.72 1321.11 1662.25 1299.63 1622.07C1278.34 1582.27 1261.57 1525.59 1250.69 1455.27C1228.95 1314.86 1231.36 1124.72 1263.65 918.429C1295.95 712.139 1351.78 530.358 1415.38 403.317C1447.24 339.689 1480.53 290.843 1512.97 259.449C1545.7 227.765 1574.55 216.57 1598.67 220.347Z'/></g><g fill='white' fill-opacity='0.4'><circle cx='1381.61' cy='1335.5' r='21.5'/><circle cx='1483.61' cy='988.5' r='21.5'/><circle cx='1494.61' cy='586.5' r='21.5'/></g><path fill='none' stroke='white' stroke-opacity='0.28' stroke-width='10' stroke-linecap='round' stroke-dasharray='18 22' d='M1587.11 239C1772.61 414 1636.61 1478.5 1360.61 1666'/></svg>");
+  background-size: 200% 100%, 75% 75%;
+  background-position: 0 0, center center;
+  background-repeat: no-repeat, no-repeat;
+  animation: thumb-shimmer-base 1.4s ease-in-out infinite;
+}
+
+@keyframes thumb-shimmer-base {
+  0%   { background-position: 200% 0, center center; }
+  100% { background-position: -200% 0, center center; }
 }
 
 .option.thumbnail[data-kind="base"]:not(.summary) .selection-indicator {
@@ -541,6 +587,10 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
   position: relative;
 }
 
+.option.thumbnail:has(.variant-popup) {
+  z-index: 20;
+}
+
 /* Overlay container for the buckle variant chooser */
 .variant-popup {
   position: absolute;
@@ -637,39 +687,247 @@ section.step.step-shifted {
   }
 }
 
-/* Step title + options grow/fade in on each step */
+/* =========================================================================
+   Step transitions — directional slide + pull-focus + staggered cascade
+   ========================================================================= */
 
+:root {
+  --step-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --step-ease-spring: cubic-bezier(0.34, 1.2, 0.64, 1);
+  --step-ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --step-dur-enter: 620ms;
+  --step-dur-title: 520ms;
+  --step-stagger: 55ms;
+  /* Per-thumbnail cascade pacing */
+  --thumb-stagger: 32ms;
+  --thumb-stagger-exit: 10ms;
+  /* Wait for the exit cascade to fully finish before the new step starts.
+     Worst case: container exit 360ms OR thumb cascade 10ms*19 + 200ms = 390ms. */
+  --step-enter-delay: 420ms;
+}
+
+/* Starting state — hidden before animation kicks in, so the pre-animation
+   paint doesn't flash the final position. */
 .step-title,
 .step-content {
   opacity: 0;
-  transform: scale(0.96) translateY(8px);
+  will-change: opacity, transform, filter;
 }
 
-.step-title.step-enter-0,
-.step-content.step-enter-0,
-.step-title.step-enter-1,
-.step-content.step-enter-1,
-.step-title.step-enter-2,
-.step-content.step-enter-2,
-.step-title.step-enter-3,
-.step-content.step-enter-3,
-.step-title.step-enter-4,
-.step-content.step-enter-4,
-.step-title.step-enter-5,
-.step-content.step-enter-5,
-.step-title.step-enter-6,
-.step-content.step-enter-6 {
-  animation: stepGrowIn 0.5s ease forwards;
+/* Container slide + focus pull. Direction is stamped onto the wizard host. */
+belt-wizard[data-step-direction="forward"] .step-content[class*="step-enter-"] {
+  animation: stepSlideInForward var(--step-dur-enter) var(--step-ease) var(--step-enter-delay) both;
+}
+belt-wizard[data-step-direction="backward"] .step-content[class*="step-enter-"] {
+  animation: stepSlideInBackward var(--step-dur-enter) var(--step-ease) var(--step-enter-delay) both;
+}
+/* Fallback for the very first render (no direction attr yet) — no delay,
+   we want the initial load to appear immediately. */
+.step-content[class*="step-enter-"] {
+  animation: stepSlideInForward var(--step-dur-enter) var(--step-ease) forwards;
 }
 
-@keyframes stepGrowIn {
-  from {
+@keyframes stepSlideInForward {
+  0% {
     opacity: 0;
-    transform: scale(0.96) translateY(8px);
+    transform: translate3d(80px, 0, 0) scale(0.96);
+    filter: blur(10px);
   }
-  to {
+  55% {
     opacity: 1;
-    transform: none;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes stepSlideInBackward {
+  0% {
+    opacity: 0;
+    transform: translate3d(-80px, 0, 0) scale(0.96);
+    filter: blur(10px);
+  }
+  55% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* Title morph — drop-in with a tiny spring overshoot. */
+.step-title[class*="step-enter-"] {
+  animation: titleDropIn var(--step-dur-title) var(--step-ease-spring) var(--step-enter-delay) both;
+}
+.step-title[class*="step-enter-"] .subtitle {
+  opacity: 0;
+  animation: subtitleFadeIn 420ms var(--step-ease)
+    calc(var(--step-enter-delay) + 80ms) forwards;
+}
+
+@keyframes titleDropIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -24px, 0);
+  }
+  60% {
+    opacity: 1;
+    transform: translate3d(0, 3px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+@keyframes subtitleFadeIn {
+  from { opacity: 0; transform: translate3d(0, -4px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/* Child stagger cascade — each direct child of the form within the entering
+   step-content is revealed in sequence, on top of the container slide. */
+.step-content[class*="step-enter-"] form > * {
+  opacity: 0;
+  animation: childCascadeIn 480ms var(--step-ease) both;
+}
+.step-content[class*="step-enter-"] form > *:nth-child(1)  { animation-delay: calc(var(--step-enter-delay) + 1  * var(--step-stagger)); }
+.step-content[class*="step-enter-"] form > *:nth-child(2)  { animation-delay: calc(var(--step-enter-delay) + 2  * var(--step-stagger)); }
+.step-content[class*="step-enter-"] form > *:nth-child(3)  { animation-delay: calc(var(--step-enter-delay) + 3  * var(--step-stagger)); }
+.step-content[class*="step-enter-"] form > *:nth-child(4)  { animation-delay: calc(var(--step-enter-delay) + 4  * var(--step-stagger)); }
+.step-content[class*="step-enter-"] form > *:nth-child(5)  { animation-delay: calc(var(--step-enter-delay) + 5  * var(--step-stagger)); }
+.step-content[class*="step-enter-"] form > *:nth-child(6)  { animation-delay: calc(var(--step-enter-delay) + 6  * var(--step-stagger)); }
+.step-content[class*="step-enter-"] form > *:nth-child(7)  { animation-delay: calc(var(--step-enter-delay) + 7  * var(--step-stagger)); }
+.step-content[class*="step-enter-"] form > *:nth-child(8)  { animation-delay: calc(var(--step-enter-delay) + 8  * var(--step-stagger)); }
+.step-content[class*="step-enter-"] form > *:nth-child(9)  { animation-delay: calc(var(--step-enter-delay) + 9  * var(--step-stagger)); }
+.step-content[class*="step-enter-"] form > *:nth-child(10) { animation-delay: calc(var(--step-enter-delay) + 10 * var(--step-stagger)); }
+.step-content[class*="step-enter-"] form > *:nth-child(n+11) { animation-delay: calc(var(--step-enter-delay) + 11 * var(--step-stagger)); }
+
+@keyframes childCascadeIn {
+  0%   { opacity: 0; transform: translate3d(0, 16px, 0); filter: blur(6px); }
+  60%  { filter: blur(0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0); filter: blur(0); }
+}
+
+/* -------------------------------------------------------------------------
+   Per-thumbnail enter cascade — each .option pops up individually, layered
+   on top of its wrapper's cascade so the list rolls in rather than flashing.
+   ------------------------------------------------------------------------- */
+.step-content[class*="step-enter-"] .option {
+  opacity: 0;
+  animation: thumbPopIn 500ms var(--step-ease-spring) both;
+}
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(1)  { animation-delay: calc(var(--step-enter-delay) + 80ms + 0  * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(2)  { animation-delay: calc(var(--step-enter-delay) + 80ms + 1  * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(3)  { animation-delay: calc(var(--step-enter-delay) + 80ms + 2  * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(4)  { animation-delay: calc(var(--step-enter-delay) + 80ms + 3  * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(5)  { animation-delay: calc(var(--step-enter-delay) + 80ms + 4  * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(6)  { animation-delay: calc(var(--step-enter-delay) + 80ms + 5  * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(7)  { animation-delay: calc(var(--step-enter-delay) + 80ms + 6  * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(8)  { animation-delay: calc(var(--step-enter-delay) + 80ms + 7  * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(9)  { animation-delay: calc(var(--step-enter-delay) + 80ms + 8  * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(10) { animation-delay: calc(var(--step-enter-delay) + 80ms + 9  * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(11) { animation-delay: calc(var(--step-enter-delay) + 80ms + 10 * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(12) { animation-delay: calc(var(--step-enter-delay) + 80ms + 11 * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(13) { animation-delay: calc(var(--step-enter-delay) + 80ms + 12 * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(14) { animation-delay: calc(var(--step-enter-delay) + 80ms + 13 * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(15) { animation-delay: calc(var(--step-enter-delay) + 80ms + 14 * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(16) { animation-delay: calc(var(--step-enter-delay) + 80ms + 15 * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(17) { animation-delay: calc(var(--step-enter-delay) + 80ms + 16 * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(18) { animation-delay: calc(var(--step-enter-delay) + 80ms + 17 * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(19) { animation-delay: calc(var(--step-enter-delay) + 80ms + 18 * var(--thumb-stagger)); }
+.step-content[class*="step-enter-"] .row.wrap .option:nth-child(n+20) { animation-delay: calc(var(--step-enter-delay) + 80ms + 19 * var(--thumb-stagger)); }
+
+@keyframes thumbPopIn {
+  0%   { opacity: 0; transform: translate3d(0, 22px, 0) scale(0.82); filter: blur(6px); }
+  55%  { filter: blur(0); }
+  80%  { opacity: 1; transform: translate3d(0, -2px, 0) scale(1.02); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+}
+
+/* -------------------------------------------------------------------------
+   Exit clone — a detached copy of the outgoing step that slides out while
+   each thumbnail inside it fades in a fast cascade.
+   ------------------------------------------------------------------------- */
+.step-exit-clone {
+  animation: cloneContainerExit 360ms var(--step-ease-exit) forwards;
+  pointer-events: none;
+}
+.step-exit-clone--forward {
+  animation-name: cloneContainerExitForward;
+}
+.step-exit-clone--backward {
+  animation-name: cloneContainerExitBackward;
+}
+
+@keyframes cloneContainerExitForward {
+  0%   { opacity: 1; transform: translate3d(0, 0, 0); filter: blur(0); }
+  100% { opacity: 0; transform: translate3d(-60px, 0, 0) scale(0.97); filter: blur(8px); }
+}
+@keyframes cloneContainerExitBackward {
+  0%   { opacity: 1; transform: translate3d(0, 0, 0); filter: blur(0); }
+  100% { opacity: 0; transform: translate3d(60px, 0, 0) scale(0.97); filter: blur(8px); }
+}
+
+/* Per-thumbnail exit cascade inside the clone */
+.step-exit-clone .option {
+  animation: thumbFadeOut 200ms var(--step-ease-exit) both;
+}
+.step-exit-clone .row.wrap .option:nth-child(1)  { animation-delay: calc(0  * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(2)  { animation-delay: calc(1  * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(3)  { animation-delay: calc(2  * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(4)  { animation-delay: calc(3  * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(5)  { animation-delay: calc(4  * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(6)  { animation-delay: calc(5  * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(7)  { animation-delay: calc(6  * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(8)  { animation-delay: calc(7  * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(9)  { animation-delay: calc(8  * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(10) { animation-delay: calc(9  * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(11) { animation-delay: calc(10 * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(12) { animation-delay: calc(11 * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(13) { animation-delay: calc(12 * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(14) { animation-delay: calc(13 * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(15) { animation-delay: calc(14 * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(16) { animation-delay: calc(15 * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(17) { animation-delay: calc(16 * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(18) { animation-delay: calc(17 * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(19) { animation-delay: calc(18 * var(--thumb-stagger-exit)); }
+.step-exit-clone .row.wrap .option:nth-child(n+20) { animation-delay: calc(19 * var(--thumb-stagger-exit)); }
+
+@keyframes thumbFadeOut {
+  0%   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+  100% { opacity: 0; transform: translate3d(0, -14px, 0) scale(0.9); filter: blur(5px); }
+}
+
+/* Reduced motion — collapse everything to a gentle crossfade. */
+@media (prefers-reduced-motion: reduce) {
+  .step-title,
+  .step-content,
+  .step-content[class*="step-enter-"] form > *,
+  .step-content[class*="step-enter-"] .option {
+    animation: reducedFade 160ms ease forwards !important;
+    animation-delay: 0ms !important;
+    transform: none !important;
+    filter: none !important;
+  }
+  .step-exit-clone,
+  .step-exit-clone .option {
+    animation: reducedFadeOut 160ms ease forwards !important;
+    animation-delay: 0ms !important;
+    transform: none !important;
+    filter: none !important;
+  }
+  @keyframes reducedFade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes reducedFadeOut {
+    from { opacity: 1; }
+    to   { opacity: 0; }
   }
 }
 
@@ -1264,6 +1522,22 @@ body > main {
   z-index: 0;
 }
 
+/* Progress fill that scales left-to-right as the user advances. */
+#stepper:after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  height: 1px;
+  background-color: var(--stepper-dot-complete-color, rgba(71, 111, 255, 0.85));
+  transform: translateY(-50%) scaleX(var(--stepper-progress, 0));
+  transform-origin: left center;
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 0;
+  pointer-events: none;
+}
+
 #stepper button.step {
   position: relative;
   width: 22px;
@@ -1277,6 +1551,12 @@ body > main {
   place-items: center;
   padding: 0;
   color: rgba(255, 255, 255, 0.75);
+  transition:
+    background-color 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 320ms cubic-bezier(0.34, 1.2, 0.64, 1),
+    box-shadow 320ms ease;
+  overflow: hidden;
 }
 
 #stepper .step-indicator {
@@ -1284,30 +1564,117 @@ body > main {
   line-height: 1;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.85);
+  transition: transform 320ms cubic-bezier(0.34, 1.2, 0.64, 1), opacity 200ms ease;
 }
 
-/* Completed steps: filled, but still subtle */
+/* Completed steps: filled, but still subtle. Pop the checkmark in on entry. */
 #stepper button.step.is-complete {
   background-color: var(--stepper-dot-complete-color, rgba(71, 111, 255, 0.85));
   border-color: var(--stepper-dot-complete-color, rgba(71, 111, 255, 0.85));
   color: #fff;
 }
+#stepper button.step.is-complete .step-indicator {
+  animation: stepCompletePop 360ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
 
-/* Current step: strongest emphasis */
+@keyframes stepCompletePop {
+  0%   { transform: scale(0.4); opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Current step: strongest emphasis — gradient sheen sweep on activation. */
 #stepper button.step.is-current {
   background-color: var(--stepper-dot-current-color, #476fff);
   border-color: var(--stepper-dot-current-color, #476fff);
   cursor: not-allowed;
   color: #fff;
+  transform: scale(1.65);
+  box-shadow:
+    0 0 0 6px rgba(71, 111, 255, 0.18),
+    0 0 0 12px rgba(71, 111, 255, 0.08),
+    0 6px 20px rgba(71, 111, 255, 0.4);
+}
+
+#stepper button.step.is-current .step-indicator {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#stepper button.step.is-current::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    110deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 65%
+  );
+  transform: translateX(-120%);
+  animation: stepperSheen 900ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+  pointer-events: none;
+}
+
+@keyframes stepperSheen {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
 }
 
 #stepper button.step.is-current .step-indicator {
   color: #fff;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  #stepper:after { transition: none; }
+  #stepper button.step,
+  #stepper button.step.is-current,
+  #stepper .step-indicator,
+  #stepper button.step.is-complete .step-indicator {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+  #stepper button.step.is-current::before { display: none; }
+}
+
 /* Upcoming: quiet */
 #stepper button.step.is-upcoming .step-indicator {
   color: rgba(255, 255, 255, 0.75);
+}
+
+/* Hover affordance on jumpable (non-current, non-disabled) steps */
+#stepper button.step:not(.is-current):not(.is-disabled):hover {
+  transform: scale(1.35);
+  box-shadow:
+    0 0 0 4px rgba(71, 111, 255, 0.18),
+    0 0 0 9px rgba(71, 111, 255, 0.08);
+  animation: stepHoverPulse 1.4s ease-in-out infinite;
+}
+
+#stepper button.step:not(.is-current):not(.is-disabled):hover .step-indicator {
+  transform: scale(1.08);
+}
+
+@keyframes stepHoverPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 4px rgba(71, 111, 255, 0.18),
+      0 0 0 9px rgba(71, 111, 255, 0.08);
+  }
+  50% {
+    box-shadow:
+      0 0 0 6px rgba(71, 111, 255, 0.28),
+      0 0 0 14px rgba(71, 111, 255, 0.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #stepper button.step:not(.is-current):not(.is-disabled):hover {
+    animation: none;
+    transform: none;
+  }
 }
 
 .step-indicator {

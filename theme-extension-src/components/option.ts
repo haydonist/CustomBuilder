@@ -4,6 +4,24 @@ import { MoneyV2 } from "../api/index.ts";
 
 export type EventHandler = (ev: Event) => void;
 
+// Used on the main thumbnail's @load. Marks the image as loaded (to trigger
+// the CSS fade-in and hide the shimmer) and promotes any deferred variant
+// preview images from data-src to src so they fetch only after the primary
+// image is decoded.
+export function onThumbLoad(e: Event) {
+  const img = e.target as HTMLImageElement;
+  img.setAttribute("data-loaded", "");
+  const wrapper = img.closest(".selection-indicator-wrapper");
+  wrapper?.querySelectorAll<HTMLImageElement>(
+    ".variant-preview-item img[data-src]",
+  ).forEach((v) => {
+    const src = v.dataset.src;
+    if (!src) return;
+    v.src = src;
+    v.removeAttribute("data-src");
+  });
+}
+
 export function textOption(
   id: string,
   name: string,
@@ -102,6 +120,9 @@ export function thumbnailOption(
             alt="${label}"
             width="160"
             height="160"
+            loading="lazy"
+            decoding="async"
+            @load="${onThumbLoad}"
           />
           ${countShown
             ? html`
@@ -113,7 +134,7 @@ export function thumbnailOption(
                 ${options.variantImages.slice(0, 3).map(
                   (url) => html`
                     <div class="variant-preview-item">
-                      <img src="${url}" alt="" />
+                      <img data-src="${url}" alt="" loading="lazy" decoding="async" />
                     </div>
                   `,
                 )}

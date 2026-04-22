@@ -12,11 +12,21 @@
     looped-belt-src="{{ 'belts/looped-belt.png' | asset_url }}"
     concho-recommendation="{{ block.settings.concho_recommendation_text | default: '<strong>Our Recommendation:</strong> Using the same concho in sets of 5, 7, or 9 usually looks best and qualifies for a discount. Other quantities or mixing different conchos can end up looking unpolished.' }}"
     checkout-policy="{{ block.settings.checkout_policy_text | default: '<p>Free cancellation is available within 24 business hours of placing your order. After an order is placed, our team will contact you to confirm all order details.</p><p>Each belt is custom-tailored to your specifications. Because custom belts cannot be reused or resold, a <strong>30% restocking fee</strong> will apply if a return is requested after the order has been completed.</p>' }}"
-    {% if block.settings.base_collection_order != blank %}collection-order-base="{{ block.settings.base_collection_order }}"{% endif %}
-    {% if block.settings.buckle_collection_order != blank %}collection-order-buckle="{{ block.settings.buckle_collection_order }}"{% endif %}
-    {% if block.settings.loop_collection_order != blank %}collection-order-loops="{{ block.settings.loop_collection_order }}"{% endif %}
-    {% if block.settings.concho_collection_order != blank %}collection-order-conchos="{{ block.settings.concho_collection_order }}"{% endif %}
-    {% if block.settings.tip_collection_order != blank %}collection-order-tip="{{ block.settings.tip_collection_order }}"{% endif %}
+    {% if block.settings.base_collection_order != blank %}
+      collection-order-base="{{ block.settings.base_collection_order }}"
+    {% endif %}
+    {% if block.settings.buckle_collection_order != blank %}
+      collection-order-buckle="{{ block.settings.buckle_collection_order }}"
+    {% endif %}
+    {% if block.settings.loop_collection_order != blank %}
+      collection-order-loops="{{ block.settings.loop_collection_order }}"
+    {% endif %}
+    {% if block.settings.concho_collection_order != blank %}
+      collection-order-conchos="{{ block.settings.concho_collection_order }}"
+    {% endif %}
+    {% if block.settings.tip_collection_order != blank %}
+      collection-order-tip="{{ block.settings.tip_collection_order }}"
+    {% endif %}
   ></belt-wizard>
   <div id="scrollToken" style="height: 1px;"></div>
 </div>
@@ -48,7 +58,6 @@
     display: flex;
     flex-direction: column;
     color: #fff;
-    overflow-x: clip;
     width: 100%;
     margin-left: 0;
     margin-right: 0;
