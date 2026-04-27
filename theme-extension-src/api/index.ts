@@ -72,6 +72,13 @@ const productQuery = `
             value
             type
           }
+          defaultForBases: metafields(identifiers: [
+            {namespace: "custom", key: "default_for_bases"}
+          ]) {
+            key
+            value
+            type
+          }
           variants(first: 50) {
             edges {
               node {
@@ -154,6 +161,7 @@ export interface Product {
   variants: ProductVariant[];
   /** Parsed JSON from the `custom.belt_anchors` metafield, if present. */
   beltAnchors: Record<string, unknown> | null;
+  defaultForBaseIds: string[];
 }
 
 export function isProductInStock(product: Product): boolean {
@@ -172,26 +180,13 @@ export function isProductInStock(product: Product): boolean {
 
 export async function queryProducts(
   query: string,
-  { after, prefetchImages }: { after?: string, prefetchImages: boolean } = { prefetchImages: true },
+  { after }: { after?: string } = {},
 ): Promise<{ page: PageInfo; products: Product[] }> {
   const resp = await client.request(productQuery, { variables: {
     query,
     after: after ?? null
   }});
   if (resp.errors) throw new Error(JSON.stringify(resp.errors));
-
-  if (prefetchImages) {
-    const images: ProductImage[] = resp.data.products.edges.flatMap(
-      ({ node }: any) => node.images.edges.map(({ node: img }: any) => img),
-    );
-
-    // Fire-and-forget: prefetch images in the background without blocking
-    // the caller so the UI can render immediately after the API response.
-    for (const image of images) {
-      const img = new Image();
-      img.src = image.url;
-    }
-  }
 
   const page: PageInfo = resp.data.products.pageInfo;
   const products = resp.data.products.edges.map(({ node: product }: any) => {
@@ -219,6 +214,24 @@ export async function queryProducts(
       }
     }
 
+    const defaultForBaseIds: string[] = [];
+    const rawDefaultForBases = product.defaultForBases ?? [];
+    for (const field of rawDefaultForBases) {
+      if (!field || field.value == null) continue;
+      try {
+        const parsed = JSON.parse(field.value);
+        if (Array.isArray(parsed)) {
+          for (const id of parsed) {
+            if (typeof id === "string" && !defaultForBaseIds.includes(id)) {
+              defaultForBaseIds.push(id);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("[default_for_bases] malformed value for", product.title, field.value, err);
+      }
+    }
+
     return {
       id: product.id,
       title: product.title,
@@ -232,6 +245,7 @@ export async function queryProducts(
       images: product.images.edges.map(({ node: img }: any) => img),
       priceRange: product.priceRange,
       beltAnchors,
+      defaultForBaseIds,
       variants: product.variants.edges.map(({ node: v }: any) => ({
         id: v.id,
         title: v.title,
@@ -330,4 +344,11 @@ export function getImageAt(
 
   const img = images[index] ?? (fallbackToFirst ? images[0] : null);
   return img?.url ?? null;
+}
+
+export function cdnResize(url: string | null | undefined, width: number): string {
+  if (!url) return "";
+  if (url.endsWith(".svg") || url.includes(".svg?")) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}width=${width}&format=webp`;
 }

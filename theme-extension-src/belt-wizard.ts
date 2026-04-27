@@ -15,6 +15,7 @@ import "./components/belt-checkout.ts";
 import "./components/belt-preview/index.ts"; 
 
 import {
+  cdnResize,
   getImageAt,
   Product,
   ProductVariant,
@@ -372,51 +373,6 @@ private getMaxLoopsAllowed(): number {
     }
 
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }
-
-  private async preloadAllProducts() {
-    const dedup = (existing: Product[], incoming: Product[]): Product[] => {
-      const ids = new Set(existing.map((p) => p.id));
-      return existing.concat(incoming.filter((p) => !ids.has(p.id)));
-    };
-
-    const loadAll = async (index: number, query: string): Promise<Product[]> => {
-      let all = [...(this.beltData[index] ?? [])];
-      while (this.pages[index]?.hasNextPage) {
-        const { page, products } = await queryProducts(query, {
-          after: this.pages[index].endCursor,
-          prefetchImages: false,
-        });
-        this.pages[index] = page;
-        all = dedup(all, products);
-      }
-      return all;
-    };
-
-    const [bases, buckles, loops, conchos, tips, sets] = await Promise.all([
-      loadAll(0, "tag:Base"),
-      loadAll(1, "tag:buckle"),
-      loadAll(2, "tag:Loop"),
-      loadAll(3, "tag:concho"),
-      loadAll(4, "tag:tip"),
-      loadAll(6, "tag:Set"),
-    ]);
-
-    this.beltData[0] = bases;
-    this.beltData[1] = buckles;
-    this.beltData[2] = loops;
-    this.beltData[3] = conchos;
-    this.beltData[4] = tips;
-    this.beltData[6] = sets;
-
-    const seenSets = new Set(sets.map((p) => p.id));
-    this.buckleChoices = [...sets, ...buckles.filter((p) => !seenSets.has(p.id))];
-
-    this.buildSingleSelectStep("base", this.beltData[0]);
-    this.buildSingleSelectStep("buckle", this.buckleChoices);
-    this.buildMultiSelectStep("loop", this.beltData[2], this.getMaxLoopsAllowed());
-    this.buildMultiSelectStep("concho", this.beltData[3], 9);
-    this.buildSingleSelectStep("tip", this.beltData[4]);
   }
 
   private getSelectedCollectionsForStep(stepId: string): string[] {
@@ -1475,6 +1431,14 @@ private get selectedBaseColor(): string | null {
   private lastFilteredBaseId: string | null = null;
 
   /**
+   * Set to a base ID by the base-click handler when the user picks a (new) base.
+   * `rebuildStepsForBaseWidth` uses this to decide whether to auto-apply the
+   * base's default loops. Cleared after defaults are applied (or skipped) so a
+   * later width-rebuild for the same base doesn't double-apply.
+   */
+  private pendingDefaultLoopsForBaseId: string | null = null;
+
+  /**
    * Re-query and rebuild buckle/loop/tip steps filtered by the selected base's width.
    * Called immediately when a base is selected so that all steps are filtered
    * regardless of whether the user clicks "Continue" or jumps via the stepper.
@@ -1493,10 +1457,10 @@ private get selectedBaseColor(): string | null {
       { page: newLoopPage, products: beltLoops },
       { page: newTipPage, products: beltTips },
     ] = await Promise.all([
-      queryProducts(`tag:buckle${widthFilter}`, { prefetchImages: false }),
-      queryProducts(`tag:set${widthFilter}`, { prefetchImages: false }),
-      queryProducts(`tag:Loop${widthFilter}`, { prefetchImages: false }),
-      queryProducts(`tag:tip${widthFilter}`, { prefetchImages: false }),
+      queryProducts(`tag:buckle${widthFilter}`),
+      queryProducts(`tag:set${widthFilter}`),
+      queryProducts(`tag:Loop${widthFilter}`),
+      queryProducts(`tag:tip${widthFilter}`),
     ]);
 
     // Apply client-side filter as a safety net to ensure only exact width matches
@@ -1529,6 +1493,47 @@ private get selectedBaseColor(): string | null {
     this.buildSingleSelectStep("buckle", this.buckleChoices);
     this.buildMultiSelectStep("loop", filteredLoops, this.getMaxLoopsAllowed());
     this.buildSingleSelectStep("tip", filteredTips);
+
+    // Apply per-base default loops only when the user just picked this base
+    // (the base-click handler sets pendingDefaultLoopsForBaseId). This guards
+    // against re-applying when a saved belt is loaded or when other code paths
+    // trigger a width-rebuild for the same base.
+    if (
+      this.beltBase &&
+      this.pendingDefaultLoopsForBaseId === this.beltBase.id
+    ) {
+      this.applyDefaultLoopsForBase(this.beltBase, filteredLoops);
+      this.pendingDefaultLoopsForBaseId = null;
+      this.applySelectionToPreview();
+    }
+  }
+
+  /**
+   * Auto-select the loops a belt base lists itself as a default for, by reading
+   * the `custom.default_for_bases` metafield on each loop product. Only fills
+   * empty loop slots — never overwrites an existing user selection.
+   */
+  private applyDefaultLoopsForBase(base: Product, availableLoops: Product[]) {
+    if (!this.selection) return;
+    if ((this.selection.getAll("loop") as string[]).length) return;
+
+    const baseWidthTag = base.tags?.find((t) => t.toLowerCase().endsWith("mm")) ?? null;
+    const matches = availableLoops.filter((loop) => {
+      if (!loop.defaultForBaseIds?.includes(base.id)) return false;
+      if (!baseWidthTag) return true;
+      const widths = (loop.tags ?? []).filter((t) => t.toLowerCase().endsWith("mm"));
+      return widths.length === 1 && widths[0] === baseWidthTag;
+    });
+    if (!matches.length) return;
+
+    const maxLoops = this.getMaxLoopsAllowed();
+    for (const loop of matches.slice(0, maxLoops)) {
+      const variant =
+        loop.variants?.find((v) => v.availableForSale) ?? loop.variants?.[0];
+      if (!variant) continue;
+      this.selection.append("loop", loop.id);
+      this.selection.append("loopVariant", variant.id);
+    }
   }
 
   @eventOptions({ once: true })
@@ -1748,9 +1753,14 @@ private get selectedBaseColor(): string | null {
 
                               const baseChanged = !!this.beltBase &&
                                 this.beltBase.id !== p.id;
+                              const isFreshBase = !this.beltBase || baseChanged;
 
                               if (baseChanged) {
                                 this.resetSelections();
+                              }
+
+                              if (isFreshBase) {
+                                this.pendingDefaultLoopsForBaseId = p.id;
                               }
 
                               // Auto-set color for single-color bases (popup
@@ -1966,13 +1976,13 @@ private get selectedBaseColor(): string | null {
       { page: sizePage, products: beltSizes },
       { page: setPage, products: beltSets },
     ] = await Promise.all([
-      queryProducts("tag:Base", { prefetchImages: true }),
-      queryProducts(`tag:buckle`, { prefetchImages: false }),
-      queryProducts(`tag:Loop`, { prefetchImages: false }),
-      queryProducts("tag:concho", { prefetchImages: false }),
-      queryProducts(`tag:tip`, { prefetchImages: false }),
-      queryProducts("tag:size", { prefetchImages: false }),
-      queryProducts("tag:Set", { prefetchImages: false }),
+      queryProducts("tag:Base"),
+      queryProducts(`tag:buckle`),
+      queryProducts(`tag:Loop`),
+      queryProducts("tag:concho"),
+      queryProducts(`tag:tip`),
+      queryProducts("tag:size"),
+      queryProducts("tag:Set"),
     ]);
     this.pages = [
       basePage,
@@ -1994,9 +2004,6 @@ private get selectedBaseColor(): string | null {
     ];
 
     this.beltData[1] = this.buckleChoices;
-
-    // Fire-and-forget: load all remaining pages so the collection filter has complete data
-    this.preloadAllProducts().catch(console.error);
 
     this.buildSingleSelectStep("base", beltBases);
     this.buildSingleSelectStep(
@@ -2083,7 +2090,7 @@ sizeStep.view = () => {
       ${this.debugSourceBadge("Theme Editor → Belt Builder → sizing-chart-src attribute (hardcoded in liquid)")}
       <img
           id="sizingChart"
-          src=${this.sizingChartSrc}
+          src=${cdnResize(this.sizingChartSrc, 1200)}
           alt="Perfect belt sizing chart"
           @error=${(e: Event) => {
             const img = e.currentTarget as HTMLImageElement;

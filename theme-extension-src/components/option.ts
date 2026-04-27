@@ -1,6 +1,6 @@
 import { html } from "lit";
 import { formatMoney } from "../utils.ts";
-import { MoneyV2 } from "../api/index.ts";
+import { MoneyV2, cdnResize } from "../api/index.ts";
 
 export type EventHandler = (ev: Event) => void;
 
@@ -116,7 +116,7 @@ export function thumbnailOption(
             : null}
           <img
             class="thumbnail selection-indicator"
-            src="${img}"
+            src="${cdnResize(img, 320)}"
             alt="${label}"
             width="160"
             height="160"
@@ -134,7 +134,7 @@ export function thumbnailOption(
                 ${options.variantImages.slice(0, 3).map(
                   (url) => html`
                     <div class="variant-preview-item">
-                      <img data-src="${url}" alt="" loading="lazy" decoding="async" />
+                      <img data-src="${cdnResize(url, 120)}" alt="" loading="lazy" decoding="async" />
                     </div>
                   `,
                 )}
