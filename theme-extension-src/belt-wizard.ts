@@ -1454,7 +1454,7 @@ private get selectedBaseColor(): string | null {
     const [
       { page: newBucklePage, products: beltBuckles },
       { products: beltSets },
-      { page: newLoopPage, products: beltLoops },
+      { page: firstLoopPage, products: firstLoopBatch },
       { page: newTipPage, products: beltTips },
     ] = await Promise.all([
       queryProducts(`tag:buckle${widthFilter}`),
@@ -1462,6 +1462,20 @@ private get selectedBaseColor(): string | null {
       queryProducts(`tag:Loop${widthFilter}`),
       queryProducts(`tag:tip${widthFilter}`),
     ]);
+
+    // Loops are needed in full for the auto-default-selection to work (a loop
+    // that targets this base may live on page 2+). Paginate the loops query
+    // until exhausted instead of relying on infinite scroll.
+    const beltLoops: Product[] = [...firstLoopBatch];
+    let loopPage = firstLoopPage;
+    while (loopPage.hasNextPage) {
+      const next = await queryProducts(`tag:Loop${widthFilter}`, {
+        after: loopPage.endCursor,
+      });
+      beltLoops.push(...next.products);
+      loopPage = next.page;
+    }
+    const newLoopPage = loopPage;
 
     // Apply client-side filter as a safety net to ensure only exact width matches
     const filteredBuckles = this.filterProductsByWidth(beltBuckles, baseWidth);
@@ -1498,13 +1512,25 @@ private get selectedBaseColor(): string | null {
     // (the base-click handler sets pendingDefaultLoopsForBaseId). This guards
     // against re-applying when a saved belt is loaded or when other code paths
     // trigger a width-rebuild for the same base.
+    console.log("[default-loops] post-rebuild check", {
+      beltBaseId: this.beltBase?.id ?? null,
+      pendingDefaultLoopsForBaseId: this.pendingDefaultLoopsForBaseId,
+      filteredLoopCount: filteredLoops.length,
+    });
+
     if (
       this.beltBase &&
       this.pendingDefaultLoopsForBaseId === this.beltBase.id
     ) {
       this.applyDefaultLoopsForBase(this.beltBase, filteredLoops);
       this.pendingDefaultLoopsForBaseId = null;
-      this.applySelectionToPreview();
+      // Intentionally NOT calling applySelectionToPreview() here. The user is
+      // still on the base step and the base image may not have rendered yet —
+      // pushing loops into preview.value.loops at this moment causes them to
+      // float on screen without the base. The selection FormData already holds
+      // the loops, so the loops step will show them preselected, and the
+      // preview will sync the next time any user interaction calls
+      // applySelectionToPreview (size click, continue, etc.).
     }
   }
 
@@ -1515,15 +1541,46 @@ private get selectedBaseColor(): string | null {
    */
   private applyDefaultLoopsForBase(base: Product, availableLoops: Product[]) {
     if (!this.selection) return;
-    if ((this.selection.getAll("loop") as string[]).length) return;
+    if ((this.selection.getAll("loop") as string[]).length) {
+      console.debug("[default-loops] skipping — loops already selected");
+      return;
+    }
 
     const baseWidthTag = base.tags?.find((t) => t.toLowerCase().endsWith("mm")) ?? null;
-    const matches = availableLoops.filter((loop) => {
-      if (!loop.defaultForBaseIds?.includes(base.id)) return false;
+
+    // The merchant may store either product GIDs or variant GIDs in the
+    // metafield. Match the product GID OR the *currently selected* variant —
+    // never all the product's variants, otherwise a loop targeting one color
+    // would also match a different color of the same base product.
+    const selectedBaseVariantId =
+      (this.selection.get("baseVariant") as string | null) ?? null;
+    const baseIdSet = new Set<string>([base.id]);
+    if (selectedBaseVariantId) baseIdSet.add(selectedBaseVariantId);
+    const idMatches = availableLoops.filter((loop) =>
+      (loop.defaultForBaseIds ?? []).some((id) => baseIdSet.has(id)),
+    );
+
+    const matches = idMatches.filter((loop) => {
       if (!baseWidthTag) return true;
       const widths = (loop.tags ?? []).filter((t) => t.toLowerCase().endsWith("mm"));
       return widths.length === 1 && widths[0] === baseWidthTag;
     });
+
+    console.debug("[default-loops] applying defaults", {
+      baseId: base.id,
+      baseTitle: base.title,
+      baseWidthTag,
+      availableLoopCount: availableLoops.length,
+      idMatchCount: idMatches.length,
+      idMatches: idMatches.map((l) => ({
+        id: l.id,
+        title: l.title,
+        tags: l.tags,
+        defaultForBaseIds: l.defaultForBaseIds,
+      })),
+      widthFilteredCount: matches.length,
+    });
+
     if (!matches.length) return;
 
     const maxLoops = this.getMaxLoopsAllowed();
@@ -1759,6 +1816,13 @@ private get selectedBaseColor(): string | null {
                                 this.resetSelections();
                               }
 
+                              console.log("[default-loops] base click", {
+                                clickedBaseId: p.id,
+                                clickedBaseTitle: p.title,
+                                priorBaseId: this.beltBase?.id ?? null,
+                                baseChanged,
+                                isFreshBase,
+                              });
                               if (isFreshBase) {
                                 this.pendingDefaultLoopsForBaseId = p.id;
                               }
@@ -2451,8 +2515,21 @@ sizeStep.view = () => {
                   this.ensureSelection();
 
                   const baseChanged = !!this.beltBase && this.beltBase.id !== product.id;
+                  const isFreshBase = !this.beltBase || baseChanged;
                   if (baseChanged) {
                     this.resetSelections();
+                  }
+
+                  console.log("[default-loops] swatch-click base", {
+                    clickedBaseId: product.id,
+                    clickedBaseTitle: product.title,
+                    color,
+                    priorBaseId: this.beltBase?.id ?? null,
+                    baseChanged,
+                    isFreshBase,
+                  });
+                  if (isFreshBase) {
+                    this.pendingDefaultLoopsForBaseId = product.id;
                   }
 
                   this.selection!.set("base", product.id);
@@ -2563,8 +2640,20 @@ sizeStep.view = () => {
     switch (kind) {
       case "base": {
         const baseChanged = !!this.beltBase && this.beltBase.id !== product.id;
+        const isFreshBase = !this.beltBase || baseChanged;
         if (baseChanged) {
           this.resetSelections();
+        }
+
+        console.log("[default-loops] variant-select base", {
+          clickedBaseId: product.id,
+          clickedBaseTitle: product.title,
+          priorBaseId: this.beltBase?.id ?? null,
+          baseChanged,
+          isFreshBase,
+        });
+        if (isFreshBase) {
+          this.pendingDefaultLoopsForBaseId = product.id;
         }
 
         this.selection!.set("base", product.id);

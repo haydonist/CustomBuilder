@@ -108,7 +108,6 @@ export function getAnchorOverrides(
   }
 
   // Apply metafield overrides (highest priority)
-  console.log("[anchors:resolve]", { productId, tags, metafield, overridesSoFar: { ...overrides } });
   if (metafield) {
     const ANCHOR_KEYS: (keyof BeltAnchors)[] = [
       "buckleX", "buckleOnTop", "loop1X", "loop2X", "conchosX", "conchosEndX", "tipX",
@@ -128,6 +127,6 @@ export function getAnchorOverrides(
   }
 
   const result = hasOverrides ? overrides : null;
-  console.log("[anchors:resolve] final overrides:", result);
+  console.log(":resolve] final overrides:", result);
   return result;
 }

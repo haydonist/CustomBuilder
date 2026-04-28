@@ -4,6 +4,25 @@ import { MoneyV2, cdnResize } from "../api/index.ts";
 
 export type EventHandler = (ev: Event) => void;
 
+// Per-kind CSS zoom factors (kept in sync with theme.css). Conchos and loops
+// render small items scaled up, so the source image needs more resolution to
+// stay sharp at the visible size.
+function mainThumbScale(kind: string, isSet: boolean, override?: number): number {
+  if (override) return override;
+  if (kind === "concho") return 5;
+  if (kind === "loop" || kind === "tip") return 3;
+  if (kind === "buckle" && !isSet) return 2;
+  return 1;
+}
+
+function variantPreviewScale(kind: string, override?: number): number {
+  if (kind === "concho") return (override ?? 5) * 0.7;
+  if (kind === "loop" || kind === "tip") return 2.5;
+  if (kind === "buckle") return 1.8;
+  if (kind === "base") return 1.4;
+  return 1;
+}
+
 // Used on the main thumbnail's @load. Marks the image as loaded (to trigger
 // the CSS fade-in and hide the shimmer) and promotes any deferred variant
 // preview images from data-src to src so they fetch only after the primary
@@ -85,6 +104,13 @@ export function thumbnailOption(
 
   const countShown = !!options.count && options.count > 0;
 
+  // Source image width = rendered CSS size (160px) × CSS zoom × ~2x density
+  // for retina. Targets stay well under originals (3-7 MB → 100-500 KB).
+  const mainScale = mainThumbScale(name, !!options.isSet, options.thumbScale);
+  const mainSourceWidth = Math.ceil(160 * mainScale * 2);
+  const previewScale = variantPreviewScale(name, options.thumbScale);
+  const previewSourceWidth = Math.ceil(56 * previewScale * 2);
+
   return html`
     <span
       class="option thumbnail ${options.class ?? ""}"
@@ -116,7 +142,7 @@ export function thumbnailOption(
             : null}
           <img
             class="thumbnail selection-indicator"
-            src="${cdnResize(img, 320)}"
+            src="${cdnResize(img, mainSourceWidth)}"
             alt="${label}"
             width="160"
             height="160"
@@ -134,7 +160,7 @@ export function thumbnailOption(
                 ${options.variantImages.slice(0, 3).map(
                   (url) => html`
                     <div class="variant-preview-item">
-                      <img data-src="${cdnResize(url, 120)}" alt="" loading="lazy" decoding="async" />
+                      <img data-src="${cdnResize(url, previewSourceWidth)}" alt="" loading="lazy" decoding="async" />
                     </div>
                   `,
                 )}

@@ -694,15 +694,12 @@ export default class BeltPreview extends LitElement {
     // Auto-detect anchor positions from the cropped belt image shape
     const detected = await detectBeltAnchors(cropped);
     if (myToken !== this.renderToken) return;
-    // Merge: auto-detected → default buckleOnTop → manual overrides
-    console.log("[anchors:merge] defaults:", DEFAULT_ANCHORS, "detected:", detected, "overrides:", this.anchorOverrides);
     this.anchors = {
       ...DEFAULT_ANCHORS,
       ...detected,
       buckleOnTop: DEFAULT_ANCHORS.buckleOnTop,
       ...(this.anchorOverrides ?? {}),
     };
-    console.log("[anchors:merge] final:", this.anchors);
 
     const aspect = cropped.height / cropped.width;
 

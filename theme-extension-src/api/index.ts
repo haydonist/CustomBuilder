@@ -20,7 +20,7 @@ export const shopQuery = `
 
 const productQuery = `
   query ProductQuery($query: String!, $after: String) {
-    products(first: 20, query: $query, after: $after) {
+    products(first: 100, query: $query, after: $after) {
       pageInfo {
         endCursor
         hasNextPage
@@ -201,7 +201,6 @@ export async function queryProducts(
       conchosendx: "conchosEndX",
       tipx: "tipX",
     };
-    console.log("[anchors:api]", product.title, "metafields:", rawFields);
     for (const field of rawFields) {
       if (!field || !field.key || field.value == null) continue;
       const camelKey = KEY_MAP[field.key] ?? field.key;
@@ -215,7 +214,17 @@ export async function queryProducts(
     }
 
     const defaultForBaseIds: string[] = [];
-    const rawDefaultForBases = product.defaultForBases ?? [];
+    const rawDefaultForBases: Array<{ key: string; value: string; type: string } | null> =
+      product.defaultForBases ?? [];
+    const hasNonNullField = rawDefaultForBases.some((f) => f && f.value != null);
+    if (hasNonNullField) {
+      console.log(
+        "[default_for_bases:api]",
+        product.title,
+        "raw:",
+        JSON.stringify(rawDefaultForBases),
+      );
+    }
     for (const field of rawDefaultForBases) {
       if (!field || field.value == null) continue;
       try {
@@ -230,6 +239,9 @@ export async function queryProducts(
       } catch (err) {
         console.warn("[default_for_bases] malformed value for", product.title, field.value, err);
       }
+    }
+    if (defaultForBaseIds.length) {
+      console.log("[default_for_bases:parsed]", product.title, defaultForBaseIds);
     }
 
     return {
