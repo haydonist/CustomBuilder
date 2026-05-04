@@ -2120,7 +2120,8 @@ sizeStep.view = () => {
     <div class="size-step-wrapper">
       <div class="row wrap gap-medium">
         ${matches.map(({ variant, size }) => {
-          const label = `${String(size).trim()}`;
+          const trimmed = String(size).trim();
+          const label = /^\d+(\.\d+)?$/.test(trimmed) ? `${trimmed}"` : trimmed;
           const priceAmount = variant.price ?? null;
           const isSelected = selectedBaseVariantId === variant.id;
 
