@@ -4,6 +4,7 @@ import { classMap } from "lit/directives/class-map.js";
 import { ifDefined } from "lit/directives/if-defined.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { createRef, Ref, ref } from "lit/directives/ref.js";
+import { repeat } from "lit/directives/repeat.js";
 import { delay, formatMoney, getConchoThumbScale } from "./utils.ts";
 import { renderLoader as loader } from "./components/loader.ts";
 
@@ -36,6 +37,8 @@ type VariantKind = "base" | "buckle" | "loop" | "concho" | "tip";
 
 /** Snapshot of a completed belt, stored when the user clicks "Make Another". */
 export interface SavedBelt {
+  /** Stable identity used as a Lit `repeat` key for entry/exit/swap animations. */
+  uid: string;
   /** Display label, e.g. "Belt 1" */
   label: string;
   base: Product | null;
@@ -136,6 +139,31 @@ export class CustomBeltWizard extends LitElement {
   /** When non-null, the current belt is being edited and should be inserted at this position. */
   @state()
   private editingBeltIndex: number | null = null;
+
+  /** Stable UID for the in-progress current belt; used as a `repeat` key so the
+   * slot's DOM node persists across save/edit transitions for smooth animations. */
+  @state()
+  private currentBeltUid: string = CustomBeltWizard.makeBeltUid();
+
+  /** UIDs currently playing the exit animation; their state mutation is deferred
+   * until the animation finishes. */
+  @state()
+  private leavingBeltUids: Set<string> = new Set();
+
+  /** UIDs currently playing a one-shot pulse (promote on save, swap on edit). */
+  @state()
+  private pulsingBeltUids: Map<string, "promote" | "swap"> = new Map();
+
+  private static makeBeltUid(): string {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+      return crypto.randomUUID();
+    }
+    return `belt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  /** Animation timing constants for belt summary transitions. */
+  private static readonly BELT_EXIT_MS = 320;
+  private static readonly BELT_PULSE_MS = 600;
 
   /** Product ID whose info popup is currently visible. */
   @state()
@@ -380,10 +408,6 @@ private getMaxLoopsAllowed(): number {
     if (!key) return [];
     return this.collectionFilters[key] ?? [];
   }
-  private getVariantOption(variant: ProductVariant, name: string): string | null {
-  return variant.selectedOptions?.find(o => o.name.toLowerCase() === name.toLowerCase())?.value ?? null;
-}
-
 private isVariantInStock(v: ProductVariant): boolean {
   if (typeof v.quantityAvailable === "number") return v.quantityAvailable > 0;
   console.log("available:\t", v.availableForSale, v);
@@ -393,7 +417,7 @@ private isVariantInStock(v: ProductVariant): boolean {
 private getBaseColors(base: Product): string[] {
   const set = new Set<string>();
   for (const v of base.variants ?? []) {
-    const c = this.getVariantOption(v, "Color");
+    const c = this.getBaseVariantColor(v);
     if (c && this.isVariantInStock(v)) set.add(c);
   }
   return Array.from(set);
@@ -401,8 +425,18 @@ private getBaseColors(base: Product): string[] {
 
 private findFirstVariantForBaseColor(base: Product, color: string): ProductVariant | null {
   return (base.variants ?? []).find(v =>
-    this.getVariantOption(v, "Color") === color && this.isVariantInStock(v)
+    this.getBaseVariantColor(v) === color && this.isVariantInStock(v)
   ) ?? null;
+}
+
+/**
+ * Image position convention for base products (no variant-level images needed):
+ *   color 0: image[0]=thumbnail, image[1]=layflat (previewer), image[2]=hover
+ *   color N (N>=1): image[2N+1]=thumbnail, image[2N+2]=layflat
+ */
+private getBaseColorThumbnailImage(base: Product, colorIndex: number): string | null {
+  const idx = colorIndex === 0 ? 0 : 2 * colorIndex + 1;
+  return getImageAt(base, idx, { fallbackToFirst: false }) ?? null;
 }
 
 private getUniqueVariantImages(kind: string, product: Product): string[] {
@@ -410,15 +444,16 @@ private getUniqueVariantImages(kind: string, product: Product): string[] {
   const seen = new Set<string>();
 
   if (kind === "base") {
-    // One image per in-stock color
-    for (const color of this.getBaseColors(product)) {
-      const v = this.findFirstVariantForBaseColor(product, color);
-      const url = v?.image?.url;
+    // One image per in-stock color, derived from product image positions
+    // (variants don't carry their own images for bases).
+    const colors = this.getBaseColors(product);
+    colors.forEach((_, colorIndex) => {
+      const url = this.getBaseColorThumbnailImage(product, colorIndex);
       if (url && !seen.has(url)) {
         seen.add(url);
         images.push(url);
       }
-    }
+    });
   } else {
     // One image per unique variant image
     for (const v of product.variants ?? []) {
@@ -644,18 +679,21 @@ private getSelectedBaseColor(): string | null {
         const totalBelts = this.savedBelts.length + 1;
         // Current belt's position: editing slot if set, otherwise last
         const currentBeltPosition = this.editingBeltIndex ?? this.savedBelts.length;
-        // Build ordered list of belt slots: saved belts + current belt interleaved
+        // Build ordered list of belt slots: saved belts + current belt interleaved.
+        // Each slot carries a stable `uid` so Lit's `repeat` directive can preserve
+        // DOM nodes across save/edit transitions, enabling smooth animations.
         type BeltSlot =
-          | { kind: "saved"; saved: SavedBelt; savedIndex: number }
-          | { kind: "current" };
+          | { kind: "saved"; uid: string; saved: SavedBelt; savedIndex: number }
+          | { kind: "current"; uid: string };
 
         const slots: BeltSlot[] = [];
         let savedIdx = 0;
         for (let pos = 0; pos < totalBelts; pos++) {
           if (pos === currentBeltPosition) {
-            slots.push({ kind: "current" });
+            slots.push({ kind: "current", uid: this.currentBeltUid });
           } else {
-            slots.push({ kind: "saved", saved: this.savedBelts[savedIdx], savedIndex: savedIdx });
+            const saved = this.savedBelts[savedIdx];
+            slots.push({ kind: "saved", uid: saved.uid, saved, savedIndex: savedIdx });
             savedIdx++;
           }
         }
@@ -696,8 +734,15 @@ private getSelectedBaseColor(): string | null {
           )?.value ?? null;
         };
 
+        const beltSectionClasses = (uid: string) => classMap({
+          "saved-belt-section": true,
+          "is-leaving": this.leavingBeltUids.has(uid),
+          "is-promoting": this.pulsingBeltUids.get(uid) === "promote",
+          "is-swapping": this.pulsingBeltUids.get(uid) === "swap",
+        });
+
         return html`
-          ${slots.map((slot, pos) => {
+          ${repeat(slots, (slot) => slot.uid, (slot, pos) => {
             const beltNumber = pos + 1;
 
             if (slot.kind === "saved") {
@@ -708,7 +753,7 @@ private getSelectedBaseColor(): string | null {
               const baseSize = getVariantSize(saved.base, saved.baseVariantId);
 
               return html`
-                <div class="saved-belt-section">
+                <div class=${beltSectionClasses(slot.uid)} data-belt-uid=${slot.uid}>
                   <div class="saved-belt-header">
                     <h2 class="heading-5">Belt ${beltNumber}</h2>
                     <div class="saved-belt-meta">
@@ -742,7 +787,7 @@ private getSelectedBaseColor(): string | null {
             const currentConchoCounts = countProducts(this.beltConchos);
             const currentSubtotal = this.beltBase
               ? this.calcSavedBeltTotal({
-                  label: "", base: this.beltBase, basePreviewImage: null,
+                  uid: "", label: "", base: this.beltBase, basePreviewImage: null,
                   baseVariantId: this.getSelectedSingleVariantId("base", this.beltBase),
                   buckle: this.beltBuckle,
                   buckleVariantId: this.getSelectedSingleVariantId("buckle", this.beltBuckle),
@@ -757,7 +802,7 @@ private getSelectedBaseColor(): string | null {
             const label = totalBelts > 1 ? `Belt ${beltNumber} (Current)` : "Selections";
 
             return html`
-              <div class="saved-belt-section">
+              <div class=${beltSectionClasses(slot.uid)} data-belt-uid=${slot.uid}>
                 <div class="saved-belt-header">
                   <h2 class="heading-5">${label}</h2>
                   ${!hasMissing && currentSubtotal
@@ -1775,10 +1820,13 @@ private get selectedBaseColor(): string | null {
                 <h3 class="collection-title">${collectionTitle}</h3>
                 <div class="row wrap gap-medium">
                   ${items.map((p, index) => {
-                    // For bases, "has variants" means multiple colors to pick
-                    // (the popup shows color swatches, not size options)
                     const variantImages = this.getUniqueVariantImages(variantKind, p);
-                    const hasVariants = variantImages.length > 1;
+                    // For bases, the popup shows color swatches — open it whenever
+                    // there are 2+ in-stock colors, even when variants have no
+                    // per-variant images (popup falls back to product image).
+                    const hasVariants = variantKind === "base"
+                      ? this.getBaseColors(p).length > 1
+                      : variantImages.length > 1;
                     const popup = this.renderVariantPopup(variantKind, p, index);
                     const selected = this.selection?.get(variantKind) === p.id;
 
@@ -1871,7 +1919,7 @@ private get selectedBaseColor(): string | null {
                           name="${variantKind}"
                           value="${p.id}"
                         />
-                        <label>
+                        <label for="${p.id}">
                           <div class="selection-indicator-wrapper ${selected
                             ? "selected"
                             : ""}">
@@ -1910,7 +1958,7 @@ private get selectedBaseColor(): string | null {
                                 />
                               `
                               : null}
-                            ${hasVariants
+                            ${variantImages.length > 1
                               ? html`<div class="variant-previews">
                                   ${variantImages.slice(0, 3).map(
                                     (url) => html`
@@ -2498,12 +2546,15 @@ sizeStep.view = () => {
       <div class="variant-popup" data-kind="base" data-instance="${instanceIndex}"
         @click="${(e: Event) => e.stopPropagation()}">
         <div class="variant-popup-grid">
-          ${colors.map((color) => {
+          ${colors.map((color, colorIndex) => {
             const v = firstVariantByColor(color);
             if (!v) return null;
 
             const isSelected = selectedColor === color;
-            const imgUrl = v.image?.url ?? getImageAt(product, 0);
+            const imgUrl =
+              this.getBaseColorThumbnailImage(product, colorIndex) ??
+              v.image?.url ??
+              getImageAt(product, 0);
 
             return html`
               <button
@@ -2831,8 +2882,10 @@ sizeStep.view = () => {
   /**
    * Save the current belt configuration and reset the wizard for a new belt.
    */
-  private saveBeltAndStartNew() {
+  private async saveBeltAndStartNew() {
+    const savedUid = this.currentBeltUid;
     const saved: SavedBelt = {
+      uid: savedUid,
       label: "",  // will be set by renumbering below
       base: this.beltBase,
       basePreviewImage: this.basePreviewImage,
@@ -2866,6 +2919,13 @@ sizeStep.view = () => {
     // Renumber all labels
     this.savedBelts = this.savedBelts.map((belt, i) => ({ ...belt, label: `Belt ${i + 1}` }));
 
+    // Play the "promote to saved" pulse on the slot that just transitioned from
+    // current → saved. The DOM node persists because Lit's repeat key is preserved.
+    this.pulsingBeltUids = new Map(this.pulsingBeltUids).set(savedUid, "promote");
+
+    // Mint a fresh UID for the next current belt so the saved slot keeps `savedUid`.
+    this.currentBeltUid = CustomBeltWizard.makeBeltUid();
+
     // Reset all state for a fresh belt
     this.selection = null;
     this.beltBase = null;
@@ -2895,11 +2955,31 @@ sizeStep.view = () => {
       this.preview.value.tip = null;
     }
 
-    // Go back to step 0
+    // Hold on summary so the promote pulse is visible, then navigate.
+    await delay(CustomBeltWizard.BELT_PULSE_MS);
+    const next = new Map(this.pulsingBeltUids);
+    next.delete(savedUid);
+    this.pulsingBeltUids = next;
+
     this.wizard.goTo(0);
   }
 
-  private resetCurrentBelt() {
+  private async resetCurrentBelt() {
+    // If there are other saved belts, the current slot disappears in place — play
+    // the exit animation before clearing. With no saved belts, the wizard just
+    // navigates back to step 0, so the step transition handles the visual.
+    const animateExit = this.savedBelts.length > 0 && !!this.beltBase;
+    if (animateExit) {
+      const exitingUid = this.currentBeltUid;
+      this.leavingBeltUids = new Set(this.leavingBeltUids).add(exitingUid);
+      await delay(CustomBeltWizard.BELT_EXIT_MS);
+      const next = new Set(this.leavingBeltUids);
+      next.delete(exitingUid);
+      this.leavingBeltUids = next;
+      // Mint a fresh UID so the next current slot is treated as a new entrant.
+      this.currentBeltUid = CustomBeltWizard.makeBeltUid();
+    }
+
     this.editingBeltIndex = null;
     this.selection = null;
     this.beltBase = null;
@@ -2936,8 +3016,13 @@ sizeStep.view = () => {
     // Save the current belt back into savedBelts before overwriting wizard state,
     // so it isn't lost when we load the target belt for editing.
     let adjustedIndex = index;
+    // Capture the current belt's uid up-front; reused as the saved slot's uid so
+    // the DOM node persists across the swap and the pulse animation can play on it.
+    const previousCurrentUid = this.currentBeltUid;
+    const targetUid = this.savedBelts[index]?.uid;
     if (this.beltBase) {
       const currentBelt: SavedBelt = {
+        uid: previousCurrentUid,
         label: "",
         base: this.beltBase,
         basePreviewImage: this.basePreviewImage,
@@ -2970,6 +3055,17 @@ sizeStep.view = () => {
     }
 
     const saved = this.savedBelts[adjustedIndex];
+
+    // The target's uid becomes the new current belt's uid so its DOM slot persists.
+    this.currentBeltUid = saved.uid;
+
+    // Pulse both swapped slots: the formerly-current (now saved) and the
+    // formerly-saved (now current). Their DOM nodes are preserved by Lit's
+    // repeat key, so the class change drives the animation.
+    const swapPulse = new Map(this.pulsingBeltUids);
+    if (this.beltBase) swapPulse.set(previousCurrentUid, "swap");
+    if (targetUid) swapPulse.set(saved.uid, "swap");
+    this.pulsingBeltUids = swapPulse;
 
     // Remember the position so the current belt keeps this slot on summary
     this.editingBeltIndex = adjustedIndex;
@@ -3038,12 +3134,27 @@ sizeStep.view = () => {
         .filter(Boolean) as string[];
     }
 
+    // Hold on summary so the swap pulse plays before navigating away.
+    await delay(CustomBeltWizard.BELT_PULSE_MS);
+    const cleared = new Map(this.pulsingBeltUids);
+    cleared.delete(previousCurrentUid);
+    if (targetUid) cleared.delete(targetUid);
+    this.pulsingBeltUids = cleared;
+
     // Navigate to step 0 after the preview is fully loaded
     this.wizard.goTo(0);
   }
 
-  private removeSavedBelt(index: number) {
-    this.savedBelts = this.savedBelts.filter((_, i) => i !== index)
+  private async removeSavedBelt(index: number) {
+    const target = this.savedBelts[index];
+    if (!target || this.leavingBeltUids.has(target.uid)) return;
+
+    // Mark the slot as leaving so the exit animation plays, then mutate state.
+    this.leavingBeltUids = new Set(this.leavingBeltUids).add(target.uid);
+    await delay(CustomBeltWizard.BELT_EXIT_MS);
+
+    this.savedBelts = this.savedBelts
+      .filter((b) => b.uid !== target.uid)
       .map((belt, i) => ({ ...belt, label: `Belt ${i + 1}` }));
 
     // Adjust editing position if a belt before it was removed
@@ -3052,6 +3163,10 @@ sizeStep.view = () => {
         this.editingBeltIndex--;
       }
     }
+
+    const next = new Set(this.leavingBeltUids);
+    next.delete(target.uid);
+    this.leavingBeltUids = next;
   }
 
   /** Calculate the total price for a saved belt from its stored variant IDs. */
