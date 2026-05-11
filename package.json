@@ -2,12 +2,13 @@
   "name": "custom-belt-builder",
   "private": true,
   "scripts": {
-    "build": "vite build",
+    "build": "react-router build",
+    "build:extension": "vite build --config vite.extension.config.ts",
 
-    "dev": "npm run build && shopify app dev",
+    "dev": "npm run build:extension && shopify app dev",
     "dev:db": "npx prisma generate && npx prisma db push",
 
-    "deploy": "npm run build && shopify app deploy",
+    "deploy": "npm run build:extension && shopify app deploy",
     "deploy:db": "npx prisma migrate deploy",
 
     "generate": "shopify app generate",
