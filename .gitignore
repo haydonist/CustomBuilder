@@ -12,6 +12,7 @@ database.sqlite
 
 .env
 .env.*
+!.env.example
 
 /extensions/*/dist
 /extensions/belt-wizard/assets
