@@ -20,6 +20,7 @@
     "typecheck": "react-router typegen && tsc --noEmit",
 
     "setup": "prisma generate && prisma migrate deploy",
+    "start": "react-router-serve ./build/server/index.js",
     "docker-start": "npm run setup && npm run start",
 
     "prisma": "prisma",
