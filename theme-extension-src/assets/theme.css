@@ -1738,6 +1738,39 @@ body > main {
   }
 }
 
+/* Mobile: shrink the dots, drop the outer glow rings, and skip the sheen sweep
+   so the current step doesn't get clipped by the wizard's edges. */
+@media (max-width: 600px) {
+  #stepper button.step {
+    width: 16px;
+    height: 16px;
+  }
+  #stepper .step-indicator {
+    font-size: 10px;
+  }
+  #stepper button.step.is-current {
+    transform: scale(1.35);
+    box-shadow: none;
+  }
+  #stepper button.step.is-current .step-indicator {
+    font-size: 11px;
+  }
+  #stepper button.step.is-current::before { display: none; }
+  #stepper button.step:not(.is-current):not(.is-disabled):hover {
+    transform: scale(1.15);
+    box-shadow: none;
+    animation: none;
+  }
+  .step-indicator--icon {
+    width: 14px;
+    height: 14px;
+  }
+  .step-indicator--mask {
+    width: 12px;
+    height: 12px;
+  }
+}
+
 .step-indicator {
   display: inline-flex;
   align-items: center;

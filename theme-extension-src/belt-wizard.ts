@@ -582,8 +582,8 @@ private getSelectedBaseColor(): string | null {
       title: "Choose a Belt Buckle",
       shortcut: () =>
         this.multiSelectShortcut(
-          "Select a Belt Base",
-          this.selection?.has("base") ?? false,
+          "Select a Belt Buckle",
+          this.selection?.has("buckle") ?? false,
         ),
       view: html`
         <div class="row wrap gap-medium"></div>
@@ -2659,8 +2659,11 @@ sizeStep.view = () => {
     baseOnClick?: (ev: Event) => void,
   ) {
     return (ev: Event) => {
+      // The option's <label for="..."> would otherwise fire a synthetic click
+      // on the sr-only <input>, which bubbles back to this same span and would
+      // run the handler a second time (toggling tip selection back off).
+      ev.preventDefault();
       if (hasVariants) {
-        ev.preventDefault();
         ev.stopPropagation();
         const key = this.getVariantKey(kind, product.id, instanceIndex);
         this.activeVariantKey = this.activeVariantKey === key ? null : key;
