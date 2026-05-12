@@ -119,14 +119,39 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return { success: true, settings };
 };
 
+type ResetButtonProps = {
+  onReset: () => void;
+  disabled: boolean;
+};
+
+function ResetButton({ onReset, disabled }: ResetButtonProps) {
+  return (
+    <s-button
+      type="button"
+      variant="tertiary"
+      onClick={onReset}
+      {...(disabled ? { disabled: true } : {})}
+    >
+      Reset to default
+    </s-button>
+  );
+}
+
 type ColorFieldProps = {
   label: string;
   name: SettingsKey;
   value: string;
+  defaultValue: string;
   onChange: (v: string) => void;
 };
 
-function ColorField({ label, name, value, onChange }: ColorFieldProps) {
+function ColorField({
+  label,
+  name,
+  value,
+  defaultValue,
+  onChange,
+}: ColorFieldProps) {
   return (
     <s-stack direction="block" gap="base">
       <s-text variant="heading-sm">{label}</s-text>
@@ -156,6 +181,10 @@ function ColorField({ label, name, value, onChange }: ColorFieldProps) {
             width: "120px",
           }}
         />
+        <ResetButton
+          onReset={() => onChange(defaultValue)}
+          disabled={value === defaultValue}
+        />
       </s-stack>
     </s-stack>
   );
@@ -165,6 +194,7 @@ type TextareaFieldProps = {
   label: string;
   name: SettingsKey;
   value: string;
+  defaultValue: string;
   onChange: (v: string) => void;
   placeholder?: string;
   info?: string;
@@ -174,13 +204,20 @@ function TextareaField({
   label,
   name,
   value,
+  defaultValue,
   onChange,
   placeholder,
   info,
 }: TextareaFieldProps) {
   return (
     <s-stack direction="block" gap="base">
-      <s-text variant="heading-sm">{label}</s-text>
+      <s-stack direction="inline" gap="base" align="center">
+        <s-text variant="heading-sm">{label}</s-text>
+        <ResetButton
+          onReset={() => onChange(defaultValue)}
+          disabled={value === defaultValue}
+        />
+      </s-stack>
       {info ? (
         <s-text variant="body-sm" tone="subdued">
           {info}
@@ -269,6 +306,7 @@ export default function Settings() {
               label="Background Color"
               name="backgroundColor"
               value={values.backgroundColor}
+              defaultValue={DEFAULTS.backgroundColor}
               onChange={set("backgroundColor")}
             />
 
@@ -276,29 +314,36 @@ export default function Settings() {
               label="Text Color"
               name="fontColor"
               value={values.fontColor}
+              defaultValue={DEFAULTS.fontColor}
               onChange={set("fontColor")}
             />
 
             <s-stack direction="block" gap="base">
               <s-text variant="heading-sm">Font Family</s-text>
-              <select
-                name="fontFamily"
-                value={values.fontFamily}
-                onChange={(e) => set("fontFamily")(e.target.value)}
-                style={{
-                  padding: "8px 12px",
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                  width: "300px",
-                  fontSize: "14px",
-                }}
-              >
-                {fontOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              <s-stack direction="inline" gap="base" align="center">
+                <select
+                  name="fontFamily"
+                  value={values.fontFamily}
+                  onChange={(e) => set("fontFamily")(e.target.value)}
+                  style={{
+                    padding: "8px 12px",
+                    border: "1px solid #ccc",
+                    borderRadius: "4px",
+                    width: "300px",
+                    fontSize: "14px",
+                  }}
+                >
+                  {fontOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ResetButton
+                  onReset={() => set("fontFamily")(DEFAULTS.fontFamily)}
+                  disabled={values.fontFamily === DEFAULTS.fontFamily}
+                />
+              </s-stack>
             </s-stack>
           </s-stack>
         </form>
@@ -310,24 +355,28 @@ export default function Settings() {
             label="Line Color"
             name="stepperLineColor"
             value={values.stepperLineColor}
+            defaultValue={DEFAULTS.stepperLineColor}
             onChange={set("stepperLineColor")}
           />
           <ColorField
             label="Incomplete Dot Color"
             name="stepperDotIncompleteColor"
             value={values.stepperDotIncompleteColor}
+            defaultValue={DEFAULTS.stepperDotIncompleteColor}
             onChange={set("stepperDotIncompleteColor")}
           />
           <ColorField
             label="Complete Dot Color"
             name="stepperDotCompleteColor"
             value={values.stepperDotCompleteColor}
+            defaultValue={DEFAULTS.stepperDotCompleteColor}
             onChange={set("stepperDotCompleteColor")}
           />
           <ColorField
             label="Current Dot Color"
             name="stepperDotCurrentColor"
             value={values.stepperDotCurrentColor}
+            defaultValue={DEFAULTS.stepperDotCurrentColor}
             onChange={set("stepperDotCurrentColor")}
           />
         </s-stack>
@@ -343,6 +392,7 @@ export default function Settings() {
             label="Base Collections"
             name="baseCollectionOrder"
             value={values.baseCollectionOrder}
+            defaultValue={DEFAULTS.baseCollectionOrder}
             onChange={set("baseCollectionOrder")}
             placeholder="Premium Leather, Standard Leather, Exotic"
           />
@@ -350,6 +400,7 @@ export default function Settings() {
             label="Buckle Collections"
             name="buckleCollectionOrder"
             value={values.buckleCollectionOrder}
+            defaultValue={DEFAULTS.buckleCollectionOrder}
             onChange={set("buckleCollectionOrder")}
             placeholder="Silver Collection, Gold Collection"
           />
@@ -357,6 +408,7 @@ export default function Settings() {
             label="Loop Collections"
             name="loopCollectionOrder"
             value={values.loopCollectionOrder}
+            defaultValue={DEFAULTS.loopCollectionOrder}
             onChange={set("loopCollectionOrder")}
             placeholder="Collection A, Collection B"
           />
@@ -364,6 +416,7 @@ export default function Settings() {
             label="Concho Collections"
             name="conchoCollectionOrder"
             value={values.conchoCollectionOrder}
+            defaultValue={DEFAULTS.conchoCollectionOrder}
             onChange={set("conchoCollectionOrder")}
             placeholder="Collection A, Collection B"
           />
@@ -371,6 +424,7 @@ export default function Settings() {
             label="Tip Collections"
             name="tipCollectionOrder"
             value={values.tipCollectionOrder}
+            defaultValue={DEFAULTS.tipCollectionOrder}
             onChange={set("tipCollectionOrder")}
             placeholder="Collection A, Collection B"
           />
@@ -382,6 +436,7 @@ export default function Settings() {
           label="Recommendation Message"
           name="conchoRecommendationText"
           value={values.conchoRecommendationText}
+          defaultValue={DEFAULTS.conchoRecommendationText}
           onChange={set("conchoRecommendationText")}
           info="HTML allowed. Shown above the concho selection."
         />
@@ -392,6 +447,7 @@ export default function Settings() {
           label="Checkout Policy Notice"
           name="checkoutPolicyText"
           value={values.checkoutPolicyText}
+          defaultValue={DEFAULTS.checkoutPolicyText}
           onChange={set("checkoutPolicyText")}
           info="HTML allowed. Shown at the checkout step."
         />
