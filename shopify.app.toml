@@ -2,7 +2,7 @@
 
 client_id = "68a850e60c962c6454acdfeedb338ac7"
 name = "custom-belt-builder"
-application_url = "https://example.com"
+application_url = "https://belts.jollyweb.co"
 embedded = true
 
 [build]
@@ -24,9 +24,9 @@ api_version = "2025-10"
 scopes = "write_products,write_files,write_inventory,write_publications"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [ "https://belts.jollyweb.co/auth/callback" ]
 
 [app_proxy]
-url = "https://example.com"
+url = "https://belts.jollyweb.co"
 subpath = "custom-belt-builder"
 prefix = "apps"
