@@ -4,26 +4,20 @@
   "scripts": {
     "build": "react-router build",
     "build:extension": "vite build --config vite.extension.config.ts",
-
     "dev": "npm run build:extension && shopify app dev",
     "dev:db": "npx prisma generate && npx prisma db push",
-
     "deploy": "npm run build:extension && shopify app deploy",
     "deploy:db": "npx prisma migrate deploy",
-
     "generate": "shopify app generate",
     "config:link": "shopify app config link",
     "config:use": "shopify app config use",
     "env": "shopify app env",
     "shopify": "shopify",
-
     "lint": "eslint --ignore-path .gitignore --cache --cache-location ./node_modules/.cache/eslint .",
     "typecheck": "react-router typegen && tsc --noEmit",
-
     "setup": "prisma generate && prisma migrate deploy",
     "start": "react-router-serve ./build/server/index.js",
     "docker-start": "npm run setup && npm run start",
-
     "prisma": "prisma",
     "prisma:studio": "npx prisma studio",
     "prisma:migrate": "npx prisma migrate dev",
@@ -46,6 +40,7 @@
     "lit": "^3.2.1",
     "prisma": "^6.16.3",
     "react": "^18.3.1",
+    "react-colorful": "^5.7.0",
     "react-dom": "^18.3.1",
     "react-router": "^7.9.3",
     "rxjs": "^7.8.1",

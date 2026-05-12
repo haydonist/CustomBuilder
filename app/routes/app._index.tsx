@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { HexColorPicker } from "react-colorful";
 import type {
   ActionFunctionArgs,
   LoaderFunctionArgs,
@@ -173,34 +174,150 @@ type ColorFieldProps = {
   onChange: (v: string) => void;
 };
 
+function normalizeHex(input: string): string | null {
+  let v = input.trim();
+  if (!v) return null;
+  if (!v.startsWith("#")) v = "#" + v;
+  if (/^#[0-9a-fA-F]{3}$/.test(v)) {
+    const r = v[1];
+    const g = v[2];
+    const b = v[3];
+    v = `#${r}${r}${g}${g}${b}${b}`;
+  }
+  return /^#[0-9a-fA-F]{6}$/.test(v) ? v.toLowerCase() : null;
+}
+
 function ColorField({
   label,
-  name,
   value,
   defaultValue,
   onChange,
 }: ColorFieldProps) {
+  const [open, setOpen] = useState(false);
+  const [hexDraft, setHexDraft] = useState(value);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setHexDraft(value);
+  }, [value]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
+  const commitHexDraft = () => {
+    const normalized = normalizeHex(hexDraft);
+    if (normalized) {
+      onChange(normalized);
+      setHexDraft(normalized);
+    } else {
+      setHexDraft(value);
+    }
+  };
+
   return (
     <s-stack direction="block" gap="base">
       <s-text variant="heading-sm">{label}</s-text>
       <s-stack direction="inline" gap="base" align="center">
-        <input
-          type="color"
-          name={name}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          style={{
-            width: "60px",
-            height: "40px",
-            border: "1px solid #ccc",
-            borderRadius: "4px",
-            cursor: "pointer",
-          }}
-        />
+        <div ref={containerRef} style={{ position: "relative" }}>
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-label="Open color picker"
+            style={{
+              width: "60px",
+              height: "40px",
+              border: "1px solid #ccc",
+              borderRadius: "4px",
+              cursor: "pointer",
+              background: value,
+              padding: 0,
+            }}
+          />
+          {open ? (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 6px)",
+                left: 0,
+                zIndex: 20,
+                padding: "12px",
+                background: "#fff",
+                border: "1px solid #d1d5db",
+                borderRadius: "8px",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+              }}
+            >
+              <HexColorPicker color={value} onChange={onChange} />
+              <div
+                style={{
+                  marginTop: "10px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "12px",
+                    color: "#6b7280",
+                  }}
+                >
+                  HEX
+                </span>
+                <input
+                  type="text"
+                  value={hexDraft}
+                  onChange={(e) => setHexDraft(e.target.value)}
+                  onBlur={commitHexDraft}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commitHexDraft();
+                    }
+                  }}
+                  style={{
+                    padding: "6px 8px",
+                    border: "1px solid #ccc",
+                    borderRadius: "4px",
+                    fontFamily: "monospace",
+                    fontSize: "13px",
+                    width: "100px",
+                  }}
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
         <input
           type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
+          value={hexDraft}
+          onChange={(e) => setHexDraft(e.target.value)}
+          onBlur={commitHexDraft}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commitHexDraft();
+            }
+          }}
           style={{
             padding: "8px 12px",
             border: "1px solid #ccc",
