@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import type {
   ActionFunctionArgs,
   LoaderFunctionArgs,
@@ -126,14 +126,42 @@ type ResetButtonProps = {
 
 function ResetButton({ onReset, disabled }: ResetButtonProps) {
   return (
-    <s-button
+    <button
       type="button"
-      variant="tertiary"
       onClick={onReset}
-      {...(disabled ? { disabled: true } : {})}
+      disabled={disabled}
+      title="Reset to default"
+      aria-label="Reset to default"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: "28px",
+        height: "28px",
+        padding: 0,
+        border: "none",
+        borderRadius: "50%",
+        background: "transparent",
+        color: disabled ? "#9ca3af" : "#2563eb",
+        cursor: disabled ? "default" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+      }}
     >
-      Reset to default
-    </s-button>
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.25"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M3 12a9 9 0 1 0 3-6.7" />
+        <polyline points="3 3 3 9 9 9" />
+      </svg>
+    </button>
   );
 }
 
@@ -240,6 +268,167 @@ function TextareaField({
           resize: "vertical",
         }}
       />
+    </s-stack>
+  );
+}
+
+type RichTextFieldProps = {
+  label: string;
+  value: string;
+  defaultValue: string;
+  onChange: (v: string) => void;
+  info?: string;
+};
+
+type ToolbarButtonProps = {
+  onMouseDown: (e: React.MouseEvent) => void;
+  title: string;
+  children: React.ReactNode;
+};
+
+function ToolbarButton({ onMouseDown, title, children }: ToolbarButtonProps) {
+  return (
+    <button
+      type="button"
+      onMouseDown={onMouseDown}
+      title={title}
+      aria-label={title}
+      style={{
+        minWidth: "32px",
+        height: "28px",
+        padding: "0 8px",
+        border: "1px solid #d1d5db",
+        borderRadius: "4px",
+        background: "#fff",
+        cursor: "pointer",
+        fontSize: "14px",
+        fontFamily: "inherit",
+        color: "#111827",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function RichTextField({
+  label,
+  value,
+  defaultValue,
+  onChange,
+  info,
+}: RichTextFieldProps) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const lastEmittedRef = useRef<string | null>(null);
+
+  useLayoutEffect(() => {
+    if (!editorRef.current) return;
+    if (value !== lastEmittedRef.current) {
+      editorRef.current.innerHTML = value;
+      lastEmittedRef.current = value;
+    }
+  }, [value]);
+
+  useEffect(() => {
+    try {
+      document.execCommand("defaultParagraphSeparator", false, "p");
+    } catch {
+      // ignore — older browsers
+    }
+  }, []);
+
+  const emit = () => {
+    if (!editorRef.current) return;
+    const html = editorRef.current.innerHTML;
+    lastEmittedRef.current = html;
+    onChange(html);
+  };
+
+  const exec = (command: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    editorRef.current?.focus();
+    document.execCommand(command, false);
+    emit();
+  };
+
+  const clearFormatting = (e: React.MouseEvent) => {
+    e.preventDefault();
+    editorRef.current?.focus();
+    document.execCommand("removeFormat", false);
+    emit();
+  };
+
+  return (
+    <s-stack direction="block" gap="base">
+      <s-stack direction="inline" gap="base" align="center">
+        <s-text variant="heading-sm">{label}</s-text>
+        <ResetButton
+          onReset={() => onChange(defaultValue)}
+          disabled={value === defaultValue}
+        />
+      </s-stack>
+      {info ? (
+        <s-text variant="body-sm" tone="subdued">
+          {info}
+        </s-text>
+      ) : null}
+      <div
+        style={{
+          maxWidth: "600px",
+          border: "1px solid #ccc",
+          borderRadius: "4px",
+          background: "#fff",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            gap: "4px",
+            padding: "6px",
+            borderBottom: "1px solid #e5e7eb",
+            background: "#f9fafb",
+            borderTopLeftRadius: "4px",
+            borderTopRightRadius: "4px",
+          }}
+        >
+          <ToolbarButton onMouseDown={exec("bold")} title="Bold">
+            <strong>B</strong>
+          </ToolbarButton>
+          <ToolbarButton onMouseDown={exec("italic")} title="Italic">
+            <em>I</em>
+          </ToolbarButton>
+          <ToolbarButton onMouseDown={exec("underline")} title="Underline">
+            <span style={{ textDecoration: "underline" }}>U</span>
+          </ToolbarButton>
+          <ToolbarButton
+            onMouseDown={exec("insertUnorderedList")}
+            title="Bulleted list"
+          >
+            •
+          </ToolbarButton>
+          <ToolbarButton
+            onMouseDown={clearFormatting}
+            title="Clear formatting"
+          >
+            ⨯
+          </ToolbarButton>
+        </div>
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={emit}
+          onBlur={emit}
+          style={{
+            padding: "10px 12px",
+            minHeight: "100px",
+            outline: "none",
+            fontFamily: "inherit",
+            fontSize: "14px",
+            lineHeight: 1.5,
+          }}
+        />
+      </div>
     </s-stack>
   );
 }
@@ -432,54 +621,23 @@ export default function Settings() {
       </s-section>
 
       <s-section heading="Concho Step">
-        <TextareaField
+        <RichTextField
           label="Recommendation Message"
-          name="conchoRecommendationText"
           value={values.conchoRecommendationText}
           defaultValue={DEFAULTS.conchoRecommendationText}
           onChange={set("conchoRecommendationText")}
-          info="HTML allowed. Shown above the concho selection."
+          info="Shown above the concho selection."
         />
       </s-section>
 
       <s-section heading="Checkout Policy">
-        <TextareaField
+        <RichTextField
           label="Checkout Policy Notice"
-          name="checkoutPolicyText"
           value={values.checkoutPolicyText}
           defaultValue={DEFAULTS.checkoutPolicyText}
           onChange={set("checkoutPolicyText")}
-          info="HTML allowed. Shown at the checkout step."
+          info="Shown at the checkout step."
         />
-      </s-section>
-
-      <s-section heading="Preview">
-        <s-box
-          padding="large"
-          borderWidth="base"
-          borderRadius="base"
-          style={{
-            backgroundColor: values.backgroundColor,
-            color: values.fontColor,
-            fontFamily: values.fontFamily,
-          }}
-        >
-          <s-stack direction="block" gap="base">
-            <s-text
-              variant="heading-lg"
-              style={{ color: values.fontColor, fontFamily: values.fontFamily }}
-            >
-              Belt Wizard Preview
-            </s-text>
-            <s-text
-              variant="body-md"
-              style={{ color: values.fontColor, fontFamily: values.fontFamily }}
-            >
-              This is how your belt customization wizard will appear to
-              customers on your storefront.
-            </s-text>
-          </s-stack>
-        </s-box>
       </s-section>
 
       <s-section>
