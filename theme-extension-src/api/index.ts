@@ -212,7 +212,6 @@ export async function queryProducts(
         if (!isNaN(num)) beltAnchors[camelKey] = num;
       }
     }
-
     const defaultForBaseIds: string[] = [];
     const rawDefaultForBases: Array<{ key: string; value: string; type: string } | null> =
       product.defaultForBases ?? [];
