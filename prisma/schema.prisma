@@ -34,11 +34,22 @@ model Session {
 }
 
 model AppSettings {
-  id              String   @id @default(uuid())
-  shop            String   @unique
-  backgroundColor String   @default("#291c12")
-  fontFamily      String   @default("Arial, sans-serif")
-  fontColor       String   @default("#ffffff")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                         String   @id @default(uuid())
+  shop                       String   @unique
+  backgroundColor            String   @default("#291c12")
+  fontFamily                 String   @default("Arial, sans-serif")
+  fontColor                  String   @default("#ffffff")
+  stepperLineColor           String   @default("#ffffff")
+  stepperDotIncompleteColor  String   @default("#808080")
+  stepperDotCompleteColor    String   @default("#476fff")
+  stepperDotCurrentColor     String   @default("#476fff")
+  baseCollectionOrder        String   @default("")
+  buckleCollectionOrder      String   @default("")
+  loopCollectionOrder        String   @default("")
+  conchoCollectionOrder      String   @default("")
+  tipCollectionOrder         String   @default("")
+  conchoRecommendationText   String   @default("<p><strong>Our Recommendation:</strong> Using the same concho in sets of 5, 7, or 9 usually looks best and qualifies for a discount. Other quantities or mixing different conchos can end up looking unpolished.</p>")
+  checkoutPolicyText         String   @default("<p>Free cancellation is available within 24 business hours of placing your order. After an order is placed, our team will contact you to confirm all order details.</p><p>Each belt is custom-tailored to your specifications. Because custom belts cannot be reused or resold, a <strong>30% restocking fee</strong> will apply if a return is requested after the order has been completed.</p>")
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 }

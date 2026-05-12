@@ -1,32 +1,42 @@
 {% comment %}
   Belt Builder App Block
-  This block embeds the BeltMaster belt customization wizard into any page
+  Reads its appearance + content from the shop metafield
+  `custom_belt_builder.settings` written by the app admin.
 {% endcomment %}
+
+{% liquid
+  assign s = shop.metafields.custom_belt_builder.settings.value
+
+  assign bg_color                  = s.backgroundColor             | default: '#291c12'
+  assign text_color                = s.fontColor                   | default: '#ffffff'
+  assign font_family               = s.fontFamily                  | default: 'Arial, sans-serif'
+  assign stepper_line              = s.stepperLineColor            | default: '#ffffff'
+  assign stepper_incomplete        = s.stepperDotIncompleteColor   | default: '#808080'
+  assign stepper_complete          = s.stepperDotCompleteColor     | default: '#476fff'
+  assign stepper_current           = s.stepperDotCurrentColor      | default: '#476fff'
+  assign base_order                = s.baseCollectionOrder
+  assign buckle_order              = s.buckleCollectionOrder
+  assign loop_order                = s.loopCollectionOrder
+  assign concho_order              = s.conchoCollectionOrder
+  assign tip_order                 = s.tipCollectionOrder
+  assign concho_recommendation     = s.conchoRecommendationText    | default: '<p><strong>Our Recommendation:</strong> Using the same concho in sets of 5, 7, or 9 usually looks best and qualifies for a discount. Other quantities or mixing different conchos can end up looking unpolished.</p>'
+  assign checkout_policy           = s.checkoutPolicyText          | default: '<p>Free cancellation is available within 24 business hours of placing your order. After an order is placed, our team will contact you to confirm all order details.</p><p>Each belt is custom-tailored to your specifications. Because custom belts cannot be reused or resold, a <strong>30% restocking fee</strong> will apply if a return is requested after the order has been completed.</p>'
+%}
 
 <div
   class="belt-builder"
-  style="--belt-wizard-background-color: {{ block.settings.background_color | default: '#291c12' }}; --belt-wizard-bg-color: {{ block.settings.background_color | default: '#291c12' }}; --belt-wizard-text-color-custom: {{ block.settings.text_color | default: '#ffffff' }}; --stepper-line-color-custom: {{ block.settings.stepper_line_color | default: '#ffffff' }}; --stepper-dot-incomplete-color-custom: {{ block.settings.stepper_dot_incomplete_color | default: 'gray' }}; --stepper-dot-complete-color-custom: {{ block.settings.stepper_dot_complete_color | default: 'rgba(71, 111, 255, 0.85)' }}; --stepper-dot-current-color-custom: {{ block.settings.stepper_dot_current_color | default: '#476fff' }};"
+  style="--belt-wizard-background-color: {{ bg_color }}; --belt-wizard-bg-color: {{ bg_color }}; --belt-wizard-text-color-custom: {{ text_color }}; --belt-wizard-font-family-custom: {{ font_family }}; --stepper-line-color-custom: {{ stepper_line }}; --stepper-dot-incomplete-color-custom: {{ stepper_incomplete }}; --stepper-dot-complete-color-custom: {{ stepper_complete }}; --stepper-dot-current-color-custom: {{ stepper_current }};"
 >
   {% render 'belt-wizard-styles' %}
   <belt-wizard
     looped-belt-src="{{ 'belts/looped-belt.png' | asset_url }}"
-    concho-recommendation="{{ block.settings.concho_recommendation_text | default: '<strong>Our Recommendation:</strong> Using the same concho in sets of 5, 7, or 9 usually looks best and qualifies for a discount. Other quantities or mixing different conchos can end up looking unpolished.' }}"
-    checkout-policy="{{ block.settings.checkout_policy_text | default: '<p>Free cancellation is available within 24 business hours of placing your order. After an order is placed, our team will contact you to confirm all order details.</p><p>Each belt is custom-tailored to your specifications. Because custom belts cannot be reused or resold, a <strong>30% restocking fee</strong> will apply if a return is requested after the order has been completed.</p>' }}"
-    {% if block.settings.base_collection_order != blank %}
-      collection-order-base="{{ block.settings.base_collection_order }}"
-    {% endif %}
-    {% if block.settings.buckle_collection_order != blank %}
-      collection-order-buckle="{{ block.settings.buckle_collection_order }}"
-    {% endif %}
-    {% if block.settings.loop_collection_order != blank %}
-      collection-order-loops="{{ block.settings.loop_collection_order }}"
-    {% endif %}
-    {% if block.settings.concho_collection_order != blank %}
-      collection-order-conchos="{{ block.settings.concho_collection_order }}"
-    {% endif %}
-    {% if block.settings.tip_collection_order != blank %}
-      collection-order-tip="{{ block.settings.tip_collection_order }}"
-    {% endif %}
+    concho-recommendation="{{ concho_recommendation }}"
+    checkout-policy="{{ checkout_policy }}"
+    {% if base_order != blank %}collection-order-base="{{ base_order }}"{% endif %}
+    {% if buckle_order != blank %}collection-order-buckle="{{ buckle_order }}"{% endif %}
+    {% if loop_order != blank %}collection-order-loops="{{ loop_order }}"{% endif %}
+    {% if concho_order != blank %}collection-order-conchos="{{ concho_order }}"{% endif %}
+    {% if tip_order != blank %}collection-order-tip="{{ tip_order }}"{% endif %}
   ></belt-wizard>
   <div id="scrollToken" style="height: 1px;"></div>
 </div>
@@ -36,19 +46,14 @@
 
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    const bgColor = '{{ block.settings.background_color | default: '#291c12' }}';
-    const textColor = '{{ block.settings.text_color | default: '#ffffff' }}';
-    const stepperLineColor = '{{ block.settings.stepper_line_color | default: '#ffffff' }}';
-    const stepperIncompleteColor = '{{ block.settings.stepper_dot_incomplete_color | default: 'gray' }}';
-    const stepperCompleteColor = '{{ block.settings.stepper_dot_complete_color | default: 'rgba(71, 111, 255, 0.85)' }}';
-    const stepperCurrentColor = '{{ block.settings.stepper_dot_current_color | default: '#476fff' }}';
-    document.documentElement.style.setProperty('--belt-wizard-bg-color', bgColor);
-    document.documentElement.style.setProperty('--belt-wizard-background-color', bgColor);
-    document.documentElement.style.setProperty('--belt-wizard-text-color-custom', textColor);
-    document.documentElement.style.setProperty('--stepper-line-color-custom', stepperLineColor);
-    document.documentElement.style.setProperty('--stepper-dot-incomplete-color-custom', stepperIncompleteColor);
-    document.documentElement.style.setProperty('--stepper-dot-complete-color-custom', stepperCompleteColor);
-    document.documentElement.style.setProperty('--stepper-dot-current-color-custom', stepperCurrentColor);
+    document.documentElement.style.setProperty('--belt-wizard-bg-color', {{ bg_color | json }});
+    document.documentElement.style.setProperty('--belt-wizard-background-color', {{ bg_color | json }});
+    document.documentElement.style.setProperty('--belt-wizard-text-color-custom', {{ text_color | json }});
+    document.documentElement.style.setProperty('--belt-wizard-font-family-custom', {{ font_family | json }});
+    document.documentElement.style.setProperty('--stepper-line-color-custom', {{ stepper_line | json }});
+    document.documentElement.style.setProperty('--stepper-dot-incomplete-color-custom', {{ stepper_incomplete | json }});
+    document.documentElement.style.setProperty('--stepper-dot-complete-color-custom', {{ stepper_complete | json }});
+    document.documentElement.style.setProperty('--stepper-dot-current-color-custom', {{ stepper_current | json }});
   });
 </script>
 
@@ -57,7 +62,8 @@
     min-height: 80vh;
     display: flex;
     flex-direction: column;
-    color: #fff;
+    color: var(--belt-wizard-text-color-custom, #fff);
+    font-family: var(--belt-wizard-font-family-custom, inherit);
     width: 100%;
     margin-left: 0;
     margin-right: 0;
@@ -80,106 +86,6 @@
   "tag": "section",
   "class": "belt-builder-section-wrapper",
   "stylesheet": "belt-wizard.css",
-  "settings": [
-    {
-      "type": "color",
-      "id": "background_color",
-      "label": "Background Color",
-      "default": "#291c12"
-    },
-    {
-      "type": "color",
-      "id": "text_color",
-      "label": "Text Color",
-      "default": "#ffffff"
-    },
-    {
-      "type": "header",
-      "content": "Stepper Settings"
-    },
-    {
-      "type": "color",
-      "id": "stepper_line_color",
-      "label": "Line Color",
-      "default": "#ffffff"
-    },
-    {
-      "type": "color",
-      "id": "stepper_dot_incomplete_color",
-      "label": "Incomplete Color",
-      "default": "#808080"
-    },
-    {
-      "type": "color",
-      "id": "stepper_dot_complete_color",
-      "label": "Complete Color",
-      "default": "#476fff"
-    },
-    {
-      "type": "color",
-      "id": "stepper_dot_current_color",
-      "label": "Current Color",
-      "default": "#476fff"
-    },
-    {
-      "type": "header",
-      "content": "Collection Display Order"
-    },
-    {
-      "type": "textarea",
-      "id": "base_collection_order",
-      "label": "Base Collections Order",
-      "info": "Comma-separated collection names in display order. Collections not listed appear alphabetically after these.",
-      "placeholder": "Premium Leather, Standard Leather, Exotic"
-    },
-    {
-      "type": "textarea",
-      "id": "buckle_collection_order",
-      "label": "Buckle Collections Order",
-      "info": "Comma-separated collection names in display order.",
-      "placeholder": "Silver Collection, Gold Collection"
-    },
-    {
-      "type": "textarea",
-      "id": "loop_collection_order",
-      "label": "Loop Collections Order",
-      "info": "Comma-separated collection names in display order.",
-      "placeholder": "Collection A, Collection B"
-    },
-    {
-      "type": "textarea",
-      "id": "concho_collection_order",
-      "label": "Concho Collections Order",
-      "info": "Comma-separated collection names in display order.",
-      "placeholder": "Collection A, Collection B"
-    },
-    {
-      "type": "textarea",
-      "id": "tip_collection_order",
-      "label": "Tip Collections Order",
-      "info": "Comma-separated collection names in display order.",
-      "placeholder": "Collection A, Collection B"
-    },
-    {
-      "type": "header",
-      "content": "Concho Step Settings"
-    },
-    {
-      "type": "richtext",
-      "id": "concho_recommendation_text",
-      "label": "Recommendation Message",
-      "default": "<p><strong>Our Recommendation:</strong> Using the same concho in sets of 5, 7, or 9 usually looks best and qualifies for a discount. Other quantities or mixing different conchos can end up looking unpolished.</p>"
-    },
-    {
-      "type": "header",
-      "content": "Checkout Policy"
-    },
-    {
-      "type": "richtext",
-      "id": "checkout_policy_text",
-      "label": "Checkout Policy Notice",
-      "default": "<p>Free cancellation is available within 24 business hours of placing your order. After an order is placed, our team will contact you to confirm all order details.</p><p>Each belt is custom-tailored to your specifications. Because custom belts cannot be reused or resold, a <strong>30% restocking fee</strong> will apply if a return is requested after the order has been completed.</p>"
-    }
-  ]
+  "settings": []
 }
 {% endschema %}
