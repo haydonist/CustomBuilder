@@ -359,6 +359,10 @@ export default class BeltCheckout extends LitElement {
       : "Custom Belt Build Order:";
     const note = `${header}\n\n${noteSections.join("\n\n")}`;
 
+    // Mirror the full note into a hidden cart attribute so the build order
+    // survives even if the customer edits or clears the order note at checkout.
+    add("_Build Order Full", note);
+
     return { attributes: attrs, note };
   }
 }
