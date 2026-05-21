@@ -169,8 +169,12 @@ export default class BeltCheckout extends LitElement {
   }
 
   /**
-   * Fire one POST per belt to create a customer-visible custom product. Does
-   * not throw on failure — the regular checkout flow must always proceed.
+   * For each belt in the order, POST the build data + a square preview to the
+   * backend so it becomes a customer-created product (used as inspiration on
+   * the storefront later). Awaits each request so checkout is blocked until
+   * the products are saved — a few extra seconds during the "Sending to
+   * checkout..." state. Failures are swallowed so checkout always proceeds.
+   *
    * Saved belts use the composite preview captured at save time; the current
    * (in-progress) belt is captured fresh from the live preview element.
    */
@@ -183,7 +187,6 @@ export default class BeltCheckout extends LitElement {
       for (const saved of this.savedBelts) {
         if (!saved.base || !saved.buckle) continue;
         const payload = buildSavedBeltPayload(saved, variantPriceById);
-        // DEBUG: await so we can see server response in the browser console.
         if (payload) await submitCustomProductCreation(payload);
       }
 
@@ -214,7 +217,6 @@ export default class BeltCheckout extends LitElement {
           previewDataUrl,
           variantPriceById,
         });
-        // DEBUG: await so we can see server response in the browser console.
         if (payload) await submitCustomProductCreation(payload);
       }
     } catch (err) {
