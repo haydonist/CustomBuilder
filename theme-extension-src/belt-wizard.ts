@@ -56,6 +56,26 @@ export interface SavedBelt {
   isSet: boolean;
   /** Snapshot of the FormData selection for this belt */
   selection: Map<string, string[]>;
+  /**
+   * Composited preview JPEG (data URL) captured at save time. Used as the
+   * product image when the belt is turned into a customer-created product
+   * after checkout. Optional because old code paths may not have captured it.
+   */
+  compositePreview?: string;
+}
+
+/**
+ * Shape of `?belt=<base64-json>` URL params. Mirrors `selected_products`
+ * written by api.create-custom-product so the same payload can drive both
+ * "view this custom product" links and "build this belt" inspiration links.
+ */
+interface UrlBeltConfig {
+  base?: { id: string };
+  buckle?: { id: string };
+  tip?: { id: string };
+  color?: { value: string };
+  loops?: Array<{ id: string; count?: number }>;
+  conchos?: Array<{ id: string; count?: number }>;
 }
 
 @customElement("belt-wizard")
@@ -197,7 +217,7 @@ export class CustomBeltWizard extends LitElement {
       this.requestUpdate();
     });
 
-    this.updateProducts();
+    this.updateProducts().then(() => this.loadFromUrlIfPresent());
   }
 
   /** Freeze the outgoing element's current position and let CSS animate a
@@ -764,6 +784,10 @@ private getSelectedBaseColor(): string | null {
                       @click="${() => this.editSavedBelt(slot.savedIndex)}">
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                     </button>
+                    <button type="button" class="btn-duplicate-belt" title="Duplicate Belt ${beltNumber}"
+                      @click="${() => this.duplicateSavedBelt(slot.savedIndex)}">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                    </button>
                     <button type="button" class="btn-remove-belt" title="Remove Belt ${beltNumber}"
                       @click="${() => this.removeSavedBelt(slot.savedIndex)}">&times;</button>
                   </div>
@@ -857,6 +881,7 @@ private getSelectedBaseColor(): string | null {
             buckle="${ifDefined(this.beltBuckle?.id)}"
             tip="${ifDefined(this.beltTip?.id)}"
             .savedBelts=${this.savedBelts}
+            .previewElement=${this.preview.value ?? null}
             checkout-policy="${this.checkoutPolicy}"
           >
           </belt-checkout>
@@ -2867,6 +2892,107 @@ sizeStep.view = () => {
     this.applySelectionToPreview();
   }
 
+  /**
+   * If the page URL carries a `?belt=<base64-json>` param, decode it and
+   * pre-populate the wizard. Matches the `selected_products` metafield shape
+   * written by api.create-custom-product, so the same JSON drives both
+   * customer-created products and direct-link "build this belt" buttons.
+   * Size is intentionally NOT restored — the user always picks their own.
+   */
+  private async loadFromUrlIfPresent(): Promise<void> {
+    if (typeof window === "undefined") return;
+    const param = new URLSearchParams(window.location.search).get("belt");
+    if (!param) return;
+
+    let config: UrlBeltConfig;
+    try {
+      const json = atob(param.replace(/-/g, "+").replace(/_/g, "/"));
+      config = JSON.parse(json);
+    } catch (err) {
+      console.warn("[belt-wizard] Invalid ?belt URL param:", err);
+      return;
+    }
+
+    const [bases, _buckles, loops, conchos, tips] = this.beltData;
+    const findInGroup = (group: Product[] | undefined, id: string | undefined) =>
+      id ? group?.find(p => p.id === id) ?? null : null;
+
+    const base = findInGroup(bases, config.base?.id);
+    if (!base) return; // No base = nothing meaningful to load
+
+    this.ensureSelection();
+    const sel = this.selection!;
+
+    // Base + a color/variant so the preview renders and the size step has a starting point.
+    sel.set("base", base.id);
+    const availableColors = this.getBaseColors(base);
+    const requestedColor = config.color?.value;
+    const color = requestedColor && availableColors.includes(requestedColor)
+      ? requestedColor
+      : availableColors[0];
+    if (color) {
+      sel.set("baseColor", color);
+      const firstVariant = this.findFirstVariantForBaseColor(base, color);
+      if (firstVariant) sel.set("baseVariant", firstVariant.id);
+    }
+    this.pendingDefaultLoopsForBaseId = base.id;
+
+    // Buckle (search both regular buckles and sets via buckleChoices).
+    const buckle = this.buckleChoices.find(p => p.id === config.buckle?.id) ?? null;
+    if (buckle) {
+      sel.set("buckle", buckle.id);
+      const firstVariant = buckle.variants?.[0];
+      if (firstVariant) sel.set("buckleVariant", firstVariant.id);
+    }
+
+    // Loops — append once per `count`, capped at max for this base.
+    const maxLoops = this.getMaxLoopsAllowed();
+    let loopAppended = 0;
+    for (const entry of config.loops ?? []) {
+      const loop = findInGroup(loops, entry.id);
+      if (!loop) continue;
+      const times = Math.max(1, Math.min(entry.count ?? 1, maxLoops - loopAppended));
+      for (let i = 0; i < times && loopAppended < maxLoops; i++) {
+        sel.append("loop", loop.id);
+        const firstVariant = loop.variants?.[0];
+        if (firstVariant) sel.append("loopVariant", firstVariant.id);
+        loopAppended++;
+      }
+      if (loopAppended >= maxLoops) break;
+    }
+
+    // Conchos — max 9 total.
+    let conchoAppended = 0;
+    for (const entry of config.conchos ?? []) {
+      const concho = findInGroup(conchos, entry.id);
+      if (!concho) continue;
+      const times = Math.max(1, Math.min(entry.count ?? 1, 9 - conchoAppended));
+      for (let i = 0; i < times && conchoAppended < 9; i++) {
+        sel.append("concho", concho.id);
+        const firstVariant = concho.variants?.[0];
+        if (firstVariant) sel.append("conchoVariant", firstVariant.id);
+        conchoAppended++;
+      }
+      if (conchoAppended >= 9) break;
+    }
+
+    // Tip (skipped for sets — they include their own tip).
+    if (!this.isSetProduct(buckle)) {
+      const tip = findInGroup(tips, config.tip?.id);
+      if (tip) {
+        sel.set("tip", tip.id);
+        const firstVariant = tip.variants?.[0];
+        if (firstVariant) sel.set("tipVariant", firstVariant.id);
+      }
+    }
+
+    this.applySelectionToPreview();
+    await this.updateComplete;
+    // Jump the user to size selection since everything else is pre-filled.
+    const sizeIdx = this.wizard.steps.findIndex(s => s.id === "size");
+    if (sizeIdx >= 0) this.wizard.goTo(sizeIdx);
+  }
+
   /** Snapshot the current belt's FormData into a simple Map<string, string[]>. */
   private snapshotSelection(): Map<string, string[]> {
     const snap = new Map<string, string[]>();
@@ -2887,6 +3013,8 @@ sizeStep.view = () => {
    */
   private async saveBeltAndStartNew() {
     const savedUid = this.currentBeltUid;
+    // Capture before any state mutation so the preview reflects this belt.
+    const compositePreview = (await this.preview.value?.capturePreview()) ?? undefined;
     const saved: SavedBelt = {
       uid: savedUid,
       label: "",  // will be set by renumbering below
@@ -2905,6 +3033,7 @@ sizeStep.view = () => {
       conchosVariantIds: this.getSelectedMultiVariantIds("concho", 9),
       isSet: this.hasSetSelected(),
       selection: this.snapshotSelection(),
+      compositePreview,
     };
 
     // Insert at original position if editing, otherwise append
@@ -3024,6 +3153,7 @@ sizeStep.view = () => {
     const previousCurrentUid = this.currentBeltUid;
     const targetUid = this.savedBelts[index]?.uid;
     if (this.beltBase) {
+      const compositePreview = (await this.preview.value?.capturePreview()) ?? undefined;
       const currentBelt: SavedBelt = {
         uid: previousCurrentUid,
         label: "",
@@ -3042,6 +3172,7 @@ sizeStep.view = () => {
         conchosVariantIds: this.getSelectedMultiVariantIds("concho", 9),
         isSet: this.hasSetSelected(),
         selection: this.snapshotSelection(),
+        compositePreview,
       };
 
       if (this.editingBeltIndex !== null) {
@@ -3146,6 +3277,53 @@ sizeStep.view = () => {
 
     // Navigate to step 0 after the preview is fully loaded
     this.wizard.goTo(0);
+  }
+
+  /**
+   * Duplicate a saved belt: clone it with a fresh UID and insert it right after
+   * the original. Variant-id arrays and the selection map are deep-cloned so
+   * future edits to one belt don't bleed into the other. Product references are
+   * shared (they're immutable catalog data).
+   */
+  private duplicateSavedBelt(index: number) {
+    const original = this.savedBelts[index];
+    if (!original) return;
+
+    const clonedSelection = new Map<string, string[]>();
+    for (const [key, values] of original.selection.entries()) {
+      clonedSelection.set(key, [...values]);
+    }
+
+    const duplicateUid = CustomBeltWizard.makeBeltUid();
+    const duplicate: SavedBelt = {
+      ...original,
+      uid: duplicateUid,
+      label: "",
+      loops: [...original.loops],
+      loopsVariantIds: [...original.loopsVariantIds],
+      conchos: [...original.conchos],
+      conchosVariantIds: [...original.conchosVariantIds],
+      selection: clonedSelection,
+    };
+
+    const insertAt = index + 1;
+    this.savedBelts = [
+      ...this.savedBelts.slice(0, insertAt),
+      duplicate,
+      ...this.savedBelts.slice(insertAt),
+    ].map((belt, i) => ({ ...belt, label: `Belt ${i + 1}` }));
+
+    // Shift the editing slot if it sat after the insertion point.
+    if (this.editingBeltIndex !== null && this.editingBeltIndex >= insertAt) {
+      this.editingBeltIndex++;
+    }
+
+    this.pulsingBeltUids = new Map(this.pulsingBeltUids).set(duplicateUid, "promote");
+    setTimeout(() => {
+      const next = new Map(this.pulsingBeltUids);
+      next.delete(duplicateUid);
+      this.pulsingBeltUids = next;
+    }, CustomBeltWizard.BELT_PULSE_MS);
   }
 
   private async removeSavedBelt(index: number) {

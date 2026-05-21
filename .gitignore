@@ -25,3 +25,4 @@ database.sqlite
 .react-router/
 .claude/settings.local.json
 nul
+create-custom-product.log

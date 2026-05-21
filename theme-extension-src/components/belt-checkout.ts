@@ -8,6 +8,11 @@ import { createCartAndGetCheckoutUrl, toLineVariant } from "../api/cart.ts";
 import * as styles from "../styles.ts";
 import { formatMoney } from "../utils.ts";
 import type { SavedBelt } from "../belt-wizard.ts";
+import type BeltPreview from "./belt-preview/index.ts";
+import {
+  submitCustomProductCreation,
+  type CreateCustomProductPayload,
+} from "../api/create-custom-product.ts";
 
 
 
@@ -29,6 +34,9 @@ export default class BeltCheckout extends LitElement {
 
   /** Previously completed belts to include in checkout. */
   @state() savedBelts: SavedBelt[] = [];
+
+  /** Live reference to the wizard's belt-preview, used to capture the current belt at checkout time. */
+  @property({ attribute: false }) previewElement: BeltPreview | null = null;
 
   @property({ type: String, attribute: 'checkout-policy' })
   checkoutPolicy = '<p>Free cancellation is available within 24 business hours of placing your order. After an order is placed, our team will contact you to confirm all order details.</p><p>Each belt is custom-tailored to your specifications. Because custom belts cannot be reused or resold, a <strong>30% restocking fee</strong> will apply if a return is requested after the order has been completed.</p>';
@@ -160,6 +168,58 @@ export default class BeltCheckout extends LitElement {
     window.scrollTo({ top, behavior: 'smooth' });
   }
 
+  /**
+   * Fire one POST per belt to create a customer-visible custom product. Does
+   * not throw on failure — the regular checkout flow must always proceed.
+   * Saved belts use the composite preview captured at save time; the current
+   * (in-progress) belt is captured fresh from the live preview element.
+   */
+  private async fireCustomProductCreation(): Promise<void> {
+    try {
+      const [beltBases, beltBuckles, , , beltTips] = this.beltData;
+      const variantPriceById = buildVariantPriceIndex(this.beltData);
+
+      // Saved belts: use the preview snapshot captured when the belt was saved.
+      for (const saved of this.savedBelts) {
+        if (!saved.base || !saved.buckle) continue;
+        const payload = buildSavedBeltPayload(saved, variantPriceById);
+        if (payload) void submitCustomProductCreation(payload);
+      }
+
+      // Current (in-progress) belt: capture preview live, then submit.
+      const base = beltBases?.find(x => x.id === this.base) ?? null;
+      const buckle = beltBuckles?.find(x => x.id === this.buckle) ?? null;
+      const tipProduct = beltTips?.find(x => x.id === this.tip) ?? null;
+      if (base && buckle) {
+        let previewDataUrl: string | null = null;
+        try {
+          previewDataUrl = (await this.previewElement?.capturePreview()) ?? null;
+        } catch (err) {
+          console.warn("[belt-checkout] capturePreview failed (non-fatal):", err);
+        }
+        const isSet = (buckle.tags ?? []).some(t => t.toLowerCase() === "set");
+        const payload = buildCurrentBeltPayload({
+          base,
+          buckle,
+          tip: isSet ? null : tipProduct,
+          loops: this.loops,
+          conchos: this.conchos,
+          baseVariantId: this.baseVariantId,
+          buckleVariantId: this.buckleVariantId,
+          tipVariantId: isSet ? undefined : this.tipVariantId,
+          loopsVariantIds: this.loopsVariantIds ?? [],
+          conchosVariantIds: this.conchosVariantIds ?? [],
+          isSet,
+          previewDataUrl,
+          variantPriceById,
+        });
+        if (payload) void submitCustomProductCreation(payload);
+      }
+    } catch (err) {
+      console.warn("[belt-checkout] fireCustomProductCreation skipped:", err);
+    }
+  }
+
   /** Build cart line items for a single belt given its variant IDs. */
   private buildLinesForBelt(
     baseVariantId: string,
@@ -214,6 +274,11 @@ export default class BeltCheckout extends LitElement {
       // Attributes prefixed with _ are hidden from the customer during checkout
       // but visible in Shopify admin when viewing the order.
       const { attributes: cartAttributes, note } = this.buildBeltConfig();
+
+      // Fire-and-forget: turn each belt in this order into a customer-created
+      // product for the "inspiration" gallery. Runs concurrently with the cart
+      // request and uses keepalive so it survives the navigation below.
+      await this.fireCustomProductCreation();
 
       const checkoutUrl = await createCartAndGetCheckoutUrl(lines, cartAttributes, note);
       self.location.assign(checkoutUrl);
@@ -407,4 +472,124 @@ function buildVariantPriceIndex(beltData: Product[][]): Map<string, number> {
     }
   }
   return index;
+}
+
+/** Aggregate `[id, id, id, ...]` into `[{id, title, count}, ...]` keyed by product. */
+function aggregateProductCounts(
+  items: Product[],
+): Array<{ id: string; title: string; count: number }> {
+  const map = new Map<string, { id: string; title: string; count: number }>();
+  for (const p of items) {
+    const existing = map.get(p.id);
+    if (existing) existing.count += 1;
+    else map.set(p.id, { id: p.id, title: p.title, count: 1 });
+  }
+  return Array.from(map.values());
+}
+
+/** Sum of variant prices for a list of variant IDs (used for loop/concho subtotals). */
+function sumVariantPrices(
+  variantIds: string[],
+  variantPriceById: Map<string, number>,
+): number {
+  return aggregateVariantCounts(variantIds).reduce(
+    (sum, { variantId, count }) => sum + (variantPriceById.get(variantId) ?? 0) * count,
+    0,
+  );
+}
+
+function getVariantSelection(
+  product: Product | null | undefined,
+  variantId: string | undefined,
+): { size?: string; color?: string } {
+  const variant = product ? getVariantById(product, variantId) : null;
+  if (!variant) return {};
+  return {
+    size: findOption(variant, "Size") ?? findOption(variant, "Accessory size") ?? undefined,
+    color: findOption(variant, "Color") ?? findOption(variant, "Colour") ?? undefined,
+  };
+}
+
+function buildSavedBeltPayload(
+  saved: SavedBelt,
+  variantPriceById: Map<string, number>,
+): CreateCustomProductPayload | null {
+  if (!saved.base || !saved.buckle) return null;
+  const basePrice = variantPriceById.get(saved.baseVariantId ?? "") ?? 0;
+  const bucklePrice = variantPriceById.get(saved.buckleVariantId ?? "") ?? 0;
+  const tipPrice = !saved.isSet && saved.tipVariantId
+    ? variantPriceById.get(saved.tipVariantId) ?? 0
+    : 0;
+  const loopsPrice = sumVariantPrices(saved.loopsVariantIds, variantPriceById);
+  const conchosPrice = sumVariantPrices(saved.conchosVariantIds, variantPriceById);
+  const { size, color } = getVariantSelection(saved.base, saved.baseVariantId);
+
+  return {
+    basePrice, bucklePrice, tipPrice, loopsPrice, conchosPrice,
+    currencyCode: getCurrencyCode(saved.base),
+    selectedProducts: {
+      base: { id: saved.base.id, title: saved.base.title },
+      buckle: { id: saved.buckle.id, title: saved.buckle.title },
+      tip: !saved.isSet && saved.tip ? { id: saved.tip.id, title: saved.tip.title } : undefined,
+      size: size ? { value: size } : undefined,
+      color: color ? { value: color } : undefined,
+      loops: aggregateProductCounts(saved.loops),
+      conchos: aggregateProductCounts(saved.conchos),
+      collection: getPrimaryCollection(saved.base),
+    },
+    previewDataUrl: saved.compositePreview ?? null,
+  };
+}
+
+interface CurrentBeltArgs {
+  base: Product;
+  buckle: Product;
+  tip: Product | null;
+  loops: Product[];
+  conchos: Product[];
+  baseVariantId: string | undefined;
+  buckleVariantId: string | undefined;
+  tipVariantId: string | undefined;
+  loopsVariantIds: string[];
+  conchosVariantIds: string[];
+  isSet: boolean;
+  previewDataUrl: string | null;
+  variantPriceById: Map<string, number>;
+}
+
+function buildCurrentBeltPayload(args: CurrentBeltArgs): CreateCustomProductPayload | null {
+  const basePrice = args.variantPriceById.get(args.baseVariantId ?? "") ?? 0;
+  const bucklePrice = args.variantPriceById.get(args.buckleVariantId ?? "") ?? 0;
+  const tipPrice = !args.isSet && args.tipVariantId
+    ? args.variantPriceById.get(args.tipVariantId) ?? 0
+    : 0;
+  const loopsPrice = sumVariantPrices(args.loopsVariantIds, args.variantPriceById);
+  const conchosPrice = sumVariantPrices(args.conchosVariantIds, args.variantPriceById);
+  const { size, color } = getVariantSelection(args.base, args.baseVariantId);
+
+  return {
+    basePrice, bucklePrice, tipPrice, loopsPrice, conchosPrice,
+    currencyCode: getCurrencyCode(args.base),
+    selectedProducts: {
+      base: { id: args.base.id, title: args.base.title },
+      buckle: { id: args.buckle.id, title: args.buckle.title },
+      tip: !args.isSet && args.tip ? { id: args.tip.id, title: args.tip.title } : undefined,
+      size: size ? { value: size } : undefined,
+      color: color ? { value: color } : undefined,
+      loops: aggregateProductCounts(args.loops),
+      conchos: aggregateProductCounts(args.conchos),
+      collection: getPrimaryCollection(args.base),
+    },
+    previewDataUrl: args.previewDataUrl,
+  };
+}
+
+function getCurrencyCode(product: Product): string {
+  return product.priceRange?.minVariantPrice?.currencyCode ?? "USD";
+}
+
+function getPrimaryCollection(product: Product): { title: string; handle: string } | undefined {
+  const first = product.collections?.[0];
+  if (!first) return undefined;
+  return { title: first.title, handle: first.handle };
 }
