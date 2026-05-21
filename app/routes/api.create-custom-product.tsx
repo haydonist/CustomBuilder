@@ -295,50 +295,69 @@ async function handleCreate(request: Request) {
     }
 
     // ---- Step 2: Set price & SKU on variant ----
+    // NOTE: In Admin API 2024-04+, `sku` moved off ProductVariantsBulkInput
+    // and onto its `inventoryItem` sub-input. Sending it at the top level
+    // throws a schema error.
     const sku = `CUSTOM-${Date.now()}`;
-    const updateResp = await admin.graphql(UPDATE_VARIANTS_MUTATION, {
-      variables: {
-        productId,
-        variants: [{ id: defaultVariantId, price: totalPrice, sku }],
-      },
-    });
-    const updateData = await updateResp.json();
-    const variantErrors = updateData.data?.productVariantsBulkUpdate?.userErrors ?? [];
-    if (variantErrors.length > 0) {
-      dbg("ERROR: productVariantsBulkUpdate errors:", variantErrors);
-    } else {
-      dbg("variant updated to price:", totalPrice);
+    try {
+      const updateResp = await admin.graphql(UPDATE_VARIANTS_MUTATION, {
+        variables: {
+          productId,
+          variants: [{
+            id: defaultVariantId,
+            price: totalPrice,
+            inventoryItem: { sku },
+          }],
+        },
+      });
+      const updateData = await updateResp.json();
+      const variantErrors = updateData.data?.productVariantsBulkUpdate?.userErrors ?? [];
+      if (variantErrors.length > 0) {
+        dbg("ERROR: productVariantsBulkUpdate errors:", variantErrors);
+      } else {
+        dbg("variant updated to price:", totalPrice);
+      }
+    } catch (varErr) {
+      dbg("ERROR: variant update threw (non-fatal):", varErr instanceof Error ? varErr.message : varErr);
     }
 
     // ---- Step 3: Set metafields ----
-    await admin.graphql(SET_METAFIELDS_MUTATION, {
-      variables: {
-        input: [
-          {
-            namespace: "custom-belt-builder",
-            key: "selected_products",
-            value: JSON.stringify(payload.selectedProducts),
-            type: "json",
-            ownerId: productId,
-          },
-          {
-            namespace: "custom-belt-builder",
-            key: "component_prices",
-            value: JSON.stringify({
-              basePrice: payload.basePrice,
-              bucklePrice: payload.bucklePrice,
-              tipPrice: payload.tipPrice,
-              loopsPrice: payload.loopsPrice,
-              conchosPrice: payload.conchosPrice,
-              total: totalPrice,
-              currency: payload.currencyCode,
-            }),
-            type: "json",
-            ownerId: productId,
-          },
-        ],
-      },
-    });
+    try {
+      const mfResp = await admin.graphql(SET_METAFIELDS_MUTATION, {
+        variables: {
+          input: [
+            {
+              namespace: "custom-belt-builder",
+              key: "selected_products",
+              value: JSON.stringify(payload.selectedProducts),
+              type: "json",
+              ownerId: productId,
+            },
+            {
+              namespace: "custom-belt-builder",
+              key: "component_prices",
+              value: JSON.stringify({
+                basePrice: payload.basePrice,
+                bucklePrice: payload.bucklePrice,
+                tipPrice: payload.tipPrice,
+                loopsPrice: payload.loopsPrice,
+                conchosPrice: payload.conchosPrice,
+                total: totalPrice,
+                currency: payload.currencyCode,
+              }),
+              type: "json",
+              ownerId: productId,
+            },
+          ],
+        },
+      });
+      const mfData = await mfResp.json();
+      const mfErrors = mfData.data?.metafieldsSet?.userErrors ?? [];
+      if (mfErrors.length > 0) dbg("ERROR: metafields errors:", mfErrors);
+      else dbg("metafields set");
+    } catch (mfErr) {
+      dbg("ERROR: metafields threw (non-fatal):", mfErr instanceof Error ? mfErr.message : mfErr);
+    }
 
     // ---- Step 4: Set inventory (quantity 1 at first location) ----
     if (inventoryItemId) {
@@ -406,15 +425,19 @@ async function handleCreate(request: Request) {
     }
 
     // ---- Step 7: Activate (DRAFT → ACTIVE) ----
-    const activateResp = await admin.graphql(PRODUCT_UPDATE_STATUS, {
-      variables: { input: { id: productId, status: "ACTIVE" } },
-    });
-    const activateData = await activateResp.json();
-    const activateErrors = activateData.data?.productUpdate?.userErrors ?? [];
-    if (activateErrors.length > 0) {
-      dbg("ERROR: activate errors:", activateErrors);
-    } else {
-      dbg("product activated");
+    try {
+      const activateResp = await admin.graphql(PRODUCT_UPDATE_STATUS, {
+        variables: { input: { id: productId, status: "ACTIVE" } },
+      });
+      const activateData = await activateResp.json();
+      const activateErrors = activateData.data?.productUpdate?.userErrors ?? [];
+      if (activateErrors.length > 0) {
+        dbg("ERROR: activate errors:", activateErrors);
+      } else {
+        dbg("product activated");
+      }
+    } catch (actErr) {
+      dbg("ERROR: activate threw (non-fatal):", actErr instanceof Error ? actErr.message : actErr);
     }
 
     dbg("Done:", productId);
