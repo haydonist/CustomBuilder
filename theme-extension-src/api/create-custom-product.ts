@@ -66,17 +66,29 @@ export async function submitCustomProductCreation(payload: CreateCustomProductPa
       ? JSON.stringify({ ...JSON.parse(body), imageBase64: undefined })
       : body;
 
-    // Don't await — let the browser fire and forget while the page navigates.
-    void fetch(PROXY_URL, {
+    // DEBUG MODE: temporarily await and log the response so we can see what
+    // the server does. Revert to fire-and-forget (commented below) once we've
+    // diagnosed the price/image/publish issue.
+    console.log("[create-custom-product] POSTing", finalBody.length, "bytes, image present:", !!imageBase64);
+    const resp = await fetch(PROXY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: finalBody,
-      keepalive: true,
-    }).catch((err) => {
-      console.warn("[create-custom-product] fire-and-forget failed:", err);
     });
+    const text = await resp.text();
+    console.log("[create-custom-product] status:", resp.status, "body:", text);
+
+    // --- restore once debugging is done ---
+    // void fetch(PROXY_URL, {
+    //   method: "POST",
+    //   headers: { "Content-Type": "application/json" },
+    //   body: finalBody,
+    //   keepalive: true,
+    // }).catch((err) => {
+    //   console.warn("[create-custom-product] fire-and-forget failed:", err);
+    // });
   } catch (err) {
-    console.warn("[create-custom-product] submit error (non-fatal):", err);
+    console.warn("[create-custom-product] submit error:", err);
   }
 }
 

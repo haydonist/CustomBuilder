@@ -183,7 +183,8 @@ export default class BeltCheckout extends LitElement {
       for (const saved of this.savedBelts) {
         if (!saved.base || !saved.buckle) continue;
         const payload = buildSavedBeltPayload(saved, variantPriceById);
-        if (payload) void submitCustomProductCreation(payload);
+        // DEBUG: await so we can see server response in the browser console.
+        if (payload) await submitCustomProductCreation(payload);
       }
 
       // Current (in-progress) belt: capture preview live, then submit.
@@ -213,7 +214,8 @@ export default class BeltCheckout extends LitElement {
           previewDataUrl,
           variantPriceById,
         });
-        if (payload) void submitCustomProductCreation(payload);
+        // DEBUG: await so we can see server response in the browser console.
+        if (payload) await submitCustomProductCreation(payload);
       }
     } catch (err) {
       console.warn("[belt-checkout] fireCustomProductCreation skipped:", err);
