@@ -156,6 +156,10 @@ export class CustomBeltWizard extends LitElement {
   @state()
   private savedBelts: SavedBelt[] = [];
 
+  /** Mirrors belt-checkout.isCheckingOut so the top shortcut button can show the same loading state. */
+  @state()
+  private isCheckingOut = false;
+
   /** When non-null, the current belt is being edited and should be inserted at this position. */
   @state()
   private editingBeltIndex: number | null = null;
@@ -279,6 +283,10 @@ export class CustomBeltWizard extends LitElement {
       this.debugAnchors = e.detail;
     }) as EventListener);
 
+    // Mirror belt-checkout's loading state so the top shortcut button stays in sync.
+    this.addEventListener("belt-checkout-state-change", ((e: CustomEvent<{ isCheckingOut: boolean }>) => {
+      this.isCheckingOut = e.detail.isCheckingOut;
+    }) as EventListener);
   }
 
   protected override disconnectedCallback() {
@@ -663,11 +671,16 @@ private getSelectedBaseColor(): string | null {
                 @click="${() => this.saveBeltAndStartNew()}"
               >+ Make Another</button>`
             : ""}
-            <div class="mainBtn-wrapper"><button type="button" class="btn primary" @click="${() =>
-            this.triggerCheckoutFromShortcut()}">
-            Checkout${this.savedBelts.length > 0
-              ? ` (${this.savedBelts.length + 1} belts)`
-              : ""}
+            <div class="mainBtn-wrapper"><button
+            type="button"
+            class="btn primary"
+            ?disabled=${this.isCheckingOut}
+            @click="${() => this.triggerCheckoutFromShortcut()}">
+            ${this.isCheckingOut
+              ? "Sending to checkout..."
+              : `Checkout${this.savedBelts.length > 0
+                  ? ` (${this.savedBelts.length + 1} belts)`
+                  : ""}`}
           </button>
           <button
             type="button"

@@ -1,33 +1,36 @@
-import { appendFileSync } from "node:fs";
-import { resolve } from "node:path";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 
 type AdminGraphql = Awaited<ReturnType<typeof authenticate.public.appProxy>>["admin"];
 
-/**
- * File-based diagnostic log. Some `shopify app dev` setups swallow React Router
- * stdout, and keepalive fetches make response bodies hard to inspect after
- * navigation. Tail this file during testing: `Get-Content -Wait create-custom-product.log`
- *
- * Remove this and the `dbg` helper once we're confident the flow is reliable.
- */
-const LOG_FILE = resolve(process.cwd(), "create-custom-product.log");
-function dbg(msg: string, ...extras: unknown[]) {
-  const line = extras.length
-    ? `${msg} ${extras.map(e => safeStringify(e)).join(" ")}`
-    : msg;
-  console.log(`[create-custom-product] ${line}`);
-  try {
-    appendFileSync(LOG_FILE, `[${new Date().toISOString()}] ${line}\n`);
-  } catch { /* ignore */ }
-}
+const LOG_PREFIX = "[create-custom-product]";
 
-function safeStringify(v: unknown): string {
+/**
+ * Cached GID for the "Belts" taxonomy category (Apparel & Accessories >
+ * Clothing Accessories > Belts). Looked up once per process and reused so
+ * we don't hit the taxonomy query on every belt creation. Null until the
+ * first successful lookup; falls through if lookup fails (the product is
+ * still created, just without an auto-assigned category).
+ */
+let cachedBeltsCategoryId: string | null = null;
+
+async function getBeltsCategoryId(admin: NonNullable<AdminGraphql>): Promise<string | null> {
+  if (cachedBeltsCategoryId) return cachedBeltsCategoryId;
   try {
-    return typeof v === "string" ? v : JSON.stringify(v);
-  } catch {
-    return String(v);
+    const resp = await admin.graphql(TAXONOMY_BELTS_QUERY);
+    const data = await resp.json();
+    const nodes: Array<{ id: string; name: string; fullName: string; isLeaf: boolean }> =
+      data.data?.taxonomy?.categories?.nodes ?? [];
+    // Prefer the exact "Belts" leaf under Clothing Accessories; fall back to
+    // any leaf named "Belts" if the path is slightly different.
+    const match =
+      nodes.find(n => n.isLeaf && n.name === "Belts" && /clothing accessories/i.test(n.fullName)) ??
+      nodes.find(n => n.isLeaf && n.name === "Belts");
+    if (match) cachedBeltsCategoryId = match.id;
+    return cachedBeltsCategoryId;
+  } catch (err) {
+    console.error(LOG_PREFIX, "taxonomy lookup failed:", err);
+    return null;
   }
 }
 
@@ -149,9 +152,29 @@ const STAGED_UPLOADS_CREATE = `
 const PRODUCT_CREATE_MEDIA = `
   mutation productCreateMedia($productId: ID!, $media: [CreateMediaInput!]!) {
     productCreateMedia(productId: $productId, media: $media) {
-      media { alt mediaContentType status }
+      media {
+        alt
+        mediaContentType
+        status
+        ... on MediaImage {
+          id
+          image { url }
+          preview { image { url } }
+        }
+      }
       mediaUserErrors { field message code }
       product { id }
+    }
+  }
+`;
+
+const MEDIA_IMAGE_URL_QUERY = `
+  query MediaImageUrl($id: ID!) {
+    node(id: $id) {
+      ... on MediaImage {
+        image { url }
+        preview { image { url } }
+      }
     }
   }
 `;
@@ -161,6 +184,16 @@ const PUBLICATIONS_QUERY = `
     publications(first: 20) {
       edges {
         node { id name }
+      }
+    }
+  }
+`;
+
+const TAXONOMY_BELTS_QUERY = `
+  query FindBeltsCategory {
+    taxonomy {
+      categories(search: "Belts", first: 10) {
+        nodes { id name fullName isLeaf }
       }
     }
   }
@@ -215,8 +248,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 async function handleCreate(request: Request) {
-  const url = new URL(request.url);
-  dbg("Request received:", { method: request.method, host: url.host, path: url.pathname });
   try {
     const { admin } = await authenticate.public.appProxy(request);
     if (!admin) {
@@ -236,21 +267,6 @@ async function handleCreate(request: Request) {
       (payload.conchosPrice ?? 0)
     ).toFixed(2);
 
-    dbg("payload summary:", {
-      basePrice: payload.basePrice,
-      bucklePrice: payload.bucklePrice,
-      tipPrice: payload.tipPrice,
-      loopsPrice: payload.loopsPrice,
-      conchosPrice: payload.conchosPrice,
-      totalPrice,
-      hasImage: !!payload.imageBase64,
-      imageBytes: payload.imageBase64?.length ?? 0,
-      baseTitle: payload.selectedProducts?.base?.title,
-      buckleTitle: payload.selectedProducts?.buckle?.title,
-      color: payload.selectedProducts?.color?.value,
-      collection: payload.selectedProducts?.collection?.title,
-    });
-
     // ---- Count existing custom products for fallback numbering ----
     const countResponse = await admin.graphql(COUNT_CUSTOM_PRODUCTS_QUERY);
     const countData = await countResponse.json();
@@ -258,7 +274,7 @@ async function handleCreate(request: Request) {
 
     const productTitle = buildProductTitle(payload.selectedProducts, existingCount + 1);
     const descriptionHtml = buildProductDescription(payload.selectedProducts);
-    dbg("generated title:", productTitle);
+    const categoryId = await getBeltsCategoryId(admin);
 
     // ---- Step 1: Create product as DRAFT ----
     const createResp = await admin.graphql(CREATE_PRODUCT_MUTATION, {
@@ -270,6 +286,12 @@ async function handleCreate(request: Request) {
           tags: ["customer-created-product"],
           status: "DRAFT",
           vendor: "Custom Builder",
+          // Match other products in the shop, which use templates/product.default.json.
+          // Without this, the product gets template_suffix=null → no matching
+          // template in the theme → Shopify 404s /products/<handle> even though
+          // the product is published and visible in /products.json.
+          templateSuffix: "default",
+          ...(categoryId ? { category: categoryId } : {}),
         },
       },
     });
@@ -277,7 +299,7 @@ async function handleCreate(request: Request) {
     const createData = await createResp.json();
     const createErrors = createData.data?.productCreate?.userErrors ?? [];
     if (createErrors.length > 0) {
-      dbg("ERROR: productCreate errors:", createErrors);
+      console.error(LOG_PREFIX, "productCreate errors:", createErrors);
       return Response.json(
         { error: "Failed to create product", details: createErrors },
         { status: 400 },
@@ -288,7 +310,6 @@ async function handleCreate(request: Request) {
     const productId: string = product?.id;
     const defaultVariantId: string = product?.variants?.edges?.[0]?.node?.id;
     const inventoryItemId: string = product?.variants?.edges?.[0]?.node?.inventoryItem?.id;
-    dbg("product created:", { productId, defaultVariantId });
 
     if (!productId || !defaultVariantId) {
       throw new Error("Missing productId or defaultVariantId from productCreate");
@@ -313,12 +334,10 @@ async function handleCreate(request: Request) {
       const updateData = await updateResp.json();
       const variantErrors = updateData.data?.productVariantsBulkUpdate?.userErrors ?? [];
       if (variantErrors.length > 0) {
-        dbg("ERROR: productVariantsBulkUpdate errors:", variantErrors);
-      } else {
-        dbg("variant updated to price:", totalPrice);
+        console.error(LOG_PREFIX, "productVariantsBulkUpdate errors:", variantErrors);
       }
     } catch (varErr) {
-      dbg("ERROR: variant update threw (non-fatal):", varErr instanceof Error ? varErr.message : varErr);
+      console.error(LOG_PREFIX, "variant update threw (non-fatal):", varErr instanceof Error ? varErr.message : varErr);
     }
 
     // ---- Step 3: Set metafields ----
@@ -353,10 +372,9 @@ async function handleCreate(request: Request) {
       });
       const mfData = await mfResp.json();
       const mfErrors = mfData.data?.metafieldsSet?.userErrors ?? [];
-      if (mfErrors.length > 0) dbg("ERROR: metafields errors:", mfErrors);
-      else dbg("metafields set");
+      if (mfErrors.length > 0) console.error(LOG_PREFIX, "metafields errors:", mfErrors);
     } catch (mfErr) {
-      dbg("ERROR: metafields threw (non-fatal):", mfErr instanceof Error ? mfErr.message : mfErr);
+      console.error(LOG_PREFIX, "metafields threw (non-fatal):", mfErr instanceof Error ? mfErr.message : mfErr);
     }
 
     // ---- Step 4: Set inventory (quantity 1 at first location) ----
@@ -377,24 +395,42 @@ async function handleCreate(request: Request) {
           });
         }
       } catch (invError) {
-        dbg("ERROR: inventory failed (non-fatal):", invError);
+        console.error(LOG_PREFIX, "inventory failed (non-fatal):", invError);
       }
     }
 
     // ---- Step 5: Upload + attach preview image (server-side, non-fatal) ----
+    // Returns the CDN URL so the caller (checkout flow) can embed it in the
+    // shopper's order note — gives the shop owner a quick visual of the build
+    // they're about to fulfill, without having to click through to the product.
+    let imageUrl: string | null = null;
     if (payload.imageBase64) {
-      dbg("uploading preview image,", payload.imageBase64.length, "base64 bytes");
       try {
-        await uploadAndAttachImage(admin, productId, productTitle, payload.imageBase64);
-        dbg("image attached");
+        imageUrl = await uploadAndAttachImage(admin, productId, productTitle, payload.imageBase64);
       } catch (imgError) {
-        dbg("ERROR: image upload failed (non-fatal):", imgError);
+        console.error(LOG_PREFIX, "image upload failed (non-fatal):", imgError);
       }
-    } else {
-      dbg("no image provided, skipping upload");
     }
 
-    // ---- Step 6: Publish to Online Store ----
+    // ---- Step 6: Activate (DRAFT → ACTIVE) ----
+    // Must come BEFORE publish: per Shopify, a product needs ACTIVE status
+    // for its publication record to actually serve on the storefront.
+    // Publishing while DRAFT leaves the product visible as "published" in
+    // admin but the public /products/<handle> URL still 404s.
+    try {
+      const activateResp = await admin.graphql(PRODUCT_UPDATE_STATUS, {
+        variables: { input: { id: productId, status: "ACTIVE" } },
+      });
+      const activateData = await activateResp.json();
+      const activateErrors = activateData.data?.productUpdate?.userErrors ?? [];
+      if (activateErrors.length > 0) {
+        console.error(LOG_PREFIX, "activate errors:", activateErrors);
+      }
+    } catch (actErr) {
+      console.error(LOG_PREFIX, "activate threw (non-fatal):", actErr instanceof Error ? actErr.message : actErr);
+    }
+
+    // ---- Step 7: Publish to Online Store ----
     try {
       const pubResp = await admin.graphql(PUBLICATIONS_QUERY);
       const pubData = await pubResp.json();
@@ -412,43 +448,25 @@ async function handleCreate(request: Request) {
         const publishData = await publishResp.json();
         const publishErrors = publishData.data?.publishablePublish?.userErrors ?? [];
         if (publishErrors.length > 0) {
-          dbg("ERROR: publish errors:", publishErrors);
-        } else {
-          dbg("published to Online Store");
+          console.error(LOG_PREFIX, "publish errors:", publishErrors);
         }
       } else {
-        dbg("WARN: 'Online Store' publication not found. Available:",
+        console.warn(LOG_PREFIX, "'Online Store' publication not found. Available:",
           publications.map((e: PublicationEdge) => e.node.name));
       }
     } catch (pubError) {
-      dbg("ERROR: publish failed (non-fatal):", pubError);
+      console.error(LOG_PREFIX, "publish failed (non-fatal):", pubError);
     }
 
-    // ---- Step 7: Activate (DRAFT → ACTIVE) ----
-    try {
-      const activateResp = await admin.graphql(PRODUCT_UPDATE_STATUS, {
-        variables: { input: { id: productId, status: "ACTIVE" } },
-      });
-      const activateData = await activateResp.json();
-      const activateErrors = activateData.data?.productUpdate?.userErrors ?? [];
-      if (activateErrors.length > 0) {
-        dbg("ERROR: activate errors:", activateErrors);
-      } else {
-        dbg("product activated");
-      }
-    } catch (actErr) {
-      dbg("ERROR: activate threw (non-fatal):", actErr instanceof Error ? actErr.message : actErr);
-    }
-
-    dbg("Done:", productId);
     return Response.json({
       success: true,
       productId,
       price: totalPrice,
       title: productTitle,
+      imageUrl,
     });
   } catch (error) {
-    dbg("ERROR: FATAL ERROR:", error);
+    console.error(LOG_PREFIX, "fatal error:", error);
     return Response.json(
       { error: "Internal server error", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 },
@@ -554,7 +572,7 @@ async function uploadAndAttachImage(
   productId: string,
   productTitle: string,
   imageBase64: string,
-) {
+): Promise<string | null> {
   const bytes = Buffer.from(imageBase64, "base64");
 
   const stageResp = await admin.graphql(STAGED_UPLOADS_CREATE, {
@@ -604,4 +622,33 @@ async function uploadAndAttachImage(
   if (mediaErrors.length > 0) {
     throw new Error(`productCreateMedia errors: ${JSON.stringify(mediaErrors)}`);
   }
+
+  const media = mediaData.data?.productCreateMedia?.media?.[0] as
+    | { id?: string; image?: { url?: string }; preview?: { image?: { url?: string } } }
+    | undefined;
+  const initialUrl = media?.image?.url ?? media?.preview?.image?.url ?? null;
+  if (initialUrl) return initialUrl;
+
+  // Image processing is async — the final CDN URL may not be on the create
+  // response. Poll the MediaImage node a few times so the caller can embed
+  // the URL in the shopper's order note without further round-trips.
+  if (media?.id) {
+    for (let i = 0; i < 4; i++) {
+      await new Promise(r => setTimeout(r, 600));
+      try {
+        const nodeResp = await admin.graphql(MEDIA_IMAGE_URL_QUERY, {
+          variables: { id: media.id },
+        });
+        const nodeData = await nodeResp.json();
+        const node = nodeData.data?.node as
+          | { image?: { url?: string }; preview?: { image?: { url?: string } } }
+          | undefined;
+        const url = node?.image?.url ?? node?.preview?.image?.url ?? null;
+        if (url) return url;
+      } catch (err) {
+        console.warn(LOG_PREFIX, "media url poll failed:", err instanceof Error ? err.message : err);
+      }
+    }
+  }
+  return null;
 }

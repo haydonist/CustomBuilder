@@ -39,11 +39,21 @@ export interface CreateCustomProductPayload {
   previewDataUrl?: string | null;
 }
 
+export interface CreateCustomProductResult {
+  /** Public Shopify CDN URL of the uploaded preview image, if available. */
+  imageUrl?: string | null;
+}
+
 /**
  * POSTs the build to the backend and awaits the response. Never throws —
  * if anything fails we just log and continue so checkout proceeds.
+ *
+ * Returns the image URL when the backend was able to resolve it, so the
+ * caller can embed it in the shopper's order note.
  */
-export async function submitCustomProductCreation(payload: CreateCustomProductPayload): Promise<void> {
+export async function submitCustomProductCreation(
+  payload: CreateCustomProductPayload,
+): Promise<CreateCustomProductResult> {
   try {
     let imageBase64: string | undefined;
     if (payload.previewDataUrl) {
@@ -69,9 +79,13 @@ export async function submitCustomProductCreation(payload: CreateCustomProductPa
     if (!resp.ok) {
       const text = await resp.text().catch(() => "");
       console.warn("[create-custom-product] non-OK response:", resp.status, text.slice(0, 500));
+      return {};
     }
+    const data = (await resp.json().catch(() => null)) as { imageUrl?: string | null } | null;
+    return { imageUrl: data?.imageUrl ?? null };
   } catch (err) {
     console.warn("[create-custom-product] submit error:", err);
+    return {};
   }
 }
 

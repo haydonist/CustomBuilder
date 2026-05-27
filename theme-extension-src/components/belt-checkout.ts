@@ -41,7 +41,22 @@ export default class BeltCheckout extends LitElement {
   @property({ type: String, attribute: 'checkout-policy' })
   checkoutPolicy = '<p>Free cancellation is available within 24 business hours of placing your order. After an order is placed, our team will contact you to confirm all order details.</p><p>Each belt is custom-tailored to your specifications. Because custom belts cannot be reused or resold, a <strong>30% restocking fee</strong> will apply if a return is requested after the order has been completed.</p>';
 
-  @state() private isCheckingOut = false;
+  /**
+   * Public so the wizard's "shortcut" checkout button can mirror the loading
+   * state. Whenever this flips, an `belt-checkout-state-change` event is
+   * dispatched so listeners can react without polling.
+   */
+  @state() isCheckingOut = false;
+
+  protected override updated(changed: Map<string, unknown>): void {
+    if (changed.has("isCheckingOut")) {
+      this.dispatchEvent(new CustomEvent("belt-checkout-state-change", {
+        detail: { isCheckingOut: this.isCheckingOut },
+        bubbles: true,
+        composed: true,
+      }));
+    }
+  }
 
   private get isDebug() {
     return typeof location !== "undefined" && new URLSearchParams(location.search).has("debug");
@@ -175,10 +190,16 @@ export default class BeltCheckout extends LitElement {
    * the products are saved — a few extra seconds during the "Sending to
    * checkout..." state. Failures are swallowed so checkout always proceeds.
    *
-   * Saved belts use the composite preview captured at save time; the current
+   * Saved belts use the preview snapshot captured at save time; the current
    * (in-progress) belt is captured fresh from the live preview element.
+   *
+   * Returns the uploaded preview image URLs in the same order as the belts
+   * appear in the cart note (saved belts first, then current), with `null`
+   * gaps for belts whose upload didn't produce a URL — so the caller can
+   * index into them when annotating the order note.
    */
-  private async fireCustomProductCreation(): Promise<void> {
+  private async fireCustomProductCreation(): Promise<Array<string | null>> {
+    const imageUrls: Array<string | null> = [];
     try {
       const [beltBases, beltBuckles, , , beltTips] = this.beltData;
       const variantPriceById = buildVariantPriceIndex(this.beltData);
@@ -187,7 +208,10 @@ export default class BeltCheckout extends LitElement {
       for (const saved of this.savedBelts) {
         if (!saved.base || !saved.buckle) continue;
         const payload = buildSavedBeltPayload(saved, variantPriceById);
-        if (payload) await submitCustomProductCreation(payload);
+        if (payload) {
+          const result = await submitCustomProductCreation(payload);
+          imageUrls.push(result.imageUrl ?? null);
+        }
       }
 
       // Current (in-progress) belt: capture preview live, then submit.
@@ -217,11 +241,15 @@ export default class BeltCheckout extends LitElement {
           previewDataUrl,
           variantPriceById,
         });
-        if (payload) await submitCustomProductCreation(payload);
+        if (payload) {
+          const result = await submitCustomProductCreation(payload);
+          imageUrls.push(result.imageUrl ?? null);
+        }
       }
     } catch (err) {
       console.warn("[belt-checkout] fireCustomProductCreation skipped:", err);
     }
+    return imageUrls;
   }
 
   /** Build cart line items for a single belt given its variant IDs. */
@@ -279,12 +307,15 @@ export default class BeltCheckout extends LitElement {
       // but visible in Shopify admin when viewing the order.
       const { attributes: cartAttributes, note } = this.buildBeltConfig();
 
-      // Fire-and-forget: turn each belt in this order into a customer-created
-      // product for the "inspiration" gallery. Runs concurrently with the cart
-      // request and uses keepalive so it survives the navigation below.
-      await this.fireCustomProductCreation();
+      // Turn each belt in this order into a customer-created product for the
+      // "inspiration" gallery, and collect the uploaded preview image URLs so
+      // we can embed them in the order note for fulfillment.
+      const previewImageUrls = await this.fireCustomProductCreation();
 
-      const checkoutUrl = await createCartAndGetCheckoutUrl(lines, cartAttributes, note);
+      const finalNote = appendPreviewImagesToNote(note, previewImageUrls);
+      addPreviewImageAttribute(cartAttributes, previewImageUrls);
+
+      const checkoutUrl = await createCartAndGetCheckoutUrl(lines, cartAttributes, finalNote);
       self.location.assign(checkoutUrl);
 
     } finally {
@@ -596,4 +627,34 @@ function getPrimaryCollection(product: Product): { title: string; handle: string
   const first = product.collections?.[0];
   if (!first) return undefined;
   return { title: first.title, handle: first.handle };
+}
+
+/**
+ * Append the uploaded preview image URLs to the order note so the shop owner
+ * can see what each belt looks like without leaving the order page. Shopify
+ * auto-links bare URLs in order notes, so a plain "URL: <url>" line renders
+ * as a clickable link.
+ */
+function appendPreviewImagesToNote(note: string, imageUrls: Array<string | null>): string {
+  const present = imageUrls.filter((u): u is string => !!u);
+  if (present.length === 0) return note;
+
+  const lines = imageUrls.length === 1
+    ? [`Preview: ${present[0]}`]
+    : imageUrls.map((u, i) => u ? `Belt ${i + 1} preview: ${u}` : null).filter((s): s is string => !!s);
+
+  return `${note}\n\nBelt previews:\n${lines.join("\n")}`;
+}
+
+/**
+ * Mirror the preview URLs into a hidden cart attribute so the build images
+ * survive even if the customer edits or clears the order note at checkout.
+ */
+function addPreviewImageAttribute(
+  attributes: Array<{ key: string; value: string }>,
+  imageUrls: Array<string | null>,
+): void {
+  const present = imageUrls.filter((u): u is string => !!u);
+  if (present.length === 0) return;
+  attributes.push({ key: "_Belt Preview Images", value: present.join("\n") });
 }

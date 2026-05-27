@@ -752,20 +752,29 @@ export default class BeltPreview extends LitElement {
   /**
    * Composites all belt layers (base, buckle, loops, conchos, tip) onto a
    * single canvas and returns the result as a JPEG data-URL string.
+   *
+   * Matches the live preview by working in the bbox coordinate system (the
+   * 87% inner band of `activeRefWidth` — see `.base-wrapper` CSS). The base
+   * canvas is squished to that width and components are drawn at their anchor
+   * positions within it. The composite canvas extends left/right when the
+   * buckle or tip overhang the bbox, so nothing gets clipped.
    */
   public async capturePreview(): Promise<string | null> {
     const baseCanvas = this.#baseCanvas;
     if (!baseCanvas || !this.base) return null;
 
     const dpr = self.devicePixelRatio || 1;
-    const baseW = baseCanvas.width / dpr;
-    const baseH = baseCanvas.height / dpr;
-    if (baseW <= 0 || baseH <= 0) return null;
+    const sourceW = baseCanvas.width / dpr;
+    const sourceH = baseCanvas.height / dpr;
+    if (sourceW <= 0 || sourceH <= 0) return null;
+
+    // Display dimensions: the live preview squishes the base to the bbox width.
+    const bboxWidth = this.bboxWidth;
+    const baseH = sourceH * (bboxWidth / sourceW);
 
     const safeLoad = async (url: string): Promise<HTMLImageElement | null> => {
       try {
         const img = await cacheImage(url);
-        // Ensure fully decoded before drawing to canvas
         if ("decode" in img) await img.decode().catch(() => {});
         return img;
       } catch {
@@ -780,93 +789,104 @@ export default class BeltPreview extends LitElement {
       Promise.all(this.conchos.filter(Boolean).map(safeLoad)),
     ]);
 
-    // Composite canvas: same width as base, scaled height to fit overlays
     const hMult = this.componentHeightMultiplier;
-    const compH = baseH * hMult;
-    const comp = document.createElement("canvas");
-    comp.width = Math.round(baseW * dpr);
-    comp.height = Math.round(compH * dpr);
-    const ctx = comp.getContext("2d")!;
-    ctx.scale(dpr, dpr);
-
-    // White background (JPEG has no transparency)
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, baseW, compH);
-
-    const offsetY = (compH - baseH) / 2;
-    const cy = compH / 2;
+    const componentH = baseH * hMult;
     const a = this.anchors;
     const buckleOnTop = this.buckleOnTop || a.buckleOnTop;
 
-    const drawCentered = (
-      img: HTMLImageElement,
-      anchorPx: number,
-      height: number,
-    ) => {
+    // Anchor positions in bbox coordinates (0 = bbox left, bboxWidth = bbox right).
+    const anchorAt = (percent: number) => (percent / 100) * bboxWidth;
+    const imgWidth = (img: HTMLImageElement, h: number) =>
+      h * (img.naturalWidth / img.naturalHeight);
+
+    // Compute the actual bounding box: the bbox itself, extended by any
+    // component that overhangs (commonly the buckle on the left and the tip
+    // on the right). Loops/conchos sit over the belt so don't usually overflow.
+    let minX = 0;
+    let maxX = bboxWidth;
+    if (buckleImg && buckleImg.naturalWidth) {
+      const w = imgWidth(buckleImg, componentH);
+      const x = anchorAt(a.buckleX);
+      minX = Math.min(minX, x - w / 2);
+      maxX = Math.max(maxX, x + w / 2);
+    }
+    if (tipImg && tipImg.naturalWidth) {
+      const w = imgWidth(tipImg, componentH);
+      const x = anchorAt(a.tipX);
+      minX = Math.min(minX, x - w / 2);
+      maxX = Math.max(maxX, x + w / 2);
+    }
+
+    const compW = maxX - minX;
+    // Shift the world so the leftmost component lands at canvas x=0.
+    const shift = -minX;
+
+    const comp = document.createElement("canvas");
+    comp.width = Math.round(compW * dpr);
+    comp.height = Math.round(componentH * dpr);
+    const ctx = comp.getContext("2d")!;
+    ctx.scale(dpr, dpr);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, compW, componentH);
+
+    const offsetY = (componentH - baseH) / 2;
+    const cy = componentH / 2;
+
+    const drawCentered = (img: HTMLImageElement, anchorPx: number, height: number) => {
       if (!img.naturalWidth || !img.naturalHeight) return;
-      const w = height * (img.naturalWidth / img.naturalHeight);
-      ctx.drawImage(img, anchorPx - w / 2, cy - height / 2, w, height);
+      const w = imgWidth(img, height);
+      ctx.drawImage(img, anchorPx - w / 2 + shift, cy - height / 2, w, height);
     };
 
     // 1. Buckle behind base (z-index: -1)
     if (!buckleOnTop && buckleImg) {
-      drawCentered(buckleImg, this.convertToPixels(a.buckleX), baseH * hMult);
+      drawCentered(buckleImg, anchorAt(a.buckleX), componentH);
     }
 
-    // 2. Belt base
-    ctx.drawImage(baseCanvas, 0, offsetY, baseW, baseH);
+    // 2. Belt base — drawn squished to bbox width
+    ctx.drawImage(baseCanvas, 0 + shift, offsetY, bboxWidth, baseH);
 
-    // 3. Loops (each at its own anchor position)
+    // 3. Loops
     const validLoops = loopImgs.filter(Boolean) as HTMLImageElement[];
     if (validLoops.length > 0) {
       const loopPositions = [a.loop1X, a.loop2X];
       validLoops.forEach((img, i) => {
-        const anchorX = this.convertToPixels(loopPositions[i] ?? loopPositions[0]);
-        const h = baseH * hMult;
-        const w = h * (img.naturalWidth / img.naturalHeight);
-        ctx.drawImage(img, anchorX - w / 2, cy - h / 2, w, h);
+        const anchorX = anchorAt(loopPositions[i] ?? loopPositions[0]);
+        drawCentered(img, anchorX, componentH);
       });
     }
 
-    // 4. Conchos (distributed between conchosX and conchosEndX)
+    // 4. Conchos distributed between conchosX and conchosEndX.
+    // Matches the live preview where `.concho img` is `scale: 5` — i.e. the
+    // concho is drawn ~5× larger than its layout footprint. We draw the full
+    // image at that visual size; overlap between adjacent conchos is expected
+    // and matches what shoppers see in the builder.
     const validConchos = conchoImgs.filter(Boolean) as HTMLImageElement[];
     if (validConchos.length > 0) {
-      const startX = this.convertToPixels(a.conchosX);
-      const endX = this.convertToPixels(a.conchosEndX);
+      const startX = anchorAt(a.conchosX);
+      const endX = anchorAt(a.conchosEndX);
       const span = endX - startX;
-
+      const conchoH = baseH * 5;
       validConchos.forEach((img, i) => {
         if (!img.naturalWidth || !img.naturalHeight) return;
-        const h = Math.min(160, baseH * 1.6);
-        // Simulate clip-path: inset(0 30% 0 30%) — draw middle 40%
-        const srcX = img.naturalWidth * 0.3;
-        const srcW = img.naturalWidth * 0.4;
-        const drawW = h * (srcW / img.naturalHeight);
-
-        let x: number;
-        if (validConchos.length === 1) {
-          x = startX + span / 2;
-        } else {
-          x = startX + (span * i) / (validConchos.length - 1);
-        }
-        ctx.drawImage(
-          img, srcX, 0, srcW, img.naturalHeight,
-          x - drawW / 2, cy - h / 2, drawW, h,
-        );
+        const w = conchoH * (img.naturalWidth / img.naturalHeight);
+        const x = validConchos.length === 1
+          ? startX + span / 2
+          : startX + (span * i) / (validConchos.length - 1);
+        ctx.drawImage(img, x - w / 2 + shift, cy - conchoH / 2, w, conchoH);
       });
     }
 
     // 5. Tip
-    if (tipImg) {
-      drawCentered(tipImg, this.convertToPixels(a.tipX), baseH * hMult);
-    }
+    if (tipImg) drawCentered(tipImg, anchorAt(a.tipX), componentH);
 
     // 6. Buckle in front (z-index: 10)
     if (buckleOnTop && buckleImg) {
-      drawCentered(buckleImg, this.convertToPixels(a.buckleX), baseH * hMult);
+      drawCentered(buckleImg, anchorAt(a.buckleX), componentH);
     }
 
-    return comp.toDataURL("image/jpeg", 0.85);
+    return comp.toDataURL("image/jpeg", 0.92);
   }
 
   // ---------- DRAG HANDLERS ----------
