@@ -341,6 +341,9 @@ async function handleCreate(request: Request) {
     }
 
     // ---- Step 3: Set metafields ----
+    // DEBUG: capture errors/raw response so they can be returned to the client
+    // for inspection in the Network tab. Remove once metafield issue is fixed.
+    let mfDebug: unknown = null;
     try {
       const mfResp = await admin.graphql(SET_METAFIELDS_MUTATION, {
         variables: {
@@ -370,10 +373,16 @@ async function handleCreate(request: Request) {
           ],
         },
       });
-      const mfData = await mfResp.json();
+      const mfData = (await mfResp.json()) as any;
+      mfDebug = {
+        userErrors: mfData.data?.metafieldsSet?.userErrors ?? [],
+        returnedMetafields: mfData.data?.metafieldsSet?.metafields ?? [],
+        topLevelErrors: mfData.errors ?? null,
+      };
       const mfErrors = mfData.data?.metafieldsSet?.userErrors ?? [];
       if (mfErrors.length > 0) console.error(LOG_PREFIX, "metafields errors:", mfErrors);
     } catch (mfErr) {
+      mfDebug = { threw: mfErr instanceof Error ? mfErr.message : String(mfErr) };
       console.error(LOG_PREFIX, "metafields threw (non-fatal):", mfErr instanceof Error ? mfErr.message : mfErr);
     }
 
@@ -464,6 +473,7 @@ async function handleCreate(request: Request) {
       price: totalPrice,
       title: productTitle,
       imageUrl,
+      mfDebug,
     });
   } catch (error) {
     console.error(LOG_PREFIX, "fatal error:", error);
