@@ -82,7 +82,7 @@ export async function submitCustomProductCreation(
       return {};
     }
     const data = (await resp.json().catch(() => null)) as { imageUrl?: string | null; mfDebug?: unknown } | null;
-    console.log("[create-custom-product] response:", data);
+    console.log("[create-custom-product] response (raw):", JSON.stringify(data));
     return { imageUrl: data?.imageUrl ?? null };
   } catch (err) {
     console.warn("[create-custom-product] submit error:", err);
