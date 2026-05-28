@@ -109,8 +109,8 @@ const UPDATE_VARIANTS_MUTATION = `
 `;
 
 const SET_METAFIELDS_MUTATION = `
-  mutation SetMetafields($input: [MetafieldsSetInput!]!) {
-    metafieldsSet(input: $input) {
+  mutation SetMetafields($metafields: [MetafieldsSetInput!]!) {
+    metafieldsSet(metafields: $metafields) {
       metafields { id key value }
       userErrors { field message code }
     }
@@ -121,7 +121,7 @@ const LOCATIONS_QUERY = `
   query {
     locations(first: 1) {
       edges {
-        node { id name }
+        node { id }
       }
     }
   }
@@ -347,7 +347,7 @@ async function handleCreate(request: Request) {
     try {
       const mfResp = await admin.graphql(SET_METAFIELDS_MUTATION, {
         variables: {
-          input: [
+          metafields: [
             {
               namespace: "custom-belt-builder",
               key: "selected_products",
