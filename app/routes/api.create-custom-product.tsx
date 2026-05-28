@@ -341,9 +341,14 @@ async function handleCreate(request: Request) {
     }
 
     // ---- Step 3: Set metafields ----
-    // DEBUG: capture errors/raw response so they can be returned to the client
-    // for inspection in the Network tab. Remove once metafield issue is fixed.
-    let mfDebug: unknown = null;
+    // `belt_url_param` is the same selectedProducts JSON pre-encoded as
+    // URL-safe base64 so the storefront "Build a belt like this" button can
+    // link to ?belt=<value> without re-encoding in Liquid on every render.
+    const selectedProductsJson = JSON.stringify(payload.selectedProducts);
+    const beltUrlParam = Buffer.from(selectedProductsJson, "utf-8")
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_");
     try {
       const mfResp = await admin.graphql(SET_METAFIELDS_MUTATION, {
         variables: {
@@ -351,7 +356,7 @@ async function handleCreate(request: Request) {
             {
               namespace: "custom-belt-builder",
               key: "selected_products",
-              value: JSON.stringify(payload.selectedProducts),
+              value: selectedProductsJson,
               type: "json",
               ownerId: productId,
             },
@@ -370,19 +375,20 @@ async function handleCreate(request: Request) {
               type: "json",
               ownerId: productId,
             },
+            {
+              namespace: "custom-belt-builder",
+              key: "belt_url_param",
+              value: beltUrlParam,
+              type: "single_line_text_field",
+              ownerId: productId,
+            },
           ],
         },
       });
       const mfData = (await mfResp.json()) as any;
-      mfDebug = {
-        userErrors: mfData.data?.metafieldsSet?.userErrors ?? [],
-        returnedMetafields: mfData.data?.metafieldsSet?.metafields ?? [],
-        topLevelErrors: mfData.errors ?? null,
-      };
       const mfErrors = mfData.data?.metafieldsSet?.userErrors ?? [];
       if (mfErrors.length > 0) console.error(LOG_PREFIX, "metafields errors:", mfErrors);
     } catch (mfErr) {
-      mfDebug = { threw: mfErr instanceof Error ? mfErr.message : String(mfErr) };
       console.error(LOG_PREFIX, "metafields threw (non-fatal):", mfErr instanceof Error ? mfErr.message : mfErr);
     }
 
@@ -473,7 +479,6 @@ async function handleCreate(request: Request) {
       price: totalPrice,
       title: productTitle,
       imageUrl,
-      mfDebug,
     });
   } catch (error) {
     console.error(LOG_PREFIX, "fatal error:", error);

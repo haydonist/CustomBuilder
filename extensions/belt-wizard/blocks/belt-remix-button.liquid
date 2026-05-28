@@ -1,0 +1,86 @@
+{% comment %}
+  Belt Remix Button
+
+  Shown on customer-created product PDPs. Reads the
+  `custom-belt-builder.belt_url_param` metafield — a URL-safe base64
+  payload pre-built at product creation — and links to the belt-builder
+  page with that as the `?belt=` value so the wizard loads pre-populated.
+
+  Renders nothing if the metafield is empty, so the block is safe to drop
+  into a global product template — it only appears on builds.
+{% endcomment %}
+
+{% liquid
+  assign param = product.metafields["custom-belt-builder"].belt_url_param.value
+%}
+
+{% if param != blank %}
+  {% liquid
+    assign builder_url = block.settings.builder_url | default: '/pages/belt-builder'
+    assign label = block.settings.button_label | default: 'Build a belt like this'
+  %}
+
+  <div class="belt-remix-wrap" {{ block.shopify_attributes }}>
+    <a class="belt-remix-button" href="{{ builder_url }}?belt={{ param }}">
+      {{ label }}
+    </a>
+  </div>
+
+  <style>
+    .belt-remix-wrap {
+      margin: 1rem 0;
+    }
+    .belt-remix-button {
+      display: inline-block;
+      padding: 0.875rem 1.75rem;
+      background-color: {{ block.settings.bg_color }};
+      color: {{ block.settings.text_color }};
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+      text-decoration: none;
+      text-align: center;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+    .belt-remix-button:hover {
+      opacity: 0.9;
+    }
+  </style>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Belt Remix Button",
+  "target": "section",
+  "settings": [
+    {
+      "type": "url",
+      "id": "builder_url",
+      "label": "Belt builder page URL",
+      "info": "Where this button sends shoppers. Leave blank for /pages/belt-builder."
+    },
+    {
+      "type": "text",
+      "id": "button_label",
+      "label": "Button label",
+      "default": "Build a belt like this"
+    },
+    {
+      "type": "color",
+      "id": "bg_color",
+      "label": "Background color",
+      "default": "#291c12"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#ffffff"
+    }
+  ]
+}
+{% endschema %}
