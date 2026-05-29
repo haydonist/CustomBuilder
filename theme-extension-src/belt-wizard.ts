@@ -1534,31 +1534,31 @@ private get selectedBaseColor(): string | null {
     const baseWidth = this.beltBase?.tags?.find((t) => t.endsWith("mm")) ?? null;
     const widthFilter = baseWidth ? ` AND tag:${baseWidth}` : "";
 
-    const [
-      { page: newBucklePage, products: beltBuckles },
-      { products: beltSets },
-      { page: firstLoopPage, products: firstLoopBatch },
-      { page: newTipPage, products: beltTips },
-    ] = await Promise.all([
-      queryProducts(`tag:buckle${widthFilter}`),
-      queryProducts(`tag:set${widthFilter}`),
-      queryProducts(`tag:Loop${widthFilter}`),
-      queryProducts(`tag:tip${widthFilter}`),
-    ]);
+    // Drain every page of a tag query so callers (default-loops, ?belt= URL
+    // restore) can find a target product even if it sits past the first page.
+    const queryAllPages = async (q: string) => {
+      const { page: firstPage, products: firstBatch } = await queryProducts(q);
+      const all: Product[] = [...firstBatch];
+      let page = firstPage;
+      while (page.hasNextPage) {
+        const next = await queryProducts(q, { after: page.endCursor });
+        all.push(...next.products);
+        page = next.page;
+      }
+      return { lastPage: page, products: all };
+    };
 
-    // Loops are needed in full for the auto-default-selection to work (a loop
-    // that targets this base may live on page 2+). Paginate the loops query
-    // until exhausted instead of relying on infinite scroll.
-    const beltLoops: Product[] = [...firstLoopBatch];
-    let loopPage = firstLoopPage;
-    while (loopPage.hasNextPage) {
-      const next = await queryProducts(`tag:Loop${widthFilter}`, {
-        after: loopPage.endCursor,
-      });
-      beltLoops.push(...next.products);
-      loopPage = next.page;
-    }
-    const newLoopPage = loopPage;
+    const [
+      { lastPage: newBucklePage, products: beltBuckles },
+      { products: beltSets },
+      { lastPage: newLoopPage, products: beltLoops },
+      { lastPage: newTipPage, products: beltTips },
+    ] = await Promise.all([
+      queryAllPages(`tag:buckle${widthFilter}`),
+      queryAllPages(`tag:set${widthFilter}`),
+      queryAllPages(`tag:Loop${widthFilter}`),
+      queryAllPages(`tag:tip${widthFilter}`),
+    ]);
 
     // Apply client-side filter as a safety net to ensure only exact width matches
     const filteredBuckles = this.filterProductsByWidth(beltBuckles, baseWidth);
@@ -2926,11 +2926,10 @@ sizeStep.view = () => {
       return;
     }
 
-    const [bases, _buckles, loops, conchos, tips] = this.beltData;
     const findInGroup = (group: Product[] | undefined, id: string | undefined) =>
       id ? group?.find(p => p.id === id) ?? null : null;
 
-    const base = findInGroup(bases, config.base?.id);
+    const base = findInGroup(this.beltData[0], config.base?.id);
     if (!base) return; // No base = nothing meaningful to load
 
     this.ensureSelection();
@@ -2948,7 +2947,18 @@ sizeStep.view = () => {
       const firstVariant = this.findFirstVariantForBaseColor(base, color);
       if (firstVariant) sel.set("baseVariant", firstVariant.id);
     }
-    this.pendingDefaultLoopsForBaseId = base.id;
+    // Apply default loops only if the URL didn't pin any — URL is the source of
+    // truth, and the rebuild we await below would otherwise inject defaults
+    // before our URL loops are appended.
+    if (!config.loops?.length) {
+      this.pendingDefaultLoopsForBaseId = base.id;
+    }
+
+    // Filter buckle/loop/tip lists to this base's width and fully paginate them
+    // before doing lookups. Without this, a buckle/loop/tip past page 1 of the
+    // unfiltered initial fetch is silently dropped on URL restore.
+    this.beltBase = base;
+    await this.rebuildStepsForBaseWidth();
 
     // Buckle (search both regular buckles and sets via buckleChoices).
     const buckle = this.buckleChoices.find(p => p.id === config.buckle?.id) ?? null;
@@ -2959,6 +2969,7 @@ sizeStep.view = () => {
     }
 
     // Loops — append once per `count`, capped at max for this base.
+    const loops = this.beltData[2];
     const maxLoops = this.getMaxLoopsAllowed();
     let loopAppended = 0;
     for (const entry of config.loops ?? []) {
@@ -2975,6 +2986,7 @@ sizeStep.view = () => {
     }
 
     // Conchos — max 9 total.
+    const conchos = this.beltData[3];
     let conchoAppended = 0;
     for (const entry of config.conchos ?? []) {
       const concho = findInGroup(conchos, entry.id);
@@ -2991,7 +3003,7 @@ sizeStep.view = () => {
 
     // Tip (skipped for sets — they include their own tip).
     if (!this.isSetProduct(buckle)) {
-      const tip = findInGroup(tips, config.tip?.id);
+      const tip = findInGroup(this.beltData[4], config.tip?.id);
       if (tip) {
         sel.set("tip", tip.id);
         const firstVariant = tip.variants?.[0];
