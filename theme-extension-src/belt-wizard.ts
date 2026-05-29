@@ -2958,6 +2958,7 @@ sizeStep.view = () => {
     // before doing lookups. Without this, a buckle/loop/tip past page 1 of the
     // unfiltered initial fetch is silently dropped on URL restore.
     this.beltBase = base;
+    this.firstBaseSelected = true;
     await this.rebuildStepsForBaseWidth();
 
     // Buckle (search both regular buckles and sets via buckleChoices).
