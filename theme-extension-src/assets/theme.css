@@ -727,6 +727,10 @@ belt-wizard[data-step-direction="backward"] .step-content[class*="step-enter-"] 
   animation: stepSlideInForward var(--step-dur-enter) var(--step-ease) forwards;
 }
 
+.step-content.step-enter-1 {
+  background-color: var(--belt-wizard-background-color);
+}
+
 @keyframes stepSlideInForward {
   0% {
     opacity: 0;
@@ -1956,7 +1960,6 @@ belt-wizard > header {
     margin-inline: 0;
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
     box-sizing: border-box;
   }
 
@@ -2245,7 +2248,6 @@ belt-wizard > header {
 
   belt-wizard {
     max-width: 100vw;
-    overflow-x: hidden;
   }
 }
 

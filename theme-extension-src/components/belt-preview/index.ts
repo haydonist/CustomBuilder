@@ -635,6 +635,10 @@ export default class BeltPreview extends LitElement {
 
     const dot = e.currentTarget as HTMLElement;
     dot.classList.add("dragging");
+    const prevBodyCursor = document.body.style.cursor;
+    const prevBodyUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = "grabbing";
+    document.body.style.userSelect = "none";
 
     const onMove = (ev: MouseEvent) => {
       if (!this.debugDragKey) return;
@@ -654,6 +658,8 @@ export default class BeltPreview extends LitElement {
 
     const onUp = () => {
       dot.classList.remove("dragging");
+      document.body.style.cursor = prevBodyCursor;
+      document.body.style.userSelect = prevBodyUserSelect;
       this.debugDragKey = null;
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
