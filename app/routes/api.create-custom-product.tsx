@@ -57,10 +57,6 @@ interface SelectedProducts {
   collection?: { title: string; handle: string };
 }
 
-interface PublicationEdge {
-  node: { id: string; name: string };
-}
-
 // ---------------------------------------------------------------------------
 // GraphQL queries & mutations (Admin API)
 // ---------------------------------------------------------------------------
@@ -179,42 +175,12 @@ const MEDIA_IMAGE_URL_QUERY = `
   }
 `;
 
-const PUBLICATIONS_QUERY = `
-  query {
-    publications(first: 20) {
-      edges {
-        node { id name }
-      }
-    }
-  }
-`;
-
 const TAXONOMY_BELTS_QUERY = `
   query FindBeltsCategory {
     taxonomy {
       categories(search: "Belts", first: 10) {
         nodes { id name fullName isLeaf }
       }
-    }
-  }
-`;
-
-const PUBLISHABLE_PUBLISH = `
-  mutation publishablePublish($id: ID!, $input: [PublicationInput!]!) {
-    publishablePublish(id: $id, input: $input) {
-      publishable {
-        ... on Product { id }
-      }
-      userErrors { field message }
-    }
-  }
-`;
-
-const PRODUCT_UPDATE_STATUS = `
-  mutation ProductUpdateStatus($input: ProductInput!) {
-    productUpdate(input: $input) {
-      product { id status }
-      userErrors { field message }
     }
   }
 `;
@@ -226,8 +192,9 @@ const PRODUCT_UPDATE_STATUS = `
 /**
  * POST handler — called as fire-and-forget from the belt builder when a
  * customer completes checkout. Each belt in the order becomes its own
- * customer-created product, so the build is preserved as inspiration for
- * future shoppers. The customer never sees this run.
+ * customer-created product (saved as a DRAFT in admin — not published to
+ * the storefront), so the shop owner can review the build and optionally
+ * promote it later. The customer never sees this run.
  *
  * Body: JSON `CreateCustomProductRequest`. `imageBase64` (optional) is the
  * composited preview as a base64-encoded JPEG — uploaded server-side to a
@@ -286,10 +253,6 @@ async function handleCreate(request: Request) {
           tags: ["customer-created-product"],
           status: "DRAFT",
           vendor: "Custom Builder",
-          // Match other products in the shop, which use templates/product.default.json.
-          // Without this, the product gets template_suffix=null → no matching
-          // template in the theme → Shopify 404s /products/<handle> even though
-          // the product is published and visible in /products.json.
           templateSuffix: "default",
           ...(categoryId ? { category: categoryId } : {}),
         },
@@ -427,51 +390,9 @@ async function handleCreate(request: Request) {
       }
     }
 
-    // ---- Step 6: Activate (DRAFT → ACTIVE) ----
-    // Must come BEFORE publish: per Shopify, a product needs ACTIVE status
-    // for its publication record to actually serve on the storefront.
-    // Publishing while DRAFT leaves the product visible as "published" in
-    // admin but the public /products/<handle> URL still 404s.
-    try {
-      const activateResp = await admin.graphql(PRODUCT_UPDATE_STATUS, {
-        variables: { input: { id: productId, status: "ACTIVE" } },
-      });
-      const activateData = await activateResp.json();
-      const activateErrors = activateData.data?.productUpdate?.userErrors ?? [];
-      if (activateErrors.length > 0) {
-        console.error(LOG_PREFIX, "activate errors:", activateErrors);
-      }
-    } catch (actErr) {
-      console.error(LOG_PREFIX, "activate threw (non-fatal):", actErr instanceof Error ? actErr.message : actErr);
-    }
-
-    // ---- Step 7: Publish to Online Store ----
-    try {
-      const pubResp = await admin.graphql(PUBLICATIONS_QUERY);
-      const pubData = await pubResp.json();
-      const publications = pubData.data?.publications?.edges ?? [];
-      const onlineStore = publications.find(
-        (edge: PublicationEdge) => edge.node.name === "Online Store",
-      );
-      if (onlineStore) {
-        const publishResp = await admin.graphql(PUBLISHABLE_PUBLISH, {
-          variables: {
-            id: productId,
-            input: [{ publicationId: onlineStore.node.id }],
-          },
-        });
-        const publishData = await publishResp.json();
-        const publishErrors = publishData.data?.publishablePublish?.userErrors ?? [];
-        if (publishErrors.length > 0) {
-          console.error(LOG_PREFIX, "publish errors:", publishErrors);
-        }
-      } else {
-        console.warn(LOG_PREFIX, "'Online Store' publication not found. Available:",
-          publications.map((e: PublicationEdge) => e.node.name));
-      }
-    } catch (pubError) {
-      console.error(LOG_PREFIX, "publish failed (non-fatal):", pubError);
-    }
+    // Product is intentionally left as DRAFT and unpublished. The build is
+    // preserved in admin for the shop owner to review (and optionally promote
+    // to ACTIVE + publish later), but it doesn't auto-appear on the storefront.
 
     return Response.json({
       success: true,
