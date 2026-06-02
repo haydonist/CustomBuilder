@@ -1838,9 +1838,11 @@ body > main {
 
 #stepHeading h2 {
   margin-block: 0;
+  font-size: 1rem;
 }
 #stepHeading h2 ~ .subtitle {
   margin-block-start: 0;
+  font-size:.75rem;
 }
 
 #stepTitle {
@@ -2477,4 +2479,216 @@ belt-wizard > header {
 
 .info-popup-desc p:last-child {
   margin-bottom: 0;
+}
+
+/* =========================================================================
+   Mobile variant sheet — <dialog> with showModal() puts it in the browser's
+   top layer, bypassing any ancestor stacking contexts the host theme imposes
+   (a parent with transform/filter/will-change would otherwise trap a plain
+   position:fixed element). Hidden on desktop — the inline .variant-popup
+   is used there.
+   ========================================================================= */
+/* Closed state — match the browser default so a hidden dialog can't
+   intercept taps anywhere on the page. */
+dialog.variant-sheet-dialog {
+  display: none;
+}
+
+/* Open state — fill the viewport so the inner .variant-sheet can stick
+   to the bottom edge. Only applies on mobile; desktop keeps the inline
+   .variant-popup and the dialog stays display:none. */
+@media screen and (max-width: 767px) {
+  dialog.variant-sheet-dialog[open] {
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: inherit;
+    max-width: 100vw;
+    max-height: 100vh;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    overflow: hidden;
+  }
+}
+
+dialog.variant-sheet-dialog::backdrop {
+  /* Fully transparent over the belt preview at the top, fading to a dim
+     toward the sheet so the preview stays clearly visible while the user
+     picks a color. */
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    transparent 35%,
+    rgba(0, 0, 0, 0.55) 85%
+  );
+  animation: variant-sheet-fade 200ms ease forwards;
+}
+
+@media screen and (max-width: 767px) {
+  /* Hide the inline base-color popup on mobile; the sheet takes over. */
+  .variant-popup[data-kind="base"] {
+    display: none !important;
+  }
+
+  .variant-sheet {
+    width: 100%;
+    max-width: 520px;
+    background: linear-gradient(180deg, #3a2d24, var(--potters-clay-darkest, #2b211b));
+    color: var(--neutral-white);
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.55);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 14px 18px max(24px, env(safe-area-inset-bottom));
+    position: relative;
+    animation: variant-sheet-slide-up 280ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .variant-sheet-grabber {
+    width: 44px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 2px;
+    margin: 0 auto 14px;
+    cursor: pointer;
+  }
+
+  .variant-sheet-close {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: var(--neutral-white);
+    border-radius: 50%;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .variant-sheet-kicker {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0 0 4px;
+    font-weight: 600;
+  }
+
+  .variant-sheet-prompt {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 14px;
+  }
+
+  .variant-sheet-swatches {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  /* If there are 3+ colors, fit them on one row by relaxing to auto-fit. */
+  .variant-sheet-swatches:has(> :nth-child(3)) {
+    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  }
+
+  .variant-sheet-card {
+    background: #1d1611;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.1s ease;
+    position: relative;
+    color: inherit;
+    font: inherit;
+  }
+
+  .variant-sheet-card:active {
+    transform: scale(0.97);
+  }
+
+  .variant-sheet-card.is-selected {
+    border-color: var(--old-gold);
+    background: #251c15;
+  }
+
+  .variant-sheet-card.is-selected::after {
+    content: "\2713";
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    color: var(--old-gold);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .variant-sheet-card-img {
+    width: 78px;
+    height: 78px;
+    border-radius: 10px;
+    background: #1a120c;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .variant-sheet-card-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .variant-sheet-card-name {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: capitalize;
+  }
+
+  .variant-sheet-cta {
+    width: 100%;
+    padding: 12px;
+    background: var(--old-gold);
+    color: #2b211b;
+    font-weight: 700;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+  }
+
+  .variant-sheet-cta:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+@keyframes variant-sheet-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes variant-sheet-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }

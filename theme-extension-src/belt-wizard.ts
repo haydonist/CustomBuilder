@@ -108,6 +108,7 @@ export class CustomBeltWizard extends LitElement {
   private preview: Ref<BeltPreview> = createRef();
   private checkout: Ref<BeltCheckout> = createRef();
   private filterWrap: Ref<HTMLDivElement> = createRef();
+  private variantSheetDialog: Ref<HTMLDialogElement> = createRef();
 
   private shouldAdvance = false;
 
@@ -339,6 +340,12 @@ private getMaxLoopsAllowed(): number {
   private onVariantPointerDown = (e: PointerEvent) => {
     if (!this.activeVariantKey) return;
     const target = e.target as Node | null;
+    // Mobile uses the full-screen sheet; desktop uses the inline popup.
+    // When the sheet is visible (matchMedia gate prevents desktop regressions),
+    // the sheet's own backdrop handler manages dismiss — defer to it so swatch
+    // taps that fall outside the (display:none) inline popup don't double-close.
+    const sheetVisible = !!this.variantSheetDialog.value?.open;
+    if (sheetVisible) return;
     const popup = this.renderRoot.querySelector(".variant-popup");
     if (popup && target && !popup.contains(target)) {
       this.activeVariantKey = null;
@@ -1165,6 +1172,24 @@ private getSelectedBaseColor(): string | null {
         self.removeEventListener("pointerdown", this.onVariantPointerDown);
         self.removeEventListener("keydown", this.onVariantKeyDown);
       }
+
+      // Drive the mobile bottom-sheet <dialog> via the imperative API.
+      // showModal() promotes the dialog to the browser's top layer, which
+      // bypasses any ancestor stacking contexts the host theme imposes
+      // (transform/filter/will-change on a wrapper would otherwise trap
+      // position:fixed and leave the sheet stranded or hidden).
+      const dialog = this.variantSheetDialog.value;
+      if (dialog) {
+        const shouldShow =
+          this.isBaseSheetActive &&
+          typeof window !== "undefined" &&
+          window.matchMedia("(max-width: 767px)").matches;
+        if (shouldShow && !dialog.open) {
+          try { dialog.showModal(); } catch { /* already open or unsupported */ }
+        } else if (!shouldShow && dialog.open) {
+          dialog.close();
+        }
+      }
     }
     if (changed.has("infoProductId")) {
       if (this.infoProductId) {
@@ -1507,6 +1532,8 @@ private get selectedBaseColor(): string | null {
             `;
           })()
         : null}
+
+      ${this.renderBaseVariantSheet()}
     `;
   }
 
@@ -2601,32 +2628,7 @@ sizeStep.view = () => {
                 @click="${(ev: Event) => {
                   ev.preventDefault();
                   ev.stopPropagation();
-
-                  this.ensureSelection();
-
-                  const baseChanged = !!this.beltBase && this.beltBase.id !== product.id;
-                  const isFreshBase = !this.beltBase || baseChanged;
-                  if (baseChanged) {
-                    this.resetSelections();
-                  }
-
-                  console.log("[default-loops] swatch-click base", {
-                    clickedBaseId: product.id,
-                    clickedBaseTitle: product.title,
-                    color,
-                    priorBaseId: this.beltBase?.id ?? null,
-                    baseChanged,
-                    isFreshBase,
-                  });
-                  if (isFreshBase) {
-                    this.pendingDefaultLoopsForBaseId = product.id;
-                  }
-
-                  this.selection!.set("base", product.id);
-                  this.selection!.set("baseColor", color);
-                  this.selection!.set("baseVariant", v.id);
-
-                  this.applySelectionToPreview();
+                  this.selectBaseColor(product, color, v);
                   this.activeVariantKey = null;
                   this.requestUpdate();
                 }}"
@@ -2687,6 +2689,157 @@ sizeStep.view = () => {
     </div>
   `;
 }
+
+  private selectBaseColor(product: Product, color: string, variant: ProductVariant): void {
+    this.ensureSelection();
+
+    const baseChanged = !!this.beltBase && this.beltBase.id !== product.id;
+    const isFreshBase = !this.beltBase || baseChanged;
+    if (baseChanged) {
+      this.resetSelections();
+    }
+
+    console.log("[default-loops] swatch-click base", {
+      clickedBaseId: product.id,
+      clickedBaseTitle: product.title,
+      color,
+      priorBaseId: this.beltBase?.id ?? null,
+      baseChanged,
+      isFreshBase,
+    });
+    if (isFreshBase) {
+      this.pendingDefaultLoopsForBaseId = product.id;
+    }
+
+    this.selection!.set("base", product.id);
+    this.selection!.set("baseColor", color);
+    this.selection!.set("baseVariant", variant.id);
+
+    this.applySelectionToPreview();
+  }
+
+  /**
+   * Parse a key produced by getVariantKey(). Naïve split(":") breaks here
+   * because productId is a Shopify gid URL (`gid://shopify/Product/123`)
+   * which itself contains colons. Treat the trailing segment as the numeric
+   * instanceIndex only when it actually parses as one.
+   */
+  private parseVariantKey(key: string): { kind: string; productId: string } | null {
+    const firstColon = key.indexOf(":");
+    if (firstColon === -1) return null;
+    const kind = key.slice(0, firstColon);
+    const rest = key.slice(firstColon + 1);
+    const lastColon = rest.lastIndexOf(":");
+    if (lastColon === -1) return { kind, productId: rest };
+    const tail = rest.slice(lastColon + 1);
+    if (/^\d+$/.test(tail)) {
+      return { kind, productId: rest.slice(0, lastColon) };
+    }
+    return { kind, productId: rest };
+  }
+
+  /** True when the current activeVariantKey targets a base with 2+ colors. */
+  private get isBaseSheetActive(): boolean {
+    if (!this.activeVariantKey) return false;
+    const parsed = this.parseVariantKey(this.activeVariantKey);
+    if (!parsed || parsed.kind !== "base") return false;
+    const product = this.findProductById(parsed.productId);
+    if (!product) return false;
+    return this.getBaseColors(product).length > 1;
+  }
+
+  private renderBaseVariantSheet(): ReturnType<typeof html> {
+    // Always render the <dialog> so the ref binds and updated() can call
+    // showModal()/close() based on activeVariantKey. Contents render only
+    // when active to avoid stale image loads.
+    const active = this.isBaseSheetActive;
+    let body: ReturnType<typeof html> | null = null;
+
+    if (active) {
+      const parsed = this.parseVariantKey(this.activeVariantKey!)!;
+      const product = this.findProductById(parsed.productId)!;
+      const colors = this.getBaseColors(product);
+      const selectedColor = this.getSelectedBaseColor();
+      const selectedColorForThisProduct =
+        this.beltBase?.id === product.id ? selectedColor : null;
+
+      body = html`
+        <div class="variant-sheet">
+          <div
+            class="variant-sheet-grabber"
+            @click="${() => { this.activeVariantKey = null; }}"
+          ></div>
+          <button
+            type="button"
+            class="variant-sheet-close"
+            aria-label="Close"
+            @click="${() => { this.activeVariantKey = null; }}"
+          >&times;</button>
+          <h3 class="variant-sheet-kicker">Choose color · ${product.title}</h3>
+          <p class="variant-sheet-prompt">Pick a color to continue</p>
+          <div class="variant-sheet-swatches">
+            ${colors.map((color, colorIndex) => {
+              const v = this.findFirstVariantForBaseColor(product, color);
+              if (!v) return null;
+
+              const isSelected = selectedColorForThisProduct === color;
+              const imgUrl =
+                this.getBaseColorThumbnailImage(product, colorIndex) ??
+                v.image?.url ??
+                getImageAt(product, 0);
+
+              return html`
+                <button
+                  type="button"
+                  class="variant-sheet-card ${isSelected ? "is-selected" : ""}"
+                  @click="${(ev: Event) => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    this.selectBaseColor(product, color, v);
+                    this.requestUpdate();
+                  }}"
+                >
+                  <div class="variant-sheet-card-img">
+                    <img src="${imgUrl ?? ""}" alt="${color}" />
+                  </div>
+                  <span class="variant-sheet-card-name">${color}</span>
+                </button>
+              `;
+            })}
+          </div>
+          <button
+            type="button"
+            class="variant-sheet-cta"
+            ?disabled="${!selectedColorForThisProduct}"
+            @click="${() => {
+              this.activeVariantKey = null;
+              this.advanceWizard();
+            }}"
+          >
+            ${selectedColorForThisProduct ? "Use this belt" : "Pick a color"}
+          </button>
+        </div>
+      `;
+    }
+
+    return html`
+      <dialog
+        ${ref(this.variantSheetDialog)}
+        class="variant-sheet-dialog"
+        aria-label="Choose color"
+        @close="${() => {
+          // Fires for backdrop dismiss, Esc, or our own .close() call.
+          if (this.activeVariantKey) this.activeVariantKey = null;
+        }}"
+        @click="${(ev: MouseEvent) => {
+          // Clicking the backdrop (the <dialog> itself, not its children) closes.
+          if (ev.target === this.variantSheetDialog.value) {
+            this.activeVariantKey = null;
+          }
+        }}"
+      >${body}</dialog>
+    `;
+  }
 
 
   private handleCardClick(

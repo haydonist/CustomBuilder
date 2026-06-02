@@ -132,6 +132,12 @@ export default class BeltPreview extends LitElement {
     }
   }
 
+  @media screen and (max-width: 767px) {
+    :host(.step-0) .base-wrapper {
+      transform: scale(2.5);
+    }
+  }
+
 
   .scale-wrapper {
     position: relative;
