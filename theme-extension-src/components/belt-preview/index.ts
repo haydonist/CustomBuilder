@@ -26,7 +26,7 @@ export default class BeltPreview extends LitElement {
   @property({ type: String }) tip: string | null = null;
   @property({ type: Boolean }) buckleOnTop: boolean = false;
   /** When true, hide remove badges and disable drag/reorder interactions. */
-  @property({ type: Boolean }) readonly: boolean = false;
+  @property({ type: Boolean, reflect: true }) readonly: boolean = false;
   /** Belt base width in mm (from product tag). Used to scale accessory overlays. */
   @property({ type: Number }) baseWidthMm: number = 0;
   /** When true, skip the mm-based height calculation and use the default multiplier. */

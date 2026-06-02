@@ -1080,6 +1080,66 @@ belt-wizard #summary .saved-belt-size {
   opacity: 0.7;
 }
 
+belt-wizard #summary .saved-belt-size-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+belt-wizard #summary .saved-belt-size-picker-label {
+  opacity: 0.7;
+}
+
+belt-wizard #summary .saved-belt-size-select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: inherit;
+  font-size: 0.85rem;
+  font-family: inherit;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+belt-wizard #summary .saved-belt-size-select:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+belt-wizard #summary .saved-belt-size-select:focus {
+  outline: none;
+  border-color: var(--old-gold, #d4af37);
+}
+
+@media (max-width: 600px) {
+  belt-wizard #summary .saved-belt-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    row-gap: 0.5rem;
+  }
+
+  belt-wizard #summary .saved-belt-header h2 {
+    flex: 1 1 auto;
+    font-size: 1rem;
+  }
+
+  belt-wizard #summary .saved-belt-meta {
+    order: 10;
+    flex: 1 1 100%;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  belt-wizard #summary .btn-edit-belt,
+  belt-wizard #summary .btn-duplicate-belt,
+  belt-wizard #summary .btn-remove-belt {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+}
+
 belt-wizard #summary .saved-belt-subtotal {
   font-size: 0.9rem;
   font-weight: 600;

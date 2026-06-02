@@ -774,6 +774,36 @@ private getSelectedBaseColor(): string | null {
           )?.value ?? null;
         };
 
+        const renderSizePicker = (
+          base: Product | null,
+          currentVariantId: string | undefined,
+          onChange: (newVariantId: string) => void,
+        ) => {
+          if (!base) return null;
+          const choices = this.getSizeChoicesForBase(base, currentVariantId);
+          if (choices.length === 0) {
+            const size = getVariantSize(base, currentVariantId);
+            return size ? html`<span class="saved-belt-size">Size: ${size}</span>` : null;
+          }
+          return html`
+            <label class="saved-belt-size-picker">
+              <span class="saved-belt-size-picker-label">Size:</span>
+              <select
+                class="saved-belt-size-select"
+                @change=${(e: Event) => {
+                  const value = (e.currentTarget as HTMLSelectElement).value;
+                  if (value) onChange(value);
+                }}
+                @click=${(e: Event) => e.stopPropagation()}
+              >
+                ${choices.map(c => html`
+                  <option value=${c.variantId} ?selected=${c.variantId === currentVariantId}>${c.label}</option>
+                `)}
+              </select>
+            </label>
+          `;
+        };
+
         const beltSectionClasses = (uid: string) => classMap({
           "saved-belt-section": true,
           "is-leaving": this.leavingBeltUids.has(uid),
@@ -797,16 +827,20 @@ private getSelectedBaseColor(): string | null {
                   <div class="saved-belt-header">
                     <h2 class="heading-5">Belt ${beltNumber}</h2>
                     <div class="saved-belt-meta">
-                      ${baseSize ? html`<span class="saved-belt-size">Size: ${baseSize}</span>` : null}
+                      ${renderSizePicker(
+                        saved.base,
+                        saved.baseVariantId,
+                        (newId) => this.changeSavedBeltSize(slot.savedIndex, newId),
+                      )}
                       <span class="saved-belt-subtotal">${formatMoney(subtotal)}</span>
                     </div>
-                    <button type="button" class="btn-edit-belt" title="Edit Belt ${beltNumber}"
-                      @click="${() => this.editSavedBelt(slot.savedIndex)}">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                    </button>
                     <button type="button" class="btn-duplicate-belt" title="Duplicate Belt ${beltNumber}"
                       @click="${() => this.duplicateSavedBelt(slot.savedIndex)}">
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                    </button>
+                    <button type="button" class="btn-edit-belt" title="Edit Belt ${beltNumber}"
+                      @click="${() => this.editSavedBelt(slot.savedIndex)}">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                     </button>
                     <button type="button" class="btn-remove-belt" title="Remove Belt ${beltNumber}"
                       @click="${() => this.removeSavedBelt(slot.savedIndex)}">&times;</button>
@@ -852,9 +886,20 @@ private getSelectedBaseColor(): string | null {
                   ${!hasMissing && currentSubtotal
                     ? html`
                       <div class="saved-belt-meta">
-                        ${currentSize ? html`<span class="saved-belt-size">Size: ${currentSize}</span>` : null}
+                        ${renderSizePicker(
+                          this.beltBase,
+                          this.getSelectedSingleVariantId("base", this.beltBase),
+                          (newId) => this.changeCurrentBeltSize(newId),
+                        )}
                         <span class="saved-belt-subtotal">${formatMoney(currentSubtotal)}</span>
                       </div>
+                    ` : ""}
+                  ${!hasMissing && this.beltBase
+                    ? html`
+                      <button type="button" class="btn-duplicate-belt" title="Duplicate current belt"
+                        @click="${() => this.duplicateCurrentBelt()}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                      </button>
                     ` : ""}
                   <button type="button" class="btn-edit-belt" title="Edit current belt"
                     @click="${() => this.wizard.goTo(0)}">
@@ -3503,6 +3548,120 @@ sizeStep.view = () => {
       next.delete(duplicateUid);
       this.pulsingBeltUids = next;
     }, CustomBeltWizard.BELT_PULSE_MS);
+  }
+
+  /**
+   * Duplicate the in-progress current belt: capture its state into a saved
+   * belt and insert it at the position right before the current slot, so the
+   * user ends up with the original current belt + a saved copy. Mirrors
+   * `duplicateSavedBelt` but sources the data from live wizard state.
+   */
+  private async duplicateCurrentBelt() {
+    if (!this.beltBase) return;
+
+    const compositePreview = (await this.preview.value?.capturePreview()) ?? undefined;
+
+    const duplicateUid = CustomBeltWizard.makeBeltUid();
+    const snapshot: SavedBelt = {
+      uid: duplicateUid,
+      label: "",
+      base: this.beltBase,
+      basePreviewImage: this.basePreviewImage,
+      baseVariantId: this.getSelectedSingleVariantId("base", this.beltBase),
+      buckle: this.beltBuckle,
+      buckleVariantId: this.getSelectedSingleVariantId("buckle", this.beltBuckle),
+      tip: this.hasSetSelected() ? null : this.beltTip,
+      tipVariantId: this.hasSetSelected()
+        ? undefined
+        : this.getSelectedSingleVariantId("tip", this.beltTip),
+      loops: [...this.beltLoops],
+      loopsVariantIds: this.getSelectedMultiVariantIds("loop", 2),
+      conchos: [...this.beltConchos],
+      conchosVariantIds: this.getSelectedMultiVariantIds("concho", 9),
+      isSet: this.hasSetSelected(),
+      selection: this.snapshotSelection(),
+      compositePreview,
+    };
+
+    const insertAt = this.editingBeltIndex ?? this.savedBelts.length;
+    this.savedBelts = [
+      ...this.savedBelts.slice(0, insertAt),
+      snapshot,
+      ...this.savedBelts.slice(insertAt),
+    ].map((belt, i) => ({ ...belt, label: `Belt ${i + 1}` }));
+
+    // The current belt is now one slot further to the right.
+    if (this.editingBeltIndex !== null) this.editingBeltIndex++;
+
+    this.pulsingBeltUids = new Map(this.pulsingBeltUids).set(duplicateUid, "promote");
+    setTimeout(() => {
+      const next = new Map(this.pulsingBeltUids);
+      next.delete(duplicateUid);
+      this.pulsingBeltUids = next;
+    }, CustomBeltWizard.BELT_PULSE_MS);
+  }
+
+  /**
+   * Available size choices for a belt base, filtered to the variant's color
+   * and in-stock status. Used by the inline size picker on the summary page.
+   */
+  private getSizeChoicesForBase(
+    base: Product,
+    currentVariantId: string | undefined,
+  ): { variantId: string; label: string }[] {
+    const currentVariant = currentVariantId
+      ? base.variants.find(v => v.id === currentVariantId) ?? null
+      : null;
+    const color = currentVariant ? this.getBaseVariantColor(currentVariant) : null;
+
+    const matches = (base.variants ?? [])
+      .map(v => ({
+        variant: v,
+        color: this.getBaseVariantColor(v),
+        size: this.getBaseVariantSize(v),
+      }))
+      .filter(x => (!color || x.color === color) && !!x.size && this.isVariantInStock(x.variant));
+
+    matches.sort((a, b) => {
+      const an = Number(a.size);
+      const bn = Number(b.size);
+      if (!Number.isNaN(an) && !Number.isNaN(bn)) return an - bn;
+      return (a.size ?? "").localeCompare(b.size ?? "");
+    });
+
+    return matches.map(m => {
+      const trimmed = String(m.size).trim();
+      const label = /^\d+(\.\d+)?$/.test(trimmed) ? `${trimmed}"` : trimmed;
+      return { variantId: m.variant.id, label };
+    });
+  }
+
+  /** Update a saved belt's size in place from the summary page. */
+  private changeSavedBeltSize(savedIndex: number, newVariantId: string) {
+    const saved = this.savedBelts[savedIndex];
+    if (!saved || !saved.base) return;
+    if (!saved.base.variants.some(v => v.id === newVariantId)) return;
+    if (saved.baseVariantId === newVariantId) return;
+
+    const newSelection = new Map(saved.selection);
+    newSelection.set("baseVariant", [newVariantId]);
+    newSelection.set("size", [newVariantId]);
+
+    this.savedBelts = this.savedBelts.map((b, i) =>
+      i === savedIndex
+        ? { ...b, baseVariantId: newVariantId, selection: newSelection }
+        : b,
+    );
+  }
+
+  /** Update the current belt's size from the summary page. */
+  private changeCurrentBeltSize(newVariantId: string) {
+    if (!this.beltBase) return;
+    if (!this.beltBase.variants.some(v => v.id === newVariantId)) return;
+    this.ensureSelection();
+    this.selection!.set("baseVariant", newVariantId);
+    this.selection!.set("size", newVariantId);
+    this.requestUpdate();
   }
 
   private async removeSavedBelt(index: number) {
