@@ -74,8 +74,10 @@ interface UrlBeltConfig {
   buckle?: { id: string };
   tip?: { id: string };
   color?: { value: string };
-  loops?: Array<{ id: string; count?: number }>;
-  conchos?: Array<{ id: string; count?: number }>;
+  // `variantId` was added so the original finish/color is restored exactly.
+  // Older payloads (pre-fix) omit it; we fall back to the first variant.
+  loops?: Array<{ id: string; variantId?: string; count?: number }>;
+  conchos?: Array<{ id: string; variantId?: string; count?: number }>;
 }
 
 @customElement("belt-wizard")
@@ -1748,6 +1750,35 @@ private get selectedBaseColor(): string | null {
     }
   }
 
+  /**
+   * Paginate `tag:concho` until every requested concho ID is present in
+   * `beltData[3]`, or there are no more pages. Used by URL restore so a
+   * concho on page 2+ of the initial query isn't silently dropped.
+   */
+  private async drainConchosUntilFound(requestedIds: string[]): Promise<void> {
+    if (!requestedIds.length) return;
+    const need = new Set(requestedIds);
+    for (const p of this.beltData[3] ?? []) need.delete(p.id);
+    if (need.size === 0) return;
+
+    const existingIds = new Set((this.beltData[3] ?? []).map(p => p.id));
+    let page = this.pages[3];
+    while (need.size > 0 && page?.hasNextPage) {
+      const { page: nextPage, products } = await queryProducts("tag:concho", {
+        after: page.endCursor,
+      });
+      page = nextPage;
+      this.pages[3] = nextPage;
+      for (const p of products) {
+        if (!existingIds.has(p.id)) {
+          existingIds.add(p.id);
+          this.beltData[3].push(p);
+        }
+        need.delete(p.id);
+      }
+    }
+  }
+
   @eventOptions({ once: true })
   private async submitStep() {
     // This is only called when we actually want to move to the next step
@@ -3175,26 +3206,36 @@ sizeStep.view = () => {
       const loop = findInGroup(loops, entry.id);
       if (!loop) continue;
       const times = Math.max(1, Math.min(entry.count ?? 1, maxLoops - loopAppended));
+      const variant =
+        (entry.variantId && loop.variants?.find(v => v.id === entry.variantId)) ||
+        loop.variants?.[0];
       for (let i = 0; i < times && loopAppended < maxLoops; i++) {
         sel.append("loop", loop.id);
-        const firstVariant = loop.variants?.[0];
-        if (firstVariant) sel.append("loopVariant", firstVariant.id);
+        if (variant) sel.append("loopVariant", variant.id);
         loopAppended++;
       }
       if (loopAppended >= maxLoops) break;
     }
 
     // Conchos — max 9 total.
+    // Conchos aren't fully drained on initial load (only page 1 of `tag:concho`
+    // is fetched), so requested IDs that sit on later pages would be silently
+    // dropped. Paginate until every requested ID is resolved or we run out.
+    await this.drainConchosUntilFound((config.conchos ?? []).map(c => c.id));
     const conchos = this.beltData[3];
     let conchoAppended = 0;
     for (const entry of config.conchos ?? []) {
       const concho = findInGroup(conchos, entry.id);
       if (!concho) continue;
       const times = Math.max(1, Math.min(entry.count ?? 1, 9 - conchoAppended));
+      // Restore the originally-selected variant when the payload includes one;
+      // otherwise fall back to the first variant (old payloads, missing variant).
+      const variant =
+        (entry.variantId && concho.variants?.find(v => v.id === entry.variantId)) ||
+        concho.variants?.[0];
       for (let i = 0; i < times && conchoAppended < 9; i++) {
         sel.append("concho", concho.id);
-        const firstVariant = concho.variants?.[0];
-        if (firstVariant) sel.append("conchoVariant", firstVariant.id);
+        if (variant) sel.append("conchoVariant", variant.id);
         conchoAppended++;
       }
       if (conchoAppended >= 9) break;

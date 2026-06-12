@@ -30,8 +30,8 @@ export interface CreateCustomProductPayload {
     tip?: { id: string; title: string };
     size?: { value: string };
     color?: { value: string };
-    loops?: Array<{ id: string; title: string; count: number }>;
-    conchos?: Array<{ id: string; title: string; count: number }>;
+    loops?: Array<{ id: string; title: string; variantId?: string; count: number }>;
+    conchos?: Array<{ id: string; title: string; variantId?: string; count: number }>;
     /** First collection of the base product, used for title generation. */
     collection?: { title: string; handle: string };
   };

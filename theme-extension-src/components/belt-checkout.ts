@@ -509,17 +509,22 @@ function buildVariantPriceIndex(beltData: Product[][]): Map<string, number> {
   return index;
 }
 
-/** Aggregate `[id, id, id, ...]` into `[{id, title, count}, ...]` keyed by product. */
+/**
+ * Emit one entry per concho/loop slot in the original belt order. We used to
+ * aggregate by product (count = N), but that flattens an alternating pattern
+ * (T-S-T-S-T) into TTTSS on restore. Variant ID is captured so URL restore
+ * picks the exact finish/color the shopper chose.
+ */
 function aggregateProductCounts(
   items: Product[],
-): Array<{ id: string; title: string; count: number }> {
-  const map = new Map<string, { id: string; title: string; count: number }>();
-  for (const p of items) {
-    const existing = map.get(p.id);
-    if (existing) existing.count += 1;
-    else map.set(p.id, { id: p.id, title: p.title, count: 1 });
-  }
-  return Array.from(map.values());
+  variantIds: string[] = [],
+): Array<{ id: string; title: string; variantId?: string; count: number }> {
+  return items.map((p, i) => ({
+    id: p.id,
+    title: p.title,
+    variantId: variantIds[i] || undefined,
+    count: 1,
+  }));
 }
 
 /** Sum of variant prices for a list of variant IDs (used for loop/concho subtotals). */
@@ -568,8 +573,8 @@ function buildSavedBeltPayload(
       tip: !saved.isSet && saved.tip ? { id: saved.tip.id, title: saved.tip.title } : undefined,
       size: size ? { value: size } : undefined,
       color: color ? { value: color } : undefined,
-      loops: aggregateProductCounts(saved.loops),
-      conchos: aggregateProductCounts(saved.conchos),
+      loops: aggregateProductCounts(saved.loops, saved.loopsVariantIds),
+      conchos: aggregateProductCounts(saved.conchos, saved.conchosVariantIds),
       collection: getPrimaryCollection(saved.base),
     },
     previewDataUrl: saved.compositePreview ?? null,
@@ -611,8 +616,8 @@ function buildCurrentBeltPayload(args: CurrentBeltArgs): CreateCustomProductPayl
       tip: !args.isSet && args.tip ? { id: args.tip.id, title: args.tip.title } : undefined,
       size: size ? { value: size } : undefined,
       color: color ? { value: color } : undefined,
-      loops: aggregateProductCounts(args.loops),
-      conchos: aggregateProductCounts(args.conchos),
+      loops: aggregateProductCounts(args.loops, args.loopsVariantIds),
+      conchos: aggregateProductCounts(args.conchos, args.conchosVariantIds),
       collection: getPrimaryCollection(args.base),
     },
     previewDataUrl: args.previewDataUrl,

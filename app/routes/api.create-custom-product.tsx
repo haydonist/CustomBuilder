@@ -53,8 +53,8 @@ interface SelectedProducts {
   tip?: { id: string; title: string };
   size?: { value: string };
   color?: { value: string };
-  loops?: Array<{ id: string; title: string; count: number }>;
-  conchos?: Array<{ id: string; title: string; count: number }>;
+  loops?: Array<{ id: string; title: string; variantId?: string; count: number }>;
+  conchos?: Array<{ id: string; title: string; variantId?: string; count: number }>;
   collection?: { title: string; handle: string };
 }
 
@@ -524,8 +524,8 @@ function buildFingerprint(s: SelectedProducts | undefined): string {
     s.buckle?.id ?? "",
     s.tip?.id ?? "",
     s.color?.value ?? "",
-    (s.loops ?? []).map(l => `${l.id}:${l.count}`).sort().join(","),
-    (s.conchos ?? []).map(c => `${c.id}:${c.count}`).sort().join(","),
+    (s.loops ?? []).map(l => `${l.id}:${l.variantId ?? ""}:${l.count}`).sort().join(","),
+    (s.conchos ?? []).map(c => `${c.id}:${c.variantId ?? ""}:${c.count}`).sort().join(","),
   ];
   return createHash("sha256").update(parts.join("|")).digest("hex").slice(0, 16);
 }
