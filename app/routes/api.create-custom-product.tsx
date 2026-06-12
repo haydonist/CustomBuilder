@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 
@@ -60,6 +61,23 @@ interface SelectedProducts {
 // ---------------------------------------------------------------------------
 // GraphQL queries & mutations (Admin API)
 // ---------------------------------------------------------------------------
+
+const FIND_PRODUCT_BY_SKU_QUERY = `
+  query FindProductBySku($query: String!) {
+    productVariants(first: 1, query: $query) {
+      edges {
+        node {
+          id
+          product {
+            id
+            title
+            featuredImage { url }
+          }
+        }
+      }
+    }
+  }
+`;
 
 const COUNT_CUSTOM_PRODUCTS_QUERY = `
   query {
@@ -234,6 +252,35 @@ async function handleCreate(request: Request) {
       (payload.conchosPrice ?? 0)
     ).toFixed(2);
 
+    // ---- Dedup: skip creation if an identical build already exists ----
+    // The SKU is a 16-char SHA-256 of the canonicalized selectedProducts, so
+    // the same configuration always produces the same SKU. Shopify indexes
+    // SKUs, so this is a single fast query. Not race-safe (two simultaneous
+    // checkouts of the same build can both miss and both create), but the
+    // window is small and a cleanup job could merge stragglers.
+    const sku = `CUSTOM-${buildFingerprint(payload.selectedProducts)}`;
+    try {
+      const findResp = await admin.graphql(FIND_PRODUCT_BY_SKU_QUERY, {
+        variables: { query: `sku:${sku}` },
+      });
+      const findData = await findResp.json();
+      const existing = findData.data?.productVariants?.edges?.[0]?.node?.product;
+      if (existing?.id) {
+        console.log(LOG_PREFIX, "duplicate build, reusing existing product", existing.id);
+        return Response.json({
+          success: true,
+          duplicate: true,
+          productId: existing.id,
+          price: totalPrice,
+          title: existing.title,
+          imageUrl: existing.featuredImage?.url ?? null,
+        });
+      }
+    } catch (findErr) {
+      console.error(LOG_PREFIX, "dedup lookup failed (non-fatal, will create):",
+        findErr instanceof Error ? findErr.message : findErr);
+    }
+
     // ---- Count existing custom products for fallback numbering ----
     const countResponse = await admin.graphql(COUNT_CUSTOM_PRODUCTS_QUERY);
     const countData = await countResponse.json();
@@ -282,7 +329,6 @@ async function handleCreate(request: Request) {
     // NOTE: In Admin API 2024-04+, `sku` moved off ProductVariantsBulkInput
     // and onto its `inventoryItem` sub-input. Sending it at the top level
     // throws a schema error.
-    const sku = `CUSTOM-${Date.now()}`;
     try {
       const updateResp = await admin.graphql(UPDATE_VARIANTS_MUTATION, {
         variables: {
@@ -461,6 +507,27 @@ function buildProductTitle(s: SelectedProducts | undefined, fallbackNum: number)
   const title = buckleTitle ? `${lead} with ${buckleTitle}` : lead;
   const cleaned = title.replace(/\s+/g, " ").trim();
   return cleaned || `custom-product-${fallbackNum}`;
+}
+
+/**
+ * Deterministic fingerprint of a belt configuration — same selections always
+ * produce the same hash. Used as the variant SKU so duplicate builds can be
+ * detected before creating a new product. We sort the loops/conchos arrays
+ * because order shouldn't change identity (a belt with loops [A, B] is the
+ * same as [B, A]).
+ */
+function buildFingerprint(s: SelectedProducts | undefined): string {
+  if (!s) return "empty";
+  const parts = [
+    s.base?.id ?? "",
+    s.buckle?.id ?? "",
+    s.tip?.id ?? "",
+    s.size?.value ?? "",
+    s.color?.value ?? "",
+    (s.loops ?? []).map(l => `${l.id}:${l.count}`).sort().join(","),
+    (s.conchos ?? []).map(c => `${c.id}:${c.count}`).sort().join(","),
+  ];
+  return createHash("sha256").update(parts.join("|")).digest("hex").slice(0, 16);
 }
 
 /** Removes a trailing "Belt" so titles don't read "Brown Vintage Belt Belt with Eagle". */
