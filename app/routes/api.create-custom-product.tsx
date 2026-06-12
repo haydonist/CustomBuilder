@@ -514,7 +514,8 @@ function buildProductTitle(s: SelectedProducts | undefined, fallbackNum: number)
  * produce the same hash. Used as the variant SKU so duplicate builds can be
  * detected before creating a new product. We sort the loops/conchos arrays
  * because order shouldn't change identity (a belt with loops [A, B] is the
- * same as [B, A]).
+ * same as [B, A]). Size is intentionally excluded: a 32" and a 34" version
+ * of the same design are considered the same belt for dedup purposes.
  */
 function buildFingerprint(s: SelectedProducts | undefined): string {
   if (!s) return "empty";
@@ -522,7 +523,6 @@ function buildFingerprint(s: SelectedProducts | undefined): string {
     s.base?.id ?? "",
     s.buckle?.id ?? "",
     s.tip?.id ?? "",
-    s.size?.value ?? "",
     s.color?.value ?? "",
     (s.loops ?? []).map(l => `${l.id}:${l.count}`).sort().join(","),
     (s.conchos ?? []).map(c => `${c.id}:${c.count}`).sort().join(","),
