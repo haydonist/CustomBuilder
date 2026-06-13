@@ -1,5 +1,5 @@
 import { html } from "lit";
-import { formatMoney } from "../utils.ts";
+import { formatMoney, isIOS } from "../utils.ts";
 import { MoneyV2, cdnResize } from "../api/index.ts";
 
 export type EventHandler = (ev: Event) => void;
@@ -104,12 +104,31 @@ export function thumbnailOption(
 
   const countShown = !!options.count && options.count > 0;
 
-  // Source image width = rendered CSS size (160px) × CSS zoom × ~2x density
-  // for retina. Targets stay well under originals (3-7 MB → 100-500 KB).
+  // Source image width = rendered CSS size (160px) × CSS zoom × device pixel
+  // ratio. iPhones (and most modern phones) are 3× DPR — hardcoding 2× makes
+  // thumbnails visibly soft on iOS. Clamp to [2, 3] so we don't request silly
+  // sizes on rare ultra-hi-dpr devices, and so SSR/test environments (no
+  // `window`) still get a sensible value.
+  const density = typeof window !== "undefined"
+    ? Math.max(2, Math.min(window.devicePixelRatio || 2, 3))
+    : 2;
+  // The two restrictions below are scoped to iOS specifically — that's where
+  // the WebContent process kills the page under memory pressure. Android
+  // browsers handle the original layouts fine and keep the richer UX.
+  const ios = isIOS();
   const mainScale = mainThumbScale(name, !!options.isSet, options.thumbScale);
-  const mainSourceWidth = Math.ceil(160 * mainScale * 2);
+  // Hard ceiling on requested source width. Without it, loops (scale 3) and
+  // conchos (scale 5+) on a 3× iPhone end up at 1440-2400 px per thumbnail —
+  // each one decodes to 8-20 MB of bitmap memory and a 30-item grid OOMs the
+  // Safari WebContent process on landing.
+  const MAX_THUMB_SOURCE = ios ? 520 : 800;
+  const mainSourceWidth = Math.min(Math.ceil(160 * mainScale * density), MAX_THUMB_SOURCE);
   const previewScale = variantPreviewScale(name, options.thumbScale);
-  const previewSourceWidth = Math.ceil(56 * previewScale * 2);
+  const previewSourceWidth = Math.min(Math.ceil(56 * previewScale * density), MAX_THUMB_SOURCE);
+  // On iOS, skip the variant-color chips entirely. They add up to 3 extra
+  // image loads per thumbnail (so a 30-loop grid = ~120 images), which is the
+  // OOM trigger on the loops/conchos steps. Android/desktop keep the chips.
+  const showVariantPreviews = !ios;
 
   return html`
     <span
@@ -155,7 +174,7 @@ export function thumbnailOption(
               <span class="option-count">x${options.count}</span>
             `
             : null}
-          ${options.variantImages && options.variantImages.length > 1
+          ${showVariantPreviews && options.variantImages && options.variantImages.length > 1
             ? html`<div class="variant-previews">
                 ${options.variantImages.slice(0, 3).map(
                   (url) => html`

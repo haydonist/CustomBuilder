@@ -8,6 +8,32 @@ import cropToContents from "./cropper.ts";
 import { detectBeltAnchors } from "./analyzer.ts";
 import { type BeltAnchors, type AnchorOverrides, DEFAULT_ANCHORS } from "../../config/belt-anchors.ts";
 
+/**
+ * Pre-size overlay images to roughly the display width × DPR. iOS Safari
+ * decodes large images at reduced resolution under memory pressure, which
+ * causes the preview buckle / loops / conchos / tip to look soft on iPhones
+ * even when the source assets are high-res. Pre-sizing keeps decoded buffers
+ * small enough that Safari doesn't downsample. The widths below cover 3× DPR
+ * at the largest realistic display sizes for each component.
+ */
+const PREVIEW_BUCKLE_WIDTH = 1200;
+const PREVIEW_TIP_WIDTH = 1200;
+const PREVIEW_LOOP_WIDTH = 600;
+const PREVIEW_CONCHO_WIDTH = 600;
+/**
+ * Resize without forcing a format. iOS Safari has historically rendered
+ * Shopify-served WebP at lower perceived sharpness under CSS transforms
+ * (which every overlay here has — translateX(-50%) translateY(-50%) plus
+ * the parent scale-wrapper). Letting the CDN negotiate the format with the
+ * browser avoids that path and keeps the original (usually JPG/PNG) crispness.
+ */
+const sized = (url: string | null | undefined, w: number): string => {
+  if (!url) return "";
+  if (url.endsWith(".svg") || url.includes(".svg?")) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}width=${w}`;
+};
+
 
 
 @customElement("belt-preview")
@@ -183,6 +209,10 @@ export default class BeltPreview extends LitElement {
     /* Center horizontally on the anchor pixel + vertically on the belt */
     transform: translateX(-50%) translateY(-50%);
     transition: opacity 150ms ease;
+    /* Hint Safari/WebKit to use the higher-quality scaling path when the
+       image is downscaled under a CSS transform. Without this the GPU
+       composite uses bilinear sampling which looks soft on iPhone Pro/Max. */
+    image-rendering: -webkit-optimize-contrast;
   }
   #buckle {
     z-index:-1;
@@ -209,6 +239,7 @@ export default class BeltPreview extends LitElement {
     cursor: grab;
     pointer-events: none;
     transition: opacity 150ms ease;
+    image-rendering: -webkit-optimize-contrast;
   }
 
   #conchosList {
@@ -243,10 +274,12 @@ export default class BeltPreview extends LitElement {
     cursor: grab;
     pointer-events: none;
     transition: opacity 150ms ease;
+    image-rendering: -webkit-optimize-contrast;
   }
 
   .concho img{
     scale: 5;
+    image-rendering: -webkit-optimize-contrast;
   }
 
   .loop-item,
@@ -395,12 +428,15 @@ export default class BeltPreview extends LitElement {
   protected override willUpdate(changed: PropertyValues) {
     if (changed.has("base") && this.base) cacheImage(this.base);
 
-    // Pre-load + decode overlay images so they're crisp before we show them
+    // Pre-load + decode overlay images so they're crisp before we show them.
+    // Use the same resized URLs we actually render, so the cache hit and
+    // readyImages set match what `<img src>` requests — otherwise we'd
+    // pre-warm the original URLs and then re-fetch the resized ones.
     const urlsToPreload: string[] = [];
-    if (changed.has("buckle") && this.buckle) urlsToPreload.push(this.buckle);
-    if (changed.has("tip") && this.tip) urlsToPreload.push(this.tip);
-    if (changed.has("loops")) urlsToPreload.push(...this.loops.filter(Boolean));
-    if (changed.has("conchos")) urlsToPreload.push(...this.conchos.filter(Boolean));
+    if (changed.has("buckle") && this.buckle) urlsToPreload.push(sized(this.buckle, PREVIEW_BUCKLE_WIDTH));
+    if (changed.has("tip") && this.tip) urlsToPreload.push(sized(this.tip, PREVIEW_TIP_WIDTH));
+    if (changed.has("loops")) urlsToPreload.push(...this.loops.filter(Boolean).map((u) => sized(u, PREVIEW_LOOP_WIDTH)));
+    if (changed.has("conchos")) urlsToPreload.push(...this.conchos.filter(Boolean).map((u) => sized(u, PREVIEW_CONCHO_WIDTH)));
 
     for (const url of urlsToPreload) {
       if (!this.readyImages.has(url)) {
@@ -474,8 +510,8 @@ export default class BeltPreview extends LitElement {
         ></canvas>
 
 
-        <img id="buckle" class="center-vertically" crossorigin="anonymous" src=${this.buckle ?? ""} aria-hidden="true"
-          style="z-index: ${this.buckleOnTop || a.buckleOnTop ? '10' : '-1'}; left: ${this.convertToPixels(a.buckleX)}px; opacity: ${this.isImageReady(this.buckle) ? 1 : 0};" />
+        <img id="buckle" class="center-vertically" crossorigin="anonymous" src=${sized(this.buckle, PREVIEW_BUCKLE_WIDTH)} aria-hidden="true"
+          style="z-index: ${this.buckleOnTop || a.buckleOnTop ? '10' : '-1'}; left: ${this.convertToPixels(a.buckleX)}px; opacity: ${this.isImageReady(sized(this.buckle, PREVIEW_BUCKLE_WIDTH)) ? 1 : 0};" />
         ${this.loops.map(
             (loop, index) => {
               const anchorX = index === 0 ? a.loop1X : a.loop2X;
@@ -510,7 +546,7 @@ export default class BeltPreview extends LitElement {
                     this.handleRemoveClick("loop", index, e)}
                   aria-label="Remove loop"
                 ></button>`}
-                <img class="loop" crossorigin="anonymous" src=${loop} aria-hidden="true" style="opacity: ${this.isImageReady(loop) ? 1 : 0}" />
+                <img class="loop" crossorigin="anonymous" src=${sized(loop, PREVIEW_LOOP_WIDTH)} aria-hidden="true" style="opacity: ${this.isImageReady(sized(loop, PREVIEW_LOOP_WIDTH)) ? 1 : 0}" />
               </div>
             `},
           )}
@@ -534,7 +570,7 @@ export default class BeltPreview extends LitElement {
                     this.handleRemoveClick("concho", index, e)}
                   aria-label="Remove concho"
                 ></button>`}
-                <img class="concho" crossorigin="anonymous" src=${concho} aria-hidden="true" style="opacity: ${this.isImageReady(concho) ? 1 : 0}" />
+                <img class="concho" crossorigin="anonymous" src=${sized(concho, PREVIEW_CONCHO_WIDTH)} aria-hidden="true" style="opacity: ${this.isImageReady(sized(concho, PREVIEW_CONCHO_WIDTH)) ? 1 : 0}" />
               </div>
             `,
           )}
@@ -543,9 +579,9 @@ export default class BeltPreview extends LitElement {
           id="tip"
           class="center-vertically"
           crossorigin="anonymous"
-          src=${this.tip ?? ""}
+          src=${sized(this.tip, PREVIEW_TIP_WIDTH)}
           aria-hidden="true"
-          style="left: ${this.convertToPixels(a.tipX)}px; opacity: ${this.isImageReady(this.tip) ? 1 : 0}"
+          style="left: ${this.convertToPixels(a.tipX)}px; opacity: ${this.isImageReady(sized(this.tip, PREVIEW_TIP_WIDTH)) ? 1 : 0}"
         />
         ${this.renderDebugOverlay()}
         ${this.renderDebugSourceLabels()}
@@ -729,9 +765,13 @@ export default class BeltPreview extends LitElement {
     // Render at a higher multiplier than bare DPR so the canvas stays
     // crisp when CSS-zoomed on mobile (up to 5×). Cap to the source
     // resolution — upscaling beyond the source won't add real detail.
+    // Hard upper bound (3.5) keeps the canvas backing store under control on
+    // iPhones (3× DPR × 1.5 = 4.5 was producing ~4MB canvases that, combined
+    // with the loops grid, pushed the WebContent process to OOM).
     const dpr = self.devicePixelRatio || 1;
     const quality = Math.min(
       Math.max(dpr * 1.5, 3),
+      3.5,
       cropped.width / width,  // don't exceed source resolution
     );
     canvas.width = Math.round(width * quality);
@@ -898,7 +938,12 @@ export default class BeltPreview extends LitElement {
       drawCentered(buckleImg, anchorAt(a.buckleX), componentH);
     }
 
-    return comp.toDataURL("image/jpeg", 0.92);
+    const dataUrl = comp.toDataURL("image/jpeg", 0.92);
+    // Free the canvas backing store right away — on iOS this can be tens of
+    // MB and waiting for GC stacks up if the user saves several belts.
+    comp.width = 0;
+    comp.height = 0;
+    return dataUrl;
   }
 
   // ---------- DRAG HANDLERS ----------
@@ -1224,18 +1269,30 @@ function drawImageHighQuality(
   ctx.drawImage(current, 0, 0, targetW, targetH);
 }
 
-const cachedImages: Record<string, Promise<HTMLImageElement>> = {};
+// LRU-capped image cache. Without a cap, browsing many products holds every
+// decoded HTMLImageElement for the page's lifetime — on iOS Safari, that's a
+// fast path to the WebContent OOM crash. 16 covers the active preview
+// (base + buckle + tip + 9 conchos + 2 loops = 13) with a little headroom;
+// anything older gets evicted so the renderer footprint stays bounded.
+const CACHED_IMAGES_MAX = 16;
+const cachedImages = new Map<string, Promise<HTMLImageElement>>();
 
 async function cacheImage(url: string): Promise<HTMLImageElement> {
-  if (cachedImages[url]) return cachedImages[url];
+  const existing = cachedImages.get(url);
+  if (existing) {
+    // Reinsert to mark as most-recently used.
+    cachedImages.delete(url);
+    cachedImages.set(url, existing);
+    return existing;
+  }
 
-  cachedImages[url] = new Promise<HTMLImageElement>((resolve, reject) => {
+  const promise = new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
 
     const done = () => resolve(img);
     const fail = (err: any) => {
-      delete cachedImages[url];
+      cachedImages.delete(url);
       reject(err);
     };
 
@@ -1252,6 +1309,16 @@ async function cacheImage(url: string): Promise<HTMLImageElement> {
     img.src = url;
   });
 
-  return cachedImages[url];
+  cachedImages.set(url, promise);
+
+  // Evict oldest entries if over capacity. Map preserves insertion order,
+  // so the first key is the least-recently used.
+  while (cachedImages.size > CACHED_IMAGES_MAX) {
+    const oldest = cachedImages.keys().next().value;
+    if (oldest === undefined) break;
+    cachedImages.delete(oldest);
+  }
+
+  return promise;
 }
 

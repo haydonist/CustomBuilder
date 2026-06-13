@@ -5,7 +5,7 @@ import { ifDefined } from "lit/directives/if-defined.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { createRef, Ref, ref } from "lit/directives/ref.js";
 import { repeat } from "lit/directives/repeat.js";
-import { delay, formatMoney, getConchoThumbScale } from "./utils.ts";
+import { delay, formatMoney, getConchoThumbScale, isIOS } from "./utils.ts";
 import { renderLoader as loader } from "./components/loader.ts";
 
 // ===============
@@ -112,7 +112,8 @@ export class CustomBeltWizard extends LitElement {
   private filterWrap: Ref<HTMLDivElement> = createRef();
   private variantSheetDialog: Ref<HTMLDialogElement> = createRef();
 
-  private shouldAdvance = false;
+  /** Guard against double-advance from rapid taps on auto-submit steps. */
+  private isAdvancing = false;
 
   private pages: PageInfo[] = [];
   private beltData: Product[][] = [];
@@ -218,13 +219,41 @@ export class CustomBeltWizard extends LitElement {
       this.setAttribute("data-step-direction", direction);
       this.lastStepIndex = newIndex;
 
-      this.spawnExitClone(".step-content", direction);
+      // Cloning .step-content holds a duplicate of every thumbnail image in
+      // the DOM for 460ms — on iOS that doubles the peak image-bitmap memory
+      // during the buckle→loops / loops→conchos transition and OOMs the
+      // WebContent process. Skip the content clone on iOS only; keep the
+      // (small) title clone everywhere. Android/desktop keep the full
+      // slide-out animation.
+      if (!isIOS()) {
+        this.spawnExitClone(".step-content", direction);
+      } else {
+        // Proactively drop the outgoing step's image bitmaps before re-render
+        // so the browser can release them ahead of the new step loading.
+        this.releaseStepImages(".step-content");
+      }
       this.spawnExitClone(".step-title", direction);
 
       this.requestUpdate();
     });
 
     this.updateProducts().then(() => this.loadFromUrlIfPresent());
+  }
+
+  /**
+   * Null the `src` on every `<img>` inside the outgoing step's content so the
+   * browser releases the decoded bitmaps immediately, before the new step's
+   * thumbnails start fetching. Reduces cumulative-step memory pressure on
+   * memory-constrained iPhones (where Safari otherwise keeps prior-step
+   * bitmaps cached "just in case").
+   */
+  private releaseStepImages(selector: string): void {
+    const source = this.querySelector(selector) as HTMLElement | null;
+    if (!source) return;
+    source.querySelectorAll<HTMLImageElement>("img").forEach((img) => {
+      img.removeAttribute("src");
+      img.removeAttribute("data-src");
+    });
   }
 
   /** Freeze the outgoing element's current position and let CSS animate a
@@ -1531,18 +1560,7 @@ private get selectedBaseColor(): string | null {
         <div class="step-content step-enter-${this.wizard.stepIndex}">
           <form
             ${ref(this.form)}
-            @submit="${async (ev: Event) => {
-              ev.preventDefault();
-              await delay(0);
-              new FormData(this.form.value);
-            }}"
-            @formdata="${async ({ formData }: FormDataEvent) => {
-              this.updateWizardSelection(formData);
-              if (!this.shouldAdvance) return;
-              this.shouldAdvance = false;
-              await delay(500);
-              this.advanceWizard();
-            }}"
+            @submit="${(ev: Event) => ev.preventDefault()}"
           >
             ${this.wizard.currentView}
           </form>
@@ -1567,7 +1585,7 @@ private get selectedBaseColor(): string | null {
                     @click="${() => { this.infoProductId = null; }}"
                   >&times;</button>
                   ${img
-                    ? html`<img class="info-popup-img" src="${img}" alt="${product.title}" />`
+                    ? html`<img class="info-popup-img" src="${cdnResize(img, 800)}" alt="${product.title}" />`
                     : null}
                   <h3 class="info-popup-title">${product.title}</h3>
                   ${product.priceRange?.minVariantPrice
@@ -1779,16 +1797,25 @@ private get selectedBaseColor(): string | null {
     }
   }
 
-  @eventOptions({ once: true })
   private async submitStep() {
-    // This is only called when we actually want to move to the next step
-    this.shouldAdvance = true;
-    this.form.value?.requestSubmit();
+    // Direct advance — bypasses form `requestSubmit` → `formdata` event chain
+    // because Safari < 18 (iOS 17 and earlier) doesn't fire `formdata`, which
+    // left users stranded on auto-submit steps like size.
+    if (this.isAdvancing) return;
+    this.isAdvancing = true;
+    try {
+      // Width filtering now happens immediately on base selection via
+      // rebuildStepsForBaseWidth(), but ensure it's done before advancing.
+      if (this.wizard.currentStep.id === "base") {
+        await this.rebuildStepsForBaseWidth();
+      }
 
-    // Width filtering now happens immediately on base selection via
-    // rebuildStepsForBaseWidth(), but ensure it's done before advancing.
-    if (this.wizard.currentStep.id === "base") {
-      await this.rebuildStepsForBaseWidth();
+      // Brief pause so the selection-feedback animation has time to play
+      // before the step transition kicks in.
+      await delay(200);
+      this.advanceWizard();
+    } finally {
+      this.isAdvancing = false;
     }
   }
   private triggerCheckoutFromShortcut(): void {
@@ -2036,7 +2063,6 @@ private get selectedBaseColor(): string | null {
                                 this.preview.value.tip = null;
                               }
                               this.applySelectionToPreview();
-                              this.shouldAdvance = false;
                               return;
                             }
 
@@ -2048,8 +2074,6 @@ private get selectedBaseColor(): string | null {
 
                             this.selection!.set(variantKind, p.id);
                             this.applySelectionToPreview();
-                            // Don't auto-advance anymore - user must click "Continue" button
-                            this.shouldAdvance = false;
                           },
                         )}"
                       >
@@ -2709,7 +2733,7 @@ sizeStep.view = () => {
                   this.requestUpdate();
                 }}"
               >
-                <img src="${imgUrl}" alt="${color}" />
+                <img src="${cdnResize(imgUrl, 240)}" alt="${color}" />
               </button>
             `;
           })}
@@ -2756,7 +2780,7 @@ sizeStep.view = () => {
                 this.handleVariantSelect(kind, product, variant, instanceIndex);
               }}"
             >
-              <img src="${imgUrl}" alt="${variant.title}" />
+              <img src="${cdnResize(imgUrl, 600)}" alt="${variant.title}" />
               ${showCountBadge ? html`<span class="option-count">x${count}</span>` : null}
             </button>
           `;
@@ -2876,7 +2900,7 @@ sizeStep.view = () => {
                   }}"
                 >
                   <div class="variant-sheet-card-img">
-                    <img src="${imgUrl ?? ""}" alt="${color}" />
+                    <img src="${cdnResize(imgUrl, 240)}" alt="${color}" />
                   </div>
                   <span class="variant-sheet-card-name">${color}</span>
                 </button>
@@ -3852,36 +3876,6 @@ sizeStep.view = () => {
     }
   }
 
-  private updateWizardSelection(formData: FormData) {
-    // See https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/formdata_event
-
-    this.ensureSelection();
-
-    // Keys that can have multiple values
-    const multiKeys = new Set(["loop", "concho"]);
-
-    // Snapshot the entries so we don't mutate while iterating
-    const entries = [...formData.entries()];
-
-    // For multi-value keys, clear them first for THIS step
-    for (const [key] of entries) {
-      if (multiKeys.has(key)) {
-        this.selection!.delete(key);
-      }
-    }
-
-    // Merge: multi keys => append; others => set (overwrite)
-    for (const [key, value] of entries) {
-      if (multiKeys.has(key)) {
-        this.selection!.append(key, value);
-      } else {
-        this.selection!.set(key, value);
-      }
-    }
-
-    // Recompute all preview state from current selection
-    this.applySelectionToPreview();
-  }
 }
 
 // TODO: Remove this in favor of an own get started page on the Shopify site

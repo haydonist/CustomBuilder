@@ -30,6 +30,22 @@ export function assertInstanceOf<T extends abstract new (...args: any) => any>(
 
 export const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/**
+ * True on iPhone/iPad/iPod regardless of browser (Safari, Chrome iOS, etc.
+ * all use WebKit). Used to scope memory-pressure workarounds — the wizard
+ * was crashing the WebContent process on iOS due to GPU compositing layer
+ * limits and decoded-image-cache pressure; Android doesn't share those
+ * specific WebKit constraints and keeps the richer UX.
+ *
+ * iPad on iOS 13+ presents as macOS; `maxTouchPoints > 1` distinguishes it
+ * from an actual Mac.
+ */
+export function isIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) return true;
+  return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+}
+
 /** Normalized concho thumbnail scale: 25mm is the reference at scale 5. */
 export function getConchoThumbScale(product: Product): number | undefined {
   const BASE_SCALE = 5;

@@ -56,7 +56,10 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+  /* 100dvh tracks the dynamic viewport (excludes Safari's collapsing address
+     bar). Falls back to 100vh on browsers that don't support dvh yet. */
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0 auto;
   overflow-x: hidden;
 }
@@ -76,6 +79,7 @@ belt-wizard {
   max-width: 1200px;
   margin: 0 auto;
 }
+
 @media screen and (min-width: 769px) {
   belt-wizard {
     width: 1200px;
@@ -435,6 +439,39 @@ button.btn.tertiary:hover, a.btn.tertiary:hover {
 .option.thumbnail .selection-indicator-wrapper:has(img.selection-indicator[data-loaded]) {
   background-image: none;
   animation: none;
+}
+
+/* iOS-only fixes. `@supports (-webkit-touch-callout: none)` matches iOS Safari
+   and any iOS WebView (Chrome iOS, Firefox iOS — all WebKit) and does NOT
+   match Android Chrome, Android Firefox, or desktop browsers, so Android keeps
+   the richer UX. The width gate keeps the rules out of iPad split-screen / iOS
+   desktop-mode if those ever apply. */
+@supports (-webkit-touch-callout: none) {
+  /* Kill the per-thumbnail shimmer animation. 30+ infinite animations each
+     promote to their own GPU compositing layer; iOS Safari has a hard
+     layer-count limit that the loops/conchos grids easily exceed, triggering
+     a WebContent crash on landing. A static placeholder background is
+     sufficient feedback at this size. */
+  .option.thumbnail .selection-indicator-wrapper {
+    background-image: none;
+    animation: none;
+  }
+
+  /* Strip `transform: scale()` on grid thumbnails — *any* 2D transform
+     promotes the element to its own GPU compositing layer, and a 30-thumb
+     grid (loops or conchos) plus the live preview's scaled overlays for
+     already-selected pieces blows past iOS Safari's per-process layer cap.
+     Without the transform the image shows at its intrinsic size; we lose the
+     "zoom-in-on-the-detail" visual but gain crash-free rendering. The
+     container's `overflow: hidden` keeps the layout identical, so only the
+     visible image content changes. */
+  .option.thumbnail[data-kind="concho"] img.selection-indicator,
+  .option.thumbnail[data-kind="loop"] img.selection-indicator,
+  .option.thumbnail[data-kind="tip"] img.selection-indicator,
+  .option.thumbnail[data-kind="buckle"][data-is-set="false"] img.selection-indicator,
+  .option.thumbnail[data-kind="buckle"][data-is-set="true"] img.selection-indicator {
+    transform: none;
+  }
 }
 
 @keyframes thumb-shimmer {
@@ -2564,10 +2601,16 @@ dialog.variant-sheet-dialog {
     border: none;
     background: transparent;
     color: inherit;
+    /* dvw/dvh track the dynamic viewport so the sheet doesn't overflow on
+       iOS Safari (address bar) or include the scrollbar gutter. */
     max-width: 100vw;
+    max-width: 100dvw;
     max-height: 100vh;
+    max-height: 100dvh;
     width: 100vw;
+    width: 100dvw;
     height: 100vh;
+    height: 100dvh;
     display: flex;
     align-items: flex-end;
     justify-content: center;
