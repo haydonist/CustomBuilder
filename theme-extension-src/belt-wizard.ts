@@ -1,3 +1,7 @@
+declare const __BUILD_TIME__: string;
+const BUILD_TIME = typeof __BUILD_TIME__ !== "undefined" ? __BUILD_TIME__ : "dev";
+console.log(`[belt-wizard] build ${BUILD_TIME}`);
+
 import { html, LitElement, PropertyValues } from "lit";
 import { customElement, eventOptions, property, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
@@ -27,6 +31,15 @@ import BeltPreview from "./components/belt-preview/index.ts";
 import { onThumbLoad, textOption, thumbnailOption } from "./components/option.ts";
 import Wizard, { renderView } from "./models/wizard/index.ts";
 import { type BeltAnchors, getAnchorOverrides } from "./config/belt-anchors.ts";
+import {
+  DEBOUNCE_PERSIST_MS,
+  deserializeSavedBelt,
+  deserializeSelection,
+  loadPersistedDraft,
+  savePersistedDraft,
+  serializeSavedBelt,
+  serializeSelection,
+} from "./persistence.ts";
 
 
 export enum Theme {
@@ -207,6 +220,18 @@ export class CustomBeltWizard extends LitElement {
 
   private lastStepIndex = 0;
 
+  /** Debounce handle for localStorage persistence triggered from updated(). */
+  private persistTimer: number | null = null;
+  /** Suppresses persistence while we're applying a restored draft to avoid
+   *  trampling the just-loaded state with mid-restore snapshots. */
+  private isRestoringDraft = false;
+  /** Gates `schedulePersist` until after the initial restore attempt has
+   *  resolved. Without this, Lit's first render fires before
+   *  `updateProducts()` (and therefore the restore) finishes; the resulting
+   *  empty-selection persist wipes the saved draft from localStorage before
+   *  `restoreDraftFromStorage()` ever gets a chance to read it. */
+  private hasAttemptedInitialRestore = false;
+
   constructor() {
     super();
 
@@ -237,7 +262,20 @@ export class CustomBeltWizard extends LitElement {
       this.requestUpdate();
     });
 
-    this.updateProducts().then(() => this.loadFromUrlIfPresent());
+    this.updateProducts().then(async () => {
+      try {
+        const restoredFromUrl = await this.loadFromUrlIfPresent();
+        // URL config wins over any locally-persisted draft so direct "build this
+        // belt" links always render exactly as authored.
+        if (!restoredFromUrl) await this.restoreDraftFromStorage();
+      } finally {
+        // Open the persistence gate only after the restore attempt has finished
+        // reading localStorage. Any earlier persist would write an empty draft
+        // and clobber the saved one before we could load it.
+        this.hasAttemptedInitialRestore = true;
+        this.schedulePersist();
+      }
+    });
   }
 
   /**
@@ -1276,6 +1314,10 @@ private getSelectedBaseColor(): string | null {
         self.removeEventListener("keydown", this.onInfoKeyDown);
       }
     }
+
+    // Persist after every render. Debounced inside, so rapid-fire updates
+    // (e.g. dragging conchos) coalesce into a single localStorage write.
+    this.schedulePersist();
   }
 
   private getSelectedSingleVariantId(
@@ -3165,10 +3207,10 @@ sizeStep.view = () => {
    * customer-created products and direct-link "build this belt" buttons.
    * Size is intentionally NOT restored — the user always picks their own.
    */
-  private async loadFromUrlIfPresent(): Promise<void> {
-    if (typeof window === "undefined") return;
+  private async loadFromUrlIfPresent(): Promise<boolean> {
+    if (typeof window === "undefined") return false;
     const param = new URLSearchParams(window.location.search).get("belt");
-    if (!param) return;
+    if (!param) return false;
 
     let config: UrlBeltConfig;
     try {
@@ -3176,14 +3218,14 @@ sizeStep.view = () => {
       config = JSON.parse(json);
     } catch (err) {
       console.warn("[belt-wizard] Invalid ?belt URL param:", err);
-      return;
+      return false;
     }
 
     const findInGroup = (group: Product[] | undefined, id: string | undefined) =>
       id ? group?.find(p => p.id === id) ?? null : null;
 
     const base = findInGroup(this.beltData[0], config.base?.id);
-    if (!base) return; // No base = nothing meaningful to load
+    if (!base) return false; // No base = nothing meaningful to load
 
     this.ensureSelection();
     const sel = this.selection!;
@@ -3280,6 +3322,107 @@ sizeStep.view = () => {
     // Jump the user to size selection since everything else is pre-filled.
     const sizeIdx = this.wizard.steps.findIndex(s => s.id === "size");
     if (sizeIdx >= 0) this.wizard.goTo(sizeIdx);
+    return true;
+  }
+
+  /**
+   * Restore a previously-persisted draft from localStorage, if any. Returns
+   * silently when no fresh draft exists. Mirrors the URL restore flow for the
+   * in-progress belt (filtering steps to the saved base's width and resolving
+   * conchos past page 1), and rehydrates the savedBelts gallery from their
+   * embedded Product references.
+   */
+  private async restoreDraftFromStorage(): Promise<void> {
+    const draft = loadPersistedDraft();
+    if (!draft) return;
+    if (typeof window === "undefined") return;
+
+    this.isRestoringDraft = true;
+    try {
+      // Saved belts carry their own Product refs and were already filtered for
+      // their respective base widths when first built — just rehydrate the Map
+      // selection and trust the captured data.
+      if (draft.savedBelts?.length) {
+        this.savedBelts = draft.savedBelts
+          .map((b) => deserializeSavedBelt(b))
+          .map((b, i) => ({ ...b, label: `Belt ${i + 1}` }));
+      }
+
+      const restored = deserializeSelection(draft.currentSelection);
+      if (restored) {
+        this.selection = restored;
+        const baseId = this.selection.get("base") as string | null;
+        const base = baseId
+          ? (this.beltData[0]?.find((p) => p.id === baseId) ?? null)
+          : null;
+
+        if (base) {
+          this.beltBase = base;
+          this.firstBaseSelected = true;
+          // Default loops were already chosen (or explicitly skipped) when this
+          // draft was first built; don't re-inject them on restore.
+          this.pendingDefaultLoopsForBaseId = null;
+          await this.rebuildStepsForBaseWidth();
+
+          // Conchos beyond page 1 of the unfiltered fetch aren't loaded yet —
+          // paginate until every persisted concho ID resolves (or we run out).
+          const conchoIds = (this.selection.getAll("concho") as string[]) ?? [];
+          if (conchoIds.length) await this.drainConchosUntilFound(conchoIds);
+
+          if (draft.currentBeltUid) this.currentBeltUid = draft.currentBeltUid;
+          this.applySelectionToPreview();
+        } else {
+          // Persisted base no longer exists; drop the half-restore so the user
+          // starts cleanly rather than seeing an incoherent partial belt.
+          this.selection = null;
+        }
+      } else if (draft.currentBeltUid) {
+        this.currentBeltUid = draft.currentBeltUid;
+      }
+
+      await this.updateComplete;
+
+      // Restore wizard step last so the user lands where they left off rather
+      // than being bounced to step 0 by the rebuilds above.
+      if (draft.stepId) {
+        const idx = this.wizard.steps.findIndex((s) => s.id === draft.stepId);
+        if (idx >= 0) this.wizard.goTo(idx);
+      } else if (this.savedBelts.length && !this.selection) {
+        // No in-progress belt but saved belts survived — drop the user on the
+        // summary page so the gallery is visible immediately.
+        const summaryIdx = this.wizard.steps.findIndex((s) => s.id === "summary");
+        if (summaryIdx >= 0) this.wizard.goTo(summaryIdx);
+      }
+    } catch (err) {
+      console.warn("[belt-wizard] draft restore failed:", err);
+    } finally {
+      this.isRestoringDraft = false;
+      // Re-persist immediately so any TTL-extended state reflects this load.
+      this.schedulePersist();
+    }
+  }
+
+  /** Debounced write of the current draft to localStorage. */
+  private schedulePersist(): void {
+    if (this.isRestoringDraft) return;
+    // Block persistence until the initial restore has had a chance to run —
+    // otherwise the empty pre-restore render wipes the saved draft.
+    if (!this.hasAttemptedInitialRestore) return;
+    if (typeof window === "undefined") return;
+    if (this.persistTimer !== null) {
+      window.clearTimeout(this.persistTimer);
+    }
+    this.persistTimer = window.setTimeout(() => {
+      this.persistTimer = null;
+      savePersistedDraft({
+        stepId: this.wizard.currentStep?.id,
+        currentSelection: serializeSelection(this.selection),
+        currentBeltUid: this.currentBeltUid,
+        savedBelts: this.savedBelts.length
+          ? this.savedBelts.map(serializeSavedBelt)
+          : undefined,
+      });
+    }, DEBOUNCE_PERSIST_MS);
   }
 
   /** Snapshot the current belt's FormData into a simple Map<string, string[]>. */

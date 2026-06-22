@@ -7,6 +7,7 @@ import { createCartAndGetCheckoutUrl, toLineVariant } from "../api/cart.ts";
 
 import * as styles from "../styles.ts";
 import { formatMoney } from "../utils.ts";
+import { clearPersistedDraft } from "../persistence.ts";
 import type { SavedBelt } from "../belt-wizard.ts";
 import type BeltPreview from "./belt-preview/index.ts";
 import {
@@ -316,6 +317,11 @@ export default class BeltCheckout extends LitElement {
       addPreviewImageAttribute(cartAttributes, previewImageUrls);
 
       const checkoutUrl = await createCartAndGetCheckoutUrl(lines, cartAttributes, finalNote);
+      // The cart has been built server-side; the locally-persisted draft has
+      // served its purpose. Clear it so a return trip to the builder (after
+      // completing or abandoning checkout) starts with a clean slate rather
+      // than resurrecting the same belt the user just sent to Shopify.
+      clearPersistedDraft();
       self.location.assign(checkoutUrl);
 
     } finally {
