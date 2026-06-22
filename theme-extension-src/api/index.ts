@@ -236,15 +236,7 @@ export async function queryProducts(
     const defaultForBaseIds: string[] = [];
     const rawDefaultForBases: Array<{ key: string; value: string; type: string } | null> =
       product.defaultForBases ?? [];
-    const hasNonNullField = rawDefaultForBases.some((f) => f && f.value != null);
-    if (hasNonNullField) {
-      console.log(
-        "[default_for_bases:api]",
-        product.title,
-        "raw:",
-        JSON.stringify(rawDefaultForBases),
-      );
-    }
+
     for (const field of rawDefaultForBases) {
       if (!field || field.value == null) continue;
       try {
@@ -259,9 +251,6 @@ export async function queryProducts(
       } catch (err) {
         console.warn("[default_for_bases] malformed value for", product.title, field.value, err);
       }
-    }
-    if (defaultForBaseIds.length) {
-      console.log("[default_for_bases:parsed]", product.title, defaultForBaseIds);
     }
 
     return {
