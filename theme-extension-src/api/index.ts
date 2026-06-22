@@ -18,7 +18,14 @@ export const shopQuery = `
   }
 `;
 
-const productQuery = `
+/**
+ * The product query is identical across all product types except for how many
+ * images we ask Shopify to return. Bases need ~12 images (one thumbnail +
+ * one layflat per color, plus a hover image), sets need 4 (set, loop, tip),
+ * and the rest only ever read image index 0. Trimming the image count
+ * meaningfully shrinks the response payload during the background drain.
+ */
+const buildProductQuery = (imagesCount: number) => `
   query ProductQuery($query: String!, $after: String) {
     products(first: 100, query: $query, after: $after) {
       pageInfo {
@@ -50,7 +57,7 @@ const productQuery = `
               currencyCode
             }
           }
-          images(first: 12, sortKey: POSITION) {
+          images(first: ${imagesCount}, sortKey: POSITION) {
             edges {
               node {
                 id
@@ -112,6 +119,20 @@ const productQuery = `
     }
   }
 `;
+
+/**
+ * "full"  — bases (12 images, drives color thumbnail logic)
+ * "set"   — sets (4 images: set, loop, tip)
+ * "light" — buckles/loops/conchos/tips/sizes (only image[0] is ever read;
+ *           keep one spare for safety)
+ */
+export type ProductQueryProfile = "full" | "set" | "light";
+
+const PRODUCT_QUERIES: Record<ProductQueryProfile, string> = {
+  full: buildProductQuery(12),
+  set: buildProductQuery(4),
+  light: buildProductQuery(2),
+};
 
 export interface PageInfo {
   endCursor: string;
@@ -180,9 +201,9 @@ export function isProductInStock(product: Product): boolean {
 
 export async function queryProducts(
   query: string,
-  { after }: { after?: string } = {},
+  { after, profile = "full" }: { after?: string; profile?: ProductQueryProfile } = {},
 ): Promise<{ page: PageInfo; products: Product[] }> {
-  const resp = await client.request(productQuery, { variables: {
+  const resp = await client.request(PRODUCT_QUERIES[profile], { variables: {
     query,
     after: after ?? null
   }});

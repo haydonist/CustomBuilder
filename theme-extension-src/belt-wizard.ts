@@ -22,7 +22,9 @@ import "./components/belt-preview/index.ts";
 import {
   cdnResize,
   getImageAt,
+  PageInfo,
   Product,
+  ProductQueryProfile,
   ProductVariant,
   queryProducts,
 } from "./api/index.ts";
@@ -130,11 +132,23 @@ export class CustomBeltWizard extends LitElement {
 
   private pages: PageInfo[] = [];
   private beltData: Product[][] = [];
+  /**
+   * Full unfiltered product list per tag index. Background drains accumulate
+   * every page here, then {@link refreshDerivedFromRaw} applies the active
+   * width filter to produce `beltData[i]` (which is what the step UI reads).
+   * Indices mirror beltData: 0=bases, 1=buckles, 2=loops, 3=conchos, 4=tips,
+   * 5=sizes, 6=sets.
+   */
+  private rawData: Product[][] = [];
+  /**
+   * Resolves once every page for that tag has been pulled. URL restore awaits
+   * the conchos promise so that a concho on page 2+ can be resolved without
+   * extra ad-hoc pagination.
+   */
+  private drainPromises: (Promise<void> | null)[] = [];
 
   @state()
   private loading = false;
-  @state()
-  private loadingPage = false;
   @state()
   private beltBase: Product | null = null;
   @state()
@@ -335,18 +349,8 @@ export class CustomBeltWizard extends LitElement {
     return this;
   }
 
-  private infiniteScrollObserver = new IntersectionObserver((entries) => {
-    const isHidden =
-      document.querySelector("belt-wizard")?.hasAttribute("hidden") ?? true;
-    if (isHidden) return;
-    if (entries.some((entry) => entry.isIntersecting) && !this.loadingPage) {
-      this.loadNextPage();
-    }
-  });
-
   protected override connectedCallback() {
     super.connectedCallback();
-    this.infiniteScrollObserver.observe(document.getElementById("scrollToken")!);
 
     // Listen for debug anchor drag updates from belt-preview
     this.addEventListener("debug-anchors-changed", ((e: CustomEvent<BeltAnchors>) => {
@@ -361,7 +365,6 @@ export class CustomBeltWizard extends LitElement {
 
   protected override disconnectedCallback() {
     super.disconnectedCallback();
-    this.infiniteScrollObserver.disconnect();
   }
 
   private getVariantKey(kind: VariantKind, productId: string, instanceIndex?: number): string {
@@ -1070,6 +1073,17 @@ private getSelectedBaseColor(): string | null {
     ];
     const map = new Map<string, Product[]>();
 
+    // If the user has picked specific collection filters, the same product
+    // shouldn't render under unrelated headers it happens to also belong to.
+    // (Merchant data often puts a concho in multiple inch collections — e.g.
+    // 1-1/8 AND 1-3/8 — and the user expects filtering to "1-3/8 inch" to
+    // hide the 1-1/8 header for it too.) Constrain grouping to the selected
+    // set when a filter is active.
+    const selectedCollections = options?.stepId
+      ? new Set(this.getSelectedCollectionsForStep(options.stepId))
+      : new Set<string>();
+    const hasActiveFilter = selectedCollections.size > 0;
+
     for (const product of products) {
       if (
         options?.hideSets &&
@@ -1080,7 +1094,8 @@ private getSelectedBaseColor(): string | null {
 
       const visibleTitles = product.collections
         ?.map((c) => c.title)
-        .filter((title) => !CustomBeltWizard.HIDDEN_COLLECTIONS.has(title)) ?? [];
+        .filter((title) => !CustomBeltWizard.HIDDEN_COLLECTIONS.has(title))
+        .filter((title) => !hasActiveFilter || selectedCollections.has(title)) ?? [];
       const titles = visibleTitles.length ? visibleTitles : ["Other"];
 
       for (const title of titles) {
@@ -1656,90 +1671,36 @@ private get selectedBaseColor(): string | null {
   private pendingDefaultLoopsForBaseId: string | null = null;
 
   /**
-   * Re-query and rebuild buckle/loop/tip steps filtered by the selected base's width.
-   * Called immediately when a base is selected so that all steps are filtered
-   * regardless of whether the user clicks "Continue" or jumps via the stepper.
+   * Re-derive buckle/set/loop/concho/tip steps when the selected base (and
+   * therefore the base width) changes. Pulls from already-drained {@link rawData}
+   * so this is a pure client-side filter pass — no network round-trip.
    */
-  private async rebuildStepsForBaseWidth() {
+  private rebuildStepsForBaseWidth() {
     const baseId = this.beltBase?.id ?? null;
     if (!baseId || baseId === this.lastFilteredBaseId) return;
     this.lastFilteredBaseId = baseId;
 
-    const baseWidth = this.beltBase?.tags?.find((t) => t.endsWith("mm")) ?? null;
-    const widthFilter = baseWidth ? ` AND tag:${baseWidth}` : "";
+    this.recomputeAndRebuild();
 
-    // Drain every page of a tag query so callers (default-loops, ?belt= URL
-    // restore) can find a target product even if it sits past the first page.
-    const queryAllPages = async (q: string) => {
-      const { page: firstPage, products: firstBatch } = await queryProducts(q);
-      const all: Product[] = [...firstBatch];
-      let page = firstPage;
-      while (page.hasNextPage) {
-        const next = await queryProducts(q, { after: page.endCursor });
-        all.push(...next.products);
-        page = next.page;
-      }
-      return { lastPage: page, products: all };
-    };
-
-    const [
-      { lastPage: newBucklePage, products: beltBuckles },
-      { products: beltSets },
-      { lastPage: newLoopPage, products: beltLoops },
-      { lastPage: newTipPage, products: beltTips },
-    ] = await Promise.all([
-      queryAllPages(`tag:buckle${widthFilter}`),
-      queryAllPages(`tag:set${widthFilter}`),
-      queryAllPages(`tag:Loop${widthFilter}`),
-      queryAllPages(`tag:tip${widthFilter}`),
-    ]);
-
-    // Apply client-side filter as a safety net to ensure only exact width matches
-    const filteredBuckles = this.filterProductsByWidth(beltBuckles, baseWidth);
-    const filteredSets = this.filterProductsByWidth(beltSets, baseWidth);
-    const filteredLoops = this.filterProductsByWidth(beltLoops, baseWidth);
-    const filteredTips = this.filterProductsByWidth(beltTips, baseWidth);
-
-    this.beltData[1] = this.buckleChoices = [...filteredSets, ...filteredBuckles];
-    this.beltData[2] = filteredLoops;
-    this.beltData[4] = filteredTips;
-    this.beltData[6] = filteredSets;
-
-    // Update page cursors so infinite scroll paginates the filtered query
-    this.pages[1] = newBucklePage;
-    this.pages[2] = newLoopPage;
-    this.pages[4] = newTipPage;
-
-    console.debug(
-      "Rebuilt buckle, set, loop, and tip steps based on base width:",
-      baseWidth,
-      {
-        buckles: filteredBuckles.length,
-        sets: filteredSets.length,
-        loops: filteredLoops.length,
-        tips: filteredTips.length,
-      }
-    );
-
-    this.buildSingleSelectStep("buckle", this.buckleChoices);
-    this.buildMultiSelectStep("loop", filteredLoops, this.getMaxLoopsAllowed());
-    this.buildSingleSelectStep("tip", filteredTips);
+    const baseWidth =
+      this.beltBase?.tags?.find((t) => t.toLowerCase().endsWith("mm")) ?? null;
+    console.debug("Rebuilt steps for base width", baseWidth, {
+      buckles: this.buckleChoices.length,
+      loops: this.beltData[2]?.length ?? 0,
+      conchos: this.beltData[3]?.length ?? 0,
+      tips: this.beltData[4]?.length ?? 0,
+      sets: this.beltData[6]?.length ?? 0,
+    });
 
     // Apply per-base default loops only when the user just picked this base
     // (the base-click handler sets pendingDefaultLoopsForBaseId). This guards
     // against re-applying when a saved belt is loaded or when other code paths
     // trigger a width-rebuild for the same base.
-    console.log("[default-loops] post-rebuild check", {
-      beltBaseId: this.beltBase?.id ?? null,
-      pendingDefaultLoopsForBaseId: this.pendingDefaultLoopsForBaseId,
-      filteredLoopCount: filteredLoops.length,
-    });
-
     if (
       this.beltBase &&
       this.pendingDefaultLoopsForBaseId === this.beltBase.id
     ) {
-      this.applyDefaultLoopsForBase(this.beltBase, filteredLoops);
+      this.applyDefaultLoopsForBase(this.beltBase, this.beltData[2] ?? []);
       this.pendingDefaultLoopsForBaseId = null;
       // Intentionally NOT calling applySelectionToPreview() here. The user is
       // still on the base step and the base image may not have rendered yet —
@@ -1811,32 +1772,21 @@ private get selectedBaseColor(): string | null {
   }
 
   /**
-   * Paginate `tag:concho` until every requested concho ID is present in
-   * `beltData[3]`, or there are no more pages. Used by URL restore so a
-   * concho on page 2+ of the initial query isn't silently dropped.
+   * Ensure every concho ID in `requestedIds` is loaded into {@link rawData}
+   * (and therefore eligible to appear in `beltData[3]`). Used by URL restore
+   * so a concho on page 2+ of `tag:concho` isn't silently dropped. With the
+   * background drain, this just waits for that drain to complete — the drain
+   * accumulates the same data we'd have fetched ad-hoc, but only once.
    */
   private async drainConchosUntilFound(requestedIds: string[]): Promise<void> {
     if (!requestedIds.length) return;
     const need = new Set(requestedIds);
-    for (const p of this.beltData[3] ?? []) need.delete(p.id);
+    for (const p of this.rawData[3] ?? []) need.delete(p.id);
     if (need.size === 0) return;
 
-    const existingIds = new Set((this.beltData[3] ?? []).map(p => p.id));
-    let page = this.pages[3];
-    while (need.size > 0 && page?.hasNextPage) {
-      const { page: nextPage, products } = await queryProducts("tag:concho", {
-        after: page.endCursor,
-      });
-      page = nextPage;
-      this.pages[3] = nextPage;
-      for (const p of products) {
-        if (!existingIds.has(p.id)) {
-          existingIds.add(p.id);
-          this.beltData[3].push(p);
-        }
-        need.delete(p.id);
-      }
-    }
+    // Force-start the drain if it hasn't been kicked off yet (e.g. URL restore
+    // races the post-updateProducts drain launch), then wait.
+    await this.drainTag(3);
   }
 
   private async submitStep() {
@@ -2283,55 +2233,52 @@ private get selectedBaseColor(): string | null {
     };
   }
 
+  /**
+   * Tag-index → Storefront query string. Centralized so initial load,
+   * background drain, and ad-hoc lookups all stay in sync.
+   *
+   * NOTE: we never put `tag:<width>` into the server-side query. Width
+   * filtering happens client-side against {@link rawData}, so that when the
+   * user changes their base width we don't need to refetch — we just
+   * re-derive {@link beltData} from {@link rawData}.
+   */
+  /**
+   * Per-tag Storefront query + image-payload profile. Profile controls how
+   * many product images Shopify returns (see {@link ProductQueryProfile}):
+   * "full" for bases (color thumbnails), "set" for sets (multi-piece preview),
+   * "light" for everything else (only image[0] is rendered).
+   */
+  private static readonly TAG_QUERIES: ReadonlyArray<
+    { query: string; profile: ProductQueryProfile }
+  > = [
+    { query: "tag:Base",   profile: "full" },
+    { query: "tag:buckle", profile: "light" },
+    { query: "tag:Loop",   profile: "light" },
+    { query: "tag:concho", profile: "light" },
+    { query: "tag:tip",    profile: "light" },
+    { query: "tag:size",   profile: "light" },
+    { query: "tag:Set",    profile: "set" },
+  ];
+
   private async updateProducts() {
     this.loading = true;
 
-    const [
-      { page: basePage, products: beltBases },
-      { page: bucklePage, products: beltBuckles },
-      { page: loopPage, products: beltLoops },
-      { page: conchoPage, products: beltConchos },
-      { page: tipPage, products: beltTips },
-      { page: sizePage, products: beltSizes },
-      { page: setPage, products: beltSets },
-    ] = await Promise.all([
-      queryProducts("tag:Base"),
-      queryProducts(`tag:buckle`),
-      queryProducts(`tag:Loop`),
-      queryProducts("tag:concho"),
-      queryProducts(`tag:tip`),
-      queryProducts("tag:size"),
-      queryProducts("tag:Set"),
-    ]);
-    this.pages = [
-      basePage,
-      bucklePage,
-      loopPage,
-      conchoPage,
-      tipPage,
-      sizePage,
-      setPage,
-    ];
-    this.beltData = [
-      beltBases,
-      beltBuckles,
-      beltLoops,
-      beltConchos,
-      beltTips,
-      beltSizes,
-      beltSets,
-    ];
-
-    this.beltData[1] = this.buckleChoices;
-
-    this.buildSingleSelectStep("base", beltBases);
-    this.buildSingleSelectStep(
-      "buckle",
-      this.buckleChoices = [...beltSets, ...beltBuckles],
+    const firstPages = await Promise.all(
+      CustomBeltWizard.TAG_QUERIES.map(({ query, profile }) =>
+        queryProducts(query, { profile }),
+      ),
     );
-    this.buildMultiSelectStep("loop", beltLoops, this.getMaxLoopsAllowed());
-    this.buildMultiSelectStep("concho", beltConchos, 9);
-    this.buildSingleSelectStep("tip", beltTips);
+
+    this.pages = firstPages.map(({ page }) => page);
+    this.rawData = firstPages.map(({ products }) => products);
+    // Initial derive — no base yet, so width filters are no-ops.
+    this.recomputeAllBeltData();
+
+    this.buildSingleSelectStep("base", this.beltData[0]);
+    this.buildSingleSelectStep("buckle", this.buckleChoices);
+    this.buildMultiSelectStep("loop", this.beltData[2], this.getMaxLoopsAllowed());
+    this.buildMultiSelectStep("concho", this.beltData[3], 9);
+    this.buildSingleSelectStep("tip", this.beltData[4]);
 
     const sizeStep = this.wizard.find("size")!;
 
@@ -2427,96 +2374,94 @@ sizeStep.view = () => {
 
 
     this.loading = false;
+
+    // Kick off the rest of every tag in the background. We don't await — the
+    // first page is enough to paint the UI and the user can start interacting.
+    // Each page that lands triggers a re-derive and a Lit re-render so newly
+    // arrived products, collection filters, and width matches appear as soon
+    // as they're available.
+    for (let idx = 0; idx < CustomBeltWizard.TAG_QUERIES.length; idx++) {
+      if (this.pages[idx]?.hasNextPage) void this.drainTag(idx);
+    }
   }
 
-  private async loadNextPage() {
-    this.loadingPage = true;
+  /**
+   * Re-derive {@link beltData} (and {@link buckleChoices}) from {@link rawData}
+   * using the currently-selected base's width. Pure data transform — does not
+   * rebuild step views or trigger a Lit render. Call {@link recomputeAndRebuild}
+   * if you also need the UI to refresh.
+   */
+  private recomputeAllBeltData(): void {
+    const baseWidth =
+      this.beltBase?.tags?.find((t) => t.toLowerCase().endsWith("mm")) ?? null;
+    const raw = (idx: number) => this.rawData[idx] ?? [];
 
-    let page: PageInfo;
-    const baseWidth = this.beltBase?.tags?.find((t) => t.endsWith("mm"));
-    const widthFilter = baseWidth ? ` AND tag:${baseWidth}` : "";
+    // Bases: no width filter (the user is selecting their base here).
+    this.beltData[0] = raw(0);
+    // Sets and buckles: exact-width match. Sets are shown first in the buckle
+    // step (preserving prior behavior).
+    const sets = this.filterProductsByWidth(raw(6), baseWidth);
+    const buckles = this.filterProductsByWidth(raw(1), baseWidth);
+    this.beltData[6] = sets;
+    this.buckleChoices = [...sets, ...buckles];
+    this.beltData[1] = this.buckleChoices;
+    // Loops & tips: exact-width match.
+    this.beltData[2] = this.filterProductsByWidth(raw(2), baseWidth);
+    this.beltData[4] = this.filterProductsByWidth(raw(4), baseWidth);
+    // Conchos: less-than-or-equal width.
+    this.beltData[3] = this.filterConchosByWidth(raw(3), baseWidth);
+    // Sizes: untouched by width.
+    this.beltData[5] = raw(5);
+  }
 
-    // Append only products not already present (prevents dupes from stale cursors)
-    const dedup = (existing: Product[], incoming: Product[]) => {
-      const ids = new Set(existing.map(p => p.id));
-      return existing.concat(incoming.filter(p => !ids.has(p.id)));
-    };
+  /**
+   * Recompute filtered data AND rebuild every step view + request a Lit
+   * re-render. Used by background drain (each new page) and the base-change
+   * width rebuild.
+   */
+  private recomputeAndRebuild(): void {
+    this.recomputeAllBeltData();
+    this.buildSingleSelectStep("base", this.beltData[0]);
+    this.buildSingleSelectStep("buckle", this.buckleChoices);
+    this.buildMultiSelectStep("loop", this.beltData[2], this.getMaxLoopsAllowed());
+    this.buildMultiSelectStep("concho", this.beltData[3], 9);
+    this.buildSingleSelectStep("tip", this.beltData[4]);
+    this.requestUpdate();
+  }
 
-    switch (this.wizard.currentStep.id) {
-      case "base":
-        page = this.pages[0];
-        if (!page.hasNextPage) break;
-        const { page: nextBeltPage, products: bases } = await queryProducts(
-          "tag:Base",
-          {
-            after: page.endCursor,
-          },
-        );
-        this.pages[0] = nextBeltPage;
-        this.beltData[0] = dedup(this.beltData[0], bases);
-        this.buildSingleSelectStep("base", this.beltData[0]);
-        break;
-      case "buckle":
-        page = this.pages[1];
-        if (!page.hasNextPage) break;
-        const { page: nextBucklePage, products: buckles } = await queryProducts(
-          `tag:buckle${widthFilter}`,
-          {
-            after: page.endCursor,
-          },
-        );
-        const filteredBuckles = this.filterProductsByWidth(buckles, baseWidth);
-        this.pages[1] = nextBucklePage;
-        this.beltData[1] = dedup(this.beltData[1], filteredBuckles);
-        this.buckleChoices = dedup(this.buckleChoices, filteredBuckles);
-        this.buildSingleSelectStep("buckle", this.buckleChoices);
-        break;
-      case "loops":
-        page = this.pages[2];
-        if (!page.hasNextPage) break;
-        const { page: nextLoopPage, products: loops } = await queryProducts(
-          `tag:Loop${widthFilter}`,
-          {
-            after: page.endCursor,
-          },
-        );
-        const filteredLoops = this.filterProductsByWidth(loops, baseWidth);
-        this.pages[2] = nextLoopPage;
-        this.beltData[2] = dedup(this.beltData[2], filteredLoops);
-        this.buildMultiSelectStep("loop", this.beltData[2], this.getMaxLoopsAllowed());
-        break;
-      case "conchos":
-        page = this.pages[3];
-        if (!page.hasNextPage) break;
-        const { page: nextConchoPage, products: conchos } = await queryProducts(
-          `tag:concho${widthFilter}`,
-          {
-            after: page.endCursor,
-          },
-        );
-        const filteredConchos = this.filterProductsByWidth(conchos, baseWidth);
-        this.pages[3] = nextConchoPage;
-        this.beltData[3] = dedup(this.beltData[3], filteredConchos);
-        this.buildMultiSelectStep("concho", this.beltData[3], 9);
-        break;
-      case "tip":
-        page = this.pages[4];
-        if (!page.hasNextPage) break;
+  /**
+   * Drain every remaining page for a tag in the background. Idempotent — if
+   * a drain is already in flight (or finished) the existing promise is
+   * returned. Page contents are appended to {@link rawData} (deduped by id),
+   * then {@link recomputeAndRebuild} refreshes the derived state.
+   */
+  private drainTag(idx: number): Promise<void> {
+    const existing = this.drainPromises[idx];
+    if (existing) return existing;
 
-        const { page: nextTipPage, products: tips } = await queryProducts(
-          `tag:tip${widthFilter}`,
-          {
-            after: page.endCursor,
-          },
-        );
-        const filteredTips = this.filterProductsByWidth(tips, baseWidth);
-        this.pages[4] = nextTipPage;
-        this.beltData[4] = dedup(this.beltData[4], filteredTips);
-        this.buildSingleSelectStep("tip", this.beltData[4]);
-        break;
-    }
+    const { query, profile } = CustomBeltWizard.TAG_QUERIES[idx];
+    const promise = (async () => {
+      while (this.pages[idx]?.hasNextPage) {
+        const cursor = this.pages[idx].endCursor;
+        const { page, products } = await queryProducts(query, {
+          after: cursor,
+          profile,
+        });
+        this.pages[idx] = page;
 
-    this.loadingPage = false;
+        const known = new Set(this.rawData[idx].map((p) => p.id));
+        const fresh = products.filter((p) => !known.has(p.id));
+        if (fresh.length) {
+          this.rawData[idx] = [...this.rawData[idx], ...fresh];
+          this.recomputeAndRebuild();
+        }
+      }
+    })().catch((err) => {
+      console.error(`[belt-wizard] drain failed for "${query}"`, err);
+    });
+
+    this.drainPromises[idx] = promise;
+    return promise;
   }
 
   private ensureSelection() {
@@ -3962,17 +3907,40 @@ sizeStep.view = () => {
     return t ?? null;
   }
 
+  /**
+   * Exact-width filter for buckles, sets, loops, and tips. Product is included
+   * iff one of its `Nmm` tags equals the base width. Products with NO width tag
+   * are excluded (a base width is required to disambiguate).
+   */
   private filterProductsByWidth(products: Product[], requiredWidth: string | null): Product[] {
     if (!requiredWidth) return products;
-    
+
     return products.filter((p) => {
       if (!p.tags?.length) return false;
-      
-      // Find all width tags (ending with "mm")
       const widthTags = p.tags.filter((tag) => tag.toLowerCase().endsWith("mm"));
-      
-      // Product must have the required width AND only that width (no conflicting sizes)
-      return widthTags.includes(requiredWidth) && widthTags.length === 1;
+      return widthTags.includes(requiredWidth);
+    });
+  }
+
+  /**
+   * Conchos fit a belt if the concho's width is the base width OR smaller.
+   * Inclusion if any of the concho's `Nmm` tags has a numeric value <= base
+   * width's numeric value. Conchos with no width tag are excluded (same as the
+   * exact-match filter) — a width tag is required so we can compare sizes.
+   */
+  private filterConchosByWidth(products: Product[], requiredWidth: string | null): Product[] {
+    if (!requiredWidth) return products;
+    const baseMm = parseInt(requiredWidth, 10);
+    if (!Number.isFinite(baseMm)) return products;
+
+    return products.filter((p) => {
+      if (!p.tags?.length) return false;
+      const widthTags = p.tags.filter((tag) => tag.toLowerCase().endsWith("mm"));
+      if (!widthTags.length) return false;
+      return widthTags.some((tag) => {
+        const mm = parseInt(tag, 10);
+        return Number.isFinite(mm) && mm <= baseMm;
+      });
     });
   }
 
