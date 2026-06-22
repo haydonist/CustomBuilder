@@ -127,6 +127,5 @@ export function getAnchorOverrides(
   }
 
   const result = hasOverrides ? overrides : null;
-  console.log(":resolve] final overrides:", result);
   return result;
 }
