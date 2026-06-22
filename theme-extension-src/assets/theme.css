@@ -219,6 +219,60 @@ belt-checkout{
   cursor: not-allowed !important;
 }
 
+/* Soft yellow aura that sweeps around the Continue button once the current
+   step's requirements are satisfied. The blurred conic-gradient sits behind
+   the button (z-index: -1 inside an isolated stacking context), so the
+   button itself masks the center and only the diffuse halo bleeds past the
+   edges. */
+@property --ready-glow-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+button.btn.primary.ready {
+  position: relative;
+}
+
+button.btn.primary.ready::after {
+  content: '';
+  position: absolute;
+  inset: calc(var(--ready-glow-spread, 2px) * -1);
+  border-radius: calc(8px + var(--ready-glow-spread, 2px));
+  background: conic-gradient(
+    from var(--ready-glow-angle),
+    transparent 0deg,
+    rgba(var(--ready-glow-color, 255, 255, 255), 0.95)
+      calc(var(--ready-glow-tail, 150deg) * 0.25),
+    rgba(var(--ready-glow-color, 255, 255, 255), 0.35)
+      calc(var(--ready-glow-tail, 150deg) * 0.55),
+    transparent var(--ready-glow-tail, 150deg),
+    transparent 360deg
+  );
+  filter: blur(var(--ready-glow-blur, 8px));
+  animation: ready-glow-rotate var(--ready-glow-speed, 3s) linear infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes ready-glow-rotate {
+  to {
+    --ready-glow-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.btn.primary.ready::after {
+    animation: none;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(var(--ready-glow-color, 255, 255, 255), 0.4),
+      transparent 70%
+    );
+    filter: blur(6px);
+  }
+}
+
 button.btn.secondary, a.btn.secondary {
   color: var(--neutral-darkest);
   background-color: #0c0c0c0d;

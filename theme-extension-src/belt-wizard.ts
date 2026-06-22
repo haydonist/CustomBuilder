@@ -1232,12 +1232,75 @@ private getSelectedBaseColor(): string | null {
       label = hasSelection ? "Continue" : skipLabel;
     }
 
+    const isReady = canContinue && label === "Continue";
+
     return html`
-      <button class="btn primary" ?disabled="${!canContinue}" @click="${() =>
+      <button class="btn primary ${isReady ? "ready" : ""}" ?disabled="${!canContinue}" @click="${() =>
         this.submitStep()}">
         ${label}
       </button>
     `;
+  }
+
+  /**
+   * True when alt-dragging a user loop should duplicate it: max-loops is 2,
+   * no set is providing a loop, and exactly one user loop is currently placed.
+   */
+  private canDuplicateUserLoop(): boolean {
+    if (!this.selection) return false;
+    if (this.hasSetSelected()) return false;
+    const userLoops = this.selection.getAll("loop").length;
+    const maxLoops = this.getMaxLoopsAllowed();
+    return userLoops > 0 && userLoops < maxLoops;
+  }
+
+  private duplicateLoop(sourceIndex: number) {
+    if (!this.selection) return;
+
+    const ids = this.selection.getAll("loop") as string[];
+    const variants = this.selection.getAll("loopVariant") as string[];
+
+    if (sourceIndex < 0 || sourceIndex >= ids.length) return;
+
+    const maxLoops = this.getMaxLoopsAllowed();
+    const maxAdditional = this.hasSetSelected() ? maxLoops - 1 : maxLoops;
+    if (ids.length >= maxAdditional) return;
+
+    while (variants.length < ids.length) variants.push("");
+
+    ids.push(ids[sourceIndex]);
+    variants.push(variants[sourceIndex] ?? "");
+
+    this.selection.delete("loop");
+    ids.forEach((id) => this.selection!.append("loop", id));
+
+    this.selection.delete("loopVariant");
+    variants.forEach((vId) => this.selection!.append("loopVariant", vId));
+
+    this.applySelectionToPreview();
+  }
+
+  private duplicateConcho(sourceIndex: number, insertIndex: number) {
+    if (!this.selection) return;
+
+    const ids = this.selection.getAll("concho") as string[];
+    const variants = this.selection.getAll("conchoVariant") as string[];
+
+    if (sourceIndex < 0 || sourceIndex >= ids.length) return;
+
+    while (variants.length < ids.length) variants.push("");
+
+    const clampedInsert = Math.min(Math.max(insertIndex, 0), ids.length);
+    ids.splice(clampedInsert, 0, ids[sourceIndex]);
+    variants.splice(clampedInsert, 0, variants[sourceIndex] ?? "");
+
+    this.selection.delete("concho");
+    ids.forEach((id) => this.selection!.append("concho", id));
+
+    this.selection.delete("conchoVariant");
+    variants.forEach((vId) => this.selection!.append("conchoVariant", vId));
+
+    this.applySelectionToPreview();
   }
 
   private removeItem(kind: "loop" | "concho", index: number) {
@@ -1513,12 +1576,19 @@ private get selectedBaseColor(): string | null {
             .useDefaultComponentHeight=${this.beltBase?.tags?.includes("Ranger Core") ?? false}
             .anchorOverrides=${getAnchorOverrides(this.beltBase?.id ?? "", this.beltBase?.tags ?? [], this.beltBase?.beltAnchors)}
             .readonly=${currentStep.id === "summary"}
+            .canDuplicateLoop=${this.canDuplicateUserLoop()}
             @reorder-loops="${(
               e: CustomEvent<{ fromIndex: number; toIndex: number }>,
             ) => {
               // When a set provides a loop at index 0, preview indices are offset by 1
               const off = this.hasSetSelected() ? 1 : 0;
               this.handleReorder("loop", e.detail.fromIndex - off, e.detail.toIndex - off);
+            }}"
+            @duplicate-loop="${(
+              e: CustomEvent<{ sourceIndex: number }>,
+            ) => {
+              const off = this.hasSetSelected() ? 1 : 0;
+              this.duplicateLoop(e.detail.sourceIndex - off);
             }}"
             @reorder-conchos="${(
               e: CustomEvent<{ fromIndex: number; toIndex: number }>,
@@ -1527,6 +1597,13 @@ private get selectedBaseColor(): string | null {
                 "concho",
                 e.detail.fromIndex,
                 e.detail.toIndex,
+              )}"
+            @duplicate-concho="${(
+              e: CustomEvent<{ sourceIndex: number; insertIndex: number }>,
+            ) =>
+              this.duplicateConcho(
+                e.detail.sourceIndex,
+                e.detail.insertIndex,
               )}"
             @remove-loop="${(e: CustomEvent<{ index: number }>) => {
               // When a set provides a loop at index 0, preview indices are offset by 1

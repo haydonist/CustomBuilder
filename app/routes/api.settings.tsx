@@ -18,6 +18,11 @@ const DEFAULTS = {
     "<p><strong>Our Recommendation:</strong> Using the same concho in sets of 5, 7, or 9 usually looks best and qualifies for a discount. Other quantities or mixing different conchos can end up looking unpolished.</p>",
   checkoutPolicyText:
     "<p>Free cancellation is available within 24 business hours of placing your order. After an order is placed, our team will contact you to confirm all order details.</p><p>Each belt is custom-tailored to your specifications. Because custom belts cannot be reused or resold, a <strong>30% restocking fee</strong> will apply if a return is requested after the order has been completed.</p>",
+  readyGlowColor: "#ffffff",
+  readyGlowSpeed: "3",
+  readyGlowBlur: "8",
+  readyGlowSpread: "2",
+  readyGlowTail: "150",
 };
 
 // Public read endpoint for theme extensions / runtime fetches.

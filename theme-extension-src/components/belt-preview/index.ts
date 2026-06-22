@@ -62,6 +62,11 @@ export default class BeltPreview extends LitElement {
 
   @state() loops: string[] = [];
   @state() conchos: string[] = [];
+  /**
+   * True when the wizard determines that alt-dragging a loop should
+   * duplicate it (an empty user-loop slot exists). Set from the parent.
+   */
+  @property({ type: Boolean }) canDuplicateLoop: boolean = false;
   @state() private isRenderingBase = false;
   @state() private activeRefWidth = 1200;
   @state() private scaleFactor = 1;
@@ -83,10 +88,12 @@ export default class BeltPreview extends LitElement {
   private dragOriginalLoopIndex: number | null = null;
   private hoverLoopIndex: number | null = null;
   private loopItemRects: DOMRect[] = [];
+  @state() private loopDuplicating = false;
 
   private dragOriginalConchoIndex: number | null = null;
   private hoverConchoIndex: number | null = null;
   private conchoItemRects: DOMRect[] = [];
+  private conchoDuplicating = false;
 
   // Debug anchor dragging
   private debugDragKey: keyof BeltAnchors | null = null;
@@ -305,6 +312,27 @@ export default class BeltPreview extends LitElement {
   .concho-wrapper.dragging {
     opacity: 0;
     transition: none;
+  }
+
+  /* Drop target shown at the empty loop anchor during an alt-drag duplicate. */
+  .loop-slot-placeholder {
+    position: absolute;
+    top: 50%;
+    width: 40px;
+    height: 40px;
+    margin-left: -20px;
+    margin-top: -20px;
+    border: 2px dashed rgba(0, 0, 0, 0.25);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s ease;
+    z-index: 5;
+  }
+  .loop-slot-placeholder.visible {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .remove-badge {
@@ -550,6 +578,21 @@ export default class BeltPreview extends LitElement {
               </div>
             `},
           )}
+        ${
+          // Empty-slot drop zone, only when alt-drag duplication is allowed
+          // (max=2 loops, exactly one user loop placed). Sits at the unused
+          // anchor (loop2X) and is only visible/active during an alt-drag.
+          !this.readonly && this.canDuplicateLoop && this.loops.length === 1
+            ? html`
+              <div
+                class="loop-slot-placeholder${this.loopDuplicating ? ' visible' : ''}"
+                style="left: ${this.convertToPixels(a.loop2X)}px;"
+                @dragover=${this.onLoopSlotDragOver}
+                @drop=${this.onLoopSlotDrop}
+              ></div>
+            `
+            : ''
+        }
         <div id="conchosList" class="center-vertically"
           style="left: ${this.conchos.length > 1 ? this.convertToPixels(a.conchosX) - 25 : this.convertToPixels(a.conchosX)}px; width: ${this.conchos.length > 1 ? this.convertToPixels(a.conchosEndX) - this.convertToPixels(a.conchosX) + 50 : this.convertToPixels(a.conchosEndX) - this.convertToPixels(a.conchosX)}px; justify-content: ${this.conchos.length === 1 ? 'center' : 'space-between'}"
           @dragover=${this.onConchoDragOver}
@@ -956,9 +999,10 @@ export default class BeltPreview extends LitElement {
     const index = Number(target.dataset.index);
     this.draggingLoopIndex = index;
     this.dragOriginalLoopIndex = index;
+    this.loopDuplicating = false;
 
     e.dataTransfer.setData("text/plain", "loop");
-    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.effectAllowed = this.canDuplicateLoop ? "copyMove" : "move";
     target.classList.add("dragging");
     this.createDragImageFrom(target, e);
   }
@@ -966,7 +1010,9 @@ export default class BeltPreview extends LitElement {
   private onLoopDragOver(e: DragEvent) {
     e.preventDefault();
     if (this.dragOriginalLoopIndex == null) return;
-    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    const dup = e.altKey && this.canDuplicateLoop;
+    if (e.dataTransfer) e.dataTransfer.dropEffect = dup ? "copy" : "move";
+    if (dup !== this.loopDuplicating) this.loopDuplicating = dup;
   }
 
   private onLoopDrop(e: DragEvent) {
@@ -976,8 +1022,15 @@ export default class BeltPreview extends LitElement {
 
     const dropIndex = Number(target.dataset.index);
     const from = this.dragOriginalLoopIndex;
+    const duplicate = e.altKey && this.canDuplicateLoop;
 
-    if (from != null && !isNaN(dropIndex) && from !== dropIndex) {
+    if (duplicate && from != null) {
+      this.dispatchEvent(new CustomEvent("duplicate-loop", {
+        detail: { sourceIndex: from },
+        bubbles: true,
+        composed: true,
+      }));
+    } else if (from != null && !isNaN(dropIndex) && from !== dropIndex) {
       // Swap the two loops
       const updated = [...this.loops];
       [updated[from], updated[dropIndex]] = [updated[dropIndex], updated[from]];
@@ -992,13 +1045,17 @@ export default class BeltPreview extends LitElement {
 
     this.draggingLoopIndex = null;
     this.dragOriginalLoopIndex = null;
+    this.loopDuplicating = false;
   }
 
   private onLoopDragEnd(e: DragEvent) {
     const target = e.currentTarget as HTMLElement | null;
     if (target) target.classList.remove("dragging");
 
-    if (this.draggingLoopIndex != null) {
+    // Suppress drag-off-to-remove when the user was duplicating (alt held).
+    const suppressRemove = this.loopDuplicating || e.altKey;
+
+    if (!suppressRemove && this.draggingLoopIndex != null) {
       this.dispatchEvent(new CustomEvent("remove-loop", {
         detail: { index: this.dragOriginalLoopIndex ?? this.draggingLoopIndex },
         bubbles: true,
@@ -1008,6 +1065,32 @@ export default class BeltPreview extends LitElement {
 
     this.draggingLoopIndex = null;
     this.dragOriginalLoopIndex = null;
+    this.loopDuplicating = false;
+  }
+
+  // Empty loop slot (rendered at loop2X when canDuplicateLoop is true).
+  private onLoopSlotDragOver(e: DragEvent) {
+    if (this.dragOriginalLoopIndex == null) return;
+    if (!this.canDuplicateLoop || !e.altKey) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    if (!this.loopDuplicating) this.loopDuplicating = true;
+  }
+
+  private onLoopSlotDrop(e: DragEvent) {
+    if (this.dragOriginalLoopIndex == null) return;
+    if (!this.canDuplicateLoop || !e.altKey) return;
+    e.preventDefault();
+
+    this.dispatchEvent(new CustomEvent("duplicate-loop", {
+      detail: { sourceIndex: this.dragOriginalLoopIndex },
+      bubbles: true,
+      composed: true,
+    }));
+
+    this.draggingLoopIndex = null;
+    this.dragOriginalLoopIndex = null;
+    this.loopDuplicating = false;
   }
 
   // ---- Conchos ----
@@ -1019,9 +1102,10 @@ export default class BeltPreview extends LitElement {
     this.draggingConchoIndex = index;
     this.dragOriginalConchoIndex = index;
     this.hoverConchoIndex = index;
+    this.conchoDuplicating = false;
 
     e.dataTransfer.setData("text/plain", "concho");
-    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.effectAllowed = "copyMove";
     target.classList.add("dragging");
     this.createDragImageFrom(target, e);
 
@@ -1037,21 +1121,53 @@ export default class BeltPreview extends LitElement {
     e.preventDefault();
     if (this.dragOriginalConchoIndex == null) return;
 
-    const targetIndex = this.getDropIndex(e.clientX, this.conchoItemRects, this.dragOriginalConchoIndex);
-    if (targetIndex === this.hoverConchoIndex) return;
+    const wantDuplicate = e.altKey;
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = wantDuplicate ? "copy" : "move";
+    }
 
-    this.hoverConchoIndex = targetIndex;
-    this.applyDragTransforms("concho");
+    if (wantDuplicate) {
+      const insertAt = this.getDuplicateInsertIndex(e.clientX, this.conchoItemRects);
+      const changedMode = !this.conchoDuplicating;
+      this.conchoDuplicating = true;
+      if (!changedMode && insertAt === this.hoverConchoIndex) return;
+      this.hoverConchoIndex = insertAt;
+      this.applyConchoDuplicateTransforms(insertAt);
+      this.setConchoSourceVisible(true);
+    } else {
+      const changedMode = this.conchoDuplicating;
+      this.conchoDuplicating = false;
+      const targetIndex = this.getDropIndex(e.clientX, this.conchoItemRects, this.dragOriginalConchoIndex);
+      if (!changedMode && targetIndex === this.hoverConchoIndex) return;
+      this.hoverConchoIndex = targetIndex;
+      this.setConchoSourceVisible(false);
+      this.applyDragTransforms("concho");
+    }
   }
 
   private onConchoDrop(e: DragEvent) {
     e.preventDefault();
     this.clearDragTransforms("concho");
+    this.setConchoSourceVisible(false);
 
     const from = this.dragOriginalConchoIndex;
     const to = this.hoverConchoIndex;
+    const duplicate = this.conchoDuplicating;
 
-    if (from != null && to != null && from !== to) {
+    if (duplicate) {
+      if (from != null && to != null) {
+        const updated = [...this.conchos];
+        const insertAt = Math.min(Math.max(to, 0), updated.length);
+        updated.splice(insertAt, 0, updated[from]);
+        this.conchos = updated;
+
+        this.dispatchEvent(new CustomEvent("duplicate-concho", {
+          detail: { sourceIndex: from, insertIndex: insertAt },
+          bubbles: true,
+          composed: true,
+        }));
+      }
+    } else if (from != null && to != null && from !== to) {
       const updated = [...this.conchos];
       const [moved] = updated.splice(from, 1);
       updated.splice(to, 0, moved);
@@ -1068,14 +1184,20 @@ export default class BeltPreview extends LitElement {
     this.dragOriginalConchoIndex = null;
     this.hoverConchoIndex = null;
     this.conchoItemRects = [];
+    this.conchoDuplicating = false;
   }
 
   private onConchoDragEnd(e: DragEvent) {
     const target = e.currentTarget as HTMLElement | null;
     if (target) target.classList.remove("dragging");
     this.clearDragTransforms("concho");
+    this.setConchoSourceVisible(false);
 
-    if (this.draggingConchoIndex != null) {
+    // Suppress the drag-off-to-remove behavior when the user was in
+    // duplicate mode (alt held) — failed alt-drops should be a no-op.
+    const suppressRemove = this.conchoDuplicating || e.altKey;
+
+    if (!suppressRemove && this.draggingConchoIndex != null) {
       this.dispatchEvent(new CustomEvent("remove-concho", {
         detail: { index: this.dragOriginalConchoIndex ?? this.draggingConchoIndex },
         bubbles: true,
@@ -1087,6 +1209,56 @@ export default class BeltPreview extends LitElement {
     this.dragOriginalConchoIndex = null;
     this.hoverConchoIndex = null;
     this.conchoItemRects = [];
+    this.conchoDuplicating = false;
+  }
+
+  /**
+   * Insertion index in [0, N] for alt-drag duplication — every existing
+   * item contributes (the source stays put, so it isn't excluded).
+   */
+  private getDuplicateInsertIndex(mouseX: number, rects: DOMRect[]): number {
+    let insertionPoint = 0;
+    for (const r of rects) {
+      if (mouseX > r.left + r.width / 2) insertionPoint++;
+    }
+    return insertionPoint;
+  }
+
+  /**
+   * Preview the layout that would result from inserting a duplicate of
+   * the source at insertAt: items at positions >= insertAt shift right
+   * by one source-width to make room. The source itself stays put.
+   */
+  private applyConchoDuplicateTransforms(insertAt: number) {
+    const container = this.shadowRoot?.querySelector('#conchosList');
+    const rects = this.conchoItemRects;
+    if (!container || rects.length === 0) return;
+
+    const containerEl = container as HTMLElement;
+    const cumulativeScale = containerEl.getBoundingClientRect().width / (containerEl.offsetWidth || 1);
+    const items = Array.from(container.querySelectorAll('.concho-wrapper')) as HTMLElement[];
+    const shiftPx = (rects[0].width) / cumulativeScale;
+
+    items.forEach((el, index) => {
+      if (index >= insertAt) {
+        el.style.transform = `translateX(${shiftPx}px)`;
+      } else {
+        el.style.transform = '';
+      }
+    });
+  }
+
+  /**
+   * The .dragging class fades the source to 0 opacity (so move-mode
+   * shifts can fill the gap). In duplicate mode the source needs to
+   * stay visible, so we override the opacity inline.
+   */
+  private setConchoSourceVisible(visible: boolean) {
+    const container = this.shadowRoot?.querySelector('#conchosList');
+    if (!container) return;
+    const source = container.querySelector('.concho-wrapper.dragging') as HTMLElement | null;
+    if (!source) return;
+    source.style.opacity = visible ? '1' : '';
   }
 
   // ---- Shared drag helpers ----

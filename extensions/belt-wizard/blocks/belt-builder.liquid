@@ -21,11 +21,22 @@
   assign tip_order                 = s.tipCollectionOrder
   assign concho_recommendation     = s.conchoRecommendationText    | default: '<p><strong>Our Recommendation:</strong> Using the same concho in sets of 5, 7, or 9 usually looks best and qualifies for a discount. Other quantities or mixing different conchos can end up looking unpolished.</p>'
   assign checkout_policy           = s.checkoutPolicyText          | default: '<p>Free cancellation is available within 24 business hours of placing your order. After an order is placed, our team will contact you to confirm all order details.</p><p>Each belt is custom-tailored to your specifications. Because custom belts cannot be reused or resold, a <strong>30% restocking fee</strong> will apply if a return is requested after the order has been completed.</p>'
+
+  assign ready_glow_color_hex      = s.readyGlowColor              | default: '#ffffff'
+  assign ready_glow_speed          = s.readyGlowSpeed              | default: '3'
+  assign ready_glow_blur           = s.readyGlowBlur               | default: '8'
+  assign ready_glow_spread         = s.readyGlowSpread             | default: '2'
+  assign ready_glow_tail           = s.readyGlowTail               | default: '150'
+
+  assign ready_glow_r = ready_glow_color_hex | color_extract: 'red'
+  assign ready_glow_g = ready_glow_color_hex | color_extract: 'green'
+  assign ready_glow_b = ready_glow_color_hex | color_extract: 'blue'
+  assign ready_glow_rgb = ready_glow_r | append: ', ' | append: ready_glow_g | append: ', ' | append: ready_glow_b
 %}
 
 <div
   class="belt-builder"
-  style="--belt-wizard-background-color: {{ bg_color }}; --belt-wizard-bg-color: {{ bg_color }}; --belt-wizard-text-color-custom: {{ text_color }}; --belt-wizard-font-family-custom: {{ font_family }}; --stepper-line-color-custom: {{ stepper_line }}; --stepper-dot-incomplete-color-custom: {{ stepper_incomplete }}; --stepper-dot-complete-color-custom: {{ stepper_complete }}; --stepper-dot-current-color-custom: {{ stepper_current }};"
+  style="--belt-wizard-background-color: {{ bg_color }}; --belt-wizard-bg-color: {{ bg_color }}; --belt-wizard-text-color-custom: {{ text_color }}; --belt-wizard-font-family-custom: {{ font_family }}; --stepper-line-color-custom: {{ stepper_line }}; --stepper-dot-incomplete-color-custom: {{ stepper_incomplete }}; --stepper-dot-complete-color-custom: {{ stepper_complete }}; --stepper-dot-current-color-custom: {{ stepper_current }}; --ready-glow-color: {{ ready_glow_rgb }}; --ready-glow-speed: {{ ready_glow_speed }}s; --ready-glow-blur: {{ ready_glow_blur }}px; --ready-glow-spread: {{ ready_glow_spread }}px; --ready-glow-tail: {{ ready_glow_tail }}deg;"
 >
   {% render 'belt-wizard-styles' %}
   <belt-wizard

@@ -31,6 +31,11 @@ const DEFAULTS = {
     "<p><strong>Our Recommendation:</strong> Using the same concho in sets of 5, 7, or 9 usually looks best and qualifies for a discount. Other quantities or mixing different conchos can end up looking unpolished.</p>",
   checkoutPolicyText:
     "<p>Free cancellation is available within 24 business hours of placing your order. After an order is placed, our team will contact you to confirm all order details.</p><p>Each belt is custom-tailored to your specifications. Because custom belts cannot be reused or resold, a <strong>30% restocking fee</strong> will apply if a return is requested after the order has been completed.</p>",
+  readyGlowColor: "#ffffff",
+  readyGlowSpeed: "3",
+  readyGlowBlur: "8",
+  readyGlowSpread: "2",
+  readyGlowTail: "150",
 };
 
 type SettingsValues = typeof DEFAULTS;
@@ -326,6 +331,71 @@ function ColorField({
             width: "120px",
           }}
         />
+        <ResetButton
+          onReset={() => onChange(defaultValue)}
+          disabled={value === defaultValue}
+        />
+      </s-stack>
+    </s-stack>
+  );
+}
+
+type NumberFieldProps = {
+  label: string;
+  name: SettingsKey;
+  value: string;
+  defaultValue: string;
+  onChange: (v: string) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  suffix?: string;
+  info?: string;
+};
+
+function NumberField({
+  label,
+  name,
+  value,
+  defaultValue,
+  onChange,
+  min,
+  max,
+  step,
+  suffix,
+  info,
+}: NumberFieldProps) {
+  return (
+    <s-stack direction="block" gap="base">
+      <s-text variant="heading-sm">{label}</s-text>
+      {info ? (
+        <s-text variant="body-sm" tone="subdued">
+          {info}
+        </s-text>
+      ) : null}
+      <s-stack direction="inline" gap="base" align="center">
+        <input
+          type="number"
+          name={name}
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          onChange={(e) => onChange(e.target.value)}
+          style={{
+            padding: "8px 12px",
+            border: "1px solid #ccc",
+            borderRadius: "4px",
+            width: "100px",
+            fontFamily: "inherit",
+            fontSize: "14px",
+          }}
+        />
+        {suffix ? (
+          <s-text variant="body-sm" tone="subdued">
+            {suffix}
+          </s-text>
+        ) : null}
         <ResetButton
           onReset={() => onChange(defaultValue)}
           disabled={value === defaultValue}
@@ -684,6 +754,67 @@ export default function Settings() {
             value={values.stepperDotCurrentColor}
             defaultValue={DEFAULTS.stepperDotCurrentColor}
             onChange={set("stepperDotCurrentColor")}
+          />
+        </s-stack>
+      </s-section>
+
+      <s-section heading="Continue Button Glow">
+        <s-paragraph>
+          Animated aura that sweeps around the Continue button once the
+          current step's requirements are met. Set spread, blur, and tail to
+          0 to disable the effect visually.
+        </s-paragraph>
+        <s-stack direction="block" gap="large">
+          <ColorField
+            label="Glow Color"
+            name="readyGlowColor"
+            value={values.readyGlowColor}
+            defaultValue={DEFAULTS.readyGlowColor}
+            onChange={set("readyGlowColor")}
+          />
+          <NumberField
+            label="Speed"
+            name="readyGlowSpeed"
+            value={values.readyGlowSpeed}
+            defaultValue={DEFAULTS.readyGlowSpeed}
+            onChange={set("readyGlowSpeed")}
+            min={0.5}
+            max={10}
+            step={0.1}
+            suffix="seconds per loop"
+          />
+          <NumberField
+            label="Blur"
+            name="readyGlowBlur"
+            value={values.readyGlowBlur}
+            defaultValue={DEFAULTS.readyGlowBlur}
+            onChange={set("readyGlowBlur")}
+            min={0}
+            max={40}
+            step={1}
+            suffix="px"
+          />
+          <NumberField
+            label="Spread"
+            name="readyGlowSpread"
+            value={values.readyGlowSpread}
+            defaultValue={DEFAULTS.readyGlowSpread}
+            onChange={set("readyGlowSpread")}
+            min={0}
+            max={40}
+            step={1}
+            suffix="px outside the button"
+          />
+          <NumberField
+            label="Tail Length"
+            name="readyGlowTail"
+            value={values.readyGlowTail}
+            defaultValue={DEFAULTS.readyGlowTail}
+            onChange={set("readyGlowTail")}
+            min={30}
+            max={300}
+            step={5}
+            suffix="degrees of the orbit"
           />
         </s-stack>
       </s-section>
