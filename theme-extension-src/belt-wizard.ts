@@ -1235,10 +1235,12 @@ private getSelectedBaseColor(): string | null {
     const isReady = canContinue && label === "Continue";
 
     return html`
-      <button class="btn primary ${isReady ? "ready" : ""}" ?disabled="${!canContinue}" @click="${() =>
-        this.submitStep()}">
-        ${label}
-      </button>
+      <span class="ready-glow-host${isReady ? " is-ready" : ""}">
+        <button class="btn primary" ?disabled="${!canContinue}" @click="${() =>
+          this.submitStep()}">
+          ${label}
+        </button>
+      </span>
     `;
   }
 

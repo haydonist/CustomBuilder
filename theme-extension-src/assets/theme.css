@@ -219,28 +219,32 @@ belt-checkout{
   cursor: not-allowed !important;
 }
 
-/* Soft yellow aura that sweeps around the Continue button once the current
-   step's requirements are satisfied. The blurred conic-gradient sits behind
-   the button (z-index: -1 inside an isolated stacking context), so the
-   button itself masks the center and only the diffuse halo bleeds past the
-   edges. */
+/* Soft aura that sweeps around the Continue button once the current
+   step's requirements are satisfied. The button sits inside a
+   `.ready-glow-host` span that establishes its own stacking context via
+   `isolation: isolate`. The host's `::before` carries a blurred
+   conic-gradient at z-index: -1, which is guaranteed to stay behind the
+   button. The button's opaque background masks the inner part of the
+   gradient, so only the diffuse halo bleeds past the edges. */
 @property --ready-glow-angle {
   syntax: '<angle>';
   initial-value: 0deg;
   inherits: false;
 }
 
-button.btn.primary.ready {
+.ready-glow-host {
   position: relative;
+  display: inline-block;
+  isolation: isolate;
 }
 
-button.btn.primary.ready::after {
+.ready-glow-host.is-ready::before {
   content: '';
   position: absolute;
   inset: calc(var(--ready-glow-spread, 2px) * -1);
   border-radius: calc(8px + var(--ready-glow-spread, 2px));
   background: conic-gradient(
-    from var(--ready-glow-angle),
+    from var(--ready-glow-angle, 0deg),
     transparent 0deg,
     rgba(var(--ready-glow-color, 255, 255, 255), 0.95)
       calc(var(--ready-glow-tail, 150deg) * 0.25),
@@ -262,7 +266,7 @@ button.btn.primary.ready::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  button.btn.primary.ready::after {
+  .ready-glow-host.is-ready::before {
     animation: none;
     background: radial-gradient(
       ellipse at center,
