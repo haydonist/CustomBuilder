@@ -507,7 +507,7 @@ private getMaxLoopsAllowed(): number {
       titles.forEach((t) => set.add(t));
     }
 
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
+    return this.applyCustomCollectionOrder(Array.from(set), stepId);
   }
 
   private getSelectedCollectionsForStep(stepId: string): string[] {
@@ -1059,6 +1059,51 @@ private getSelectedBaseColor(): string | null {
     return raw.split(',').map((s) => s.trim()).filter(Boolean);
   }
 
+  // Parses sizing prefixes like "1-1/8 inch", "1 1/8\"", "3/4", "1.5"
+  // Returns null when the title doesn't lead with a numeric size.
+  private parseCollectionSize(title: string): number | null {
+    const trimmed = title.trim();
+    let m = trimmed.match(/^(\d+)[-\s]+(\d+)\/(\d+)/);
+    if (m) return Number(m[1]) + Number(m[2]) / Number(m[3]);
+    m = trimmed.match(/^(\d+)\/(\d+)/);
+    if (m) return Number(m[1]) / Number(m[2]);
+    m = trimmed.match(/^(\d+(?:\.\d+)?)/);
+    if (m) return Number(m[1]);
+    return null;
+  }
+
+  // Default order: word collections first (alphabetical), then size
+  // collections (largest to smallest).
+  private compareCollectionTitles = (a: string, b: string): number => {
+    const aSize = this.parseCollectionSize(a);
+    const bSize = this.parseCollectionSize(b);
+    if (aSize === null && bSize === null) return a.localeCompare(b);
+    if (aSize === null) return -1;
+    if (bSize === null) return 1;
+    if (bSize !== aSize) return bSize - aSize;
+    return a.localeCompare(b);
+  };
+
+  // Apply the admin-configured custom order for the step (if any), then
+  // append the remaining titles using the default word-first / size-desc
+  // sort. Shared by the collection grouping and the filter button list so
+  // both reflect the same admin setting.
+  private applyCustomCollectionOrder(
+    titles: string[],
+    stepId?: string,
+  ): string[] {
+    const customOrder = stepId ? this.getCollectionOrderForStep(stepId) : [];
+    if (customOrder.length === 0) {
+      return [...titles].sort(this.compareCollectionTitles);
+    }
+    const orderedSet = new Set(customOrder);
+    const ordered = customOrder.filter((title) => titles.includes(title));
+    const remaining = titles
+      .filter((title) => !orderedSet.has(title))
+      .sort(this.compareCollectionTitles);
+    return [...ordered, ...remaining];
+  }
+
   private groupProductsByCollection(
     products: Product[],
     options?: { hideSets?: boolean; stepId?: string },
@@ -1115,24 +1160,10 @@ private getSelectedBaseColor(): string | null {
       }
     }
 
-    // If a custom order is configured for this step, use it
-    const customOrder = options?.stepId
-      ? this.getCollectionOrderForStep(options.stepId)
-      : [];
-
-    let sortedRegular: [string, Product[]][];
-    if (customOrder.length > 0) {
-      // Ordered collections first (in specified order), then remaining alphabetically
-      const ordered = customOrder
-        .filter((title) => regular.has(title))
-        .map((title) => [title, regular.get(title)!] as [string, Product[]]);
-      const remaining = [...regular.entries()]
-        .filter(([title]) => !customOrder.includes(title))
-        .sort(([a], [b]) => a.localeCompare(b));
-      sortedRegular = [...ordered, ...remaining];
-    } else {
-      sortedRegular = [...regular.entries()].sort(([a], [b]) => a.localeCompare(b));
-    }
+    const sortedRegular = this.applyCustomCollectionOrder(
+      [...regular.keys()],
+      options?.stepId,
+    ).map((title) => [title, regular.get(title)!] as [string, Product[]]);
 
     const sortedBottom = [...bottom.entries()].sort(([a], [b]) => a.localeCompare(b));
     const result = new Map([...sortedRegular, ...sortedBottom]);
@@ -4002,15 +4033,29 @@ sizeStep.view = () => {
   }
 
   /**
-   * Conchos fit a belt if the concho's width is the base width OR smaller.
-   * Inclusion if any of the concho's `Nmm` tags has a numeric value <= base
-   * width's numeric value. Conchos with no width tag are excluded (same as the
-   * exact-match filter) — a width tag is required so we can compare sizes.
+   * Conchos fit a belt if the concho's width is at most one size up from the
+   * base width. "One size up" is derived from the concho pool itself — the
+   * smallest concho width strictly greater than the base — so non-uniform size
+   * steps (e.g. 25→32→38mm) are handled correctly. Conchos with no `Nmm` tag
+   * are excluded: a width tag is required so we can compare sizes.
    */
   private filterConchosByWidth(products: Product[], requiredWidth: string | null): Product[] {
     if (!requiredWidth) return products;
     const baseMm = parseInt(requiredWidth, 10);
     if (!Number.isFinite(baseMm)) return products;
+
+    const allWidths = new Set<number>();
+    for (const p of products) {
+      const widthTags = p.tags?.filter((t) => t.toLowerCase().endsWith("mm")) ?? [];
+      for (const tag of widthTags) {
+        const mm = parseInt(tag, 10);
+        if (Number.isFinite(mm)) allWidths.add(mm);
+      }
+    }
+    const nextUp = Array.from(allWidths)
+      .filter((w) => w > baseMm)
+      .sort((a, b) => a - b)[0];
+    const ceilingMm = nextUp ?? baseMm;
 
     return products.filter((p) => {
       if (!p.tags?.length) return false;
@@ -4018,7 +4063,7 @@ sizeStep.view = () => {
       if (!widthTags.length) return false;
       return widthTags.some((tag) => {
         const mm = parseInt(tag, 10);
-        return Number.isFinite(mm) && mm <= baseMm;
+        return Number.isFinite(mm) && mm <= ceilingMm;
       });
     });
   }
