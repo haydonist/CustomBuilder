@@ -1882,21 +1882,31 @@ private get selectedBaseColor(): string | null {
   }
 
   /**
-   * Ensure every concho ID in `requestedIds` is loaded into {@link rawData}
-   * (and therefore eligible to appear in `beltData[3]`). Used by URL restore
-   * so a concho on page 2+ of `tag:concho` isn't silently dropped. With the
-   * background drain, this just waits for that drain to complete — the drain
-   * accumulates the same data we'd have fetched ad-hoc, but only once.
+   * Ensure every ID in `requestedIds` is loaded into {@link rawData} for at
+   * least one of the given tag indices (and therefore eligible to appear in
+   * `beltData`). Used by URL / draft restore so a product on page 2+ of its
+   * tag isn't silently dropped. Pass multiple indices when the product could
+   * live under either tag (e.g. buckles vs. sets).
+   *
+   * With the background drain already in flight, this typically just waits
+   * for that drain to complete — the drain accumulates the same data we'd
+   * have fetched ad-hoc, but only once.
    */
-  private async drainConchosUntilFound(requestedIds: string[]): Promise<void> {
+  private async drainTagsUntilFound(
+    tagIndices: number[],
+    requestedIds: string[],
+  ): Promise<void> {
     if (!requestedIds.length) return;
     const need = new Set(requestedIds);
-    for (const p of this.rawData[3] ?? []) need.delete(p.id);
+    for (const idx of tagIndices) {
+      for (const p of this.rawData[idx] ?? []) need.delete(p.id);
+    }
     if (need.size === 0) return;
 
-    // Force-start the drain if it hasn't been kicked off yet (e.g. URL restore
-    // races the post-updateProducts drain launch), then wait.
-    await this.drainTag(3);
+    // Force-start each drain if it hasn't been kicked off yet (URL restore
+    // races the post-updateProducts drain launch), then wait for all in
+    // parallel. drainTag is idempotent — a shared promise is returned.
+    await Promise.all(tagIndices.map((idx) => this.drainTag(idx)));
   }
 
   private async submitStep() {
@@ -3311,6 +3321,20 @@ sizeStep.view = () => {
     this.firstBaseSelected = true;
     await this.rebuildStepsForBaseWidth();
 
+    // Fully paginate every tag we're about to look up in. Only page 1 of each
+    // tag was awaited during initial load; a buckle/set/loop/concho/tip past
+    // page 1 would otherwise be silently dropped here. Drain in parallel — each
+    // drainTag is idempotent and independent.
+    // Tag indices: 1=buckles, 2=loops, 3=conchos, 4=tips, 6=sets.
+    const buckleId = config.buckle?.id;
+    const tipId = config.tip?.id;
+    await Promise.all([
+      this.drainTagsUntilFound([1, 6], buckleId ? [buckleId] : []),
+      this.drainTagsUntilFound([2], (config.loops ?? []).map((l) => l.id)),
+      this.drainTagsUntilFound([3], (config.conchos ?? []).map((c) => c.id)),
+      this.drainTagsUntilFound([4], tipId ? [tipId] : []),
+    ]);
+
     // Buckle (search both regular buckles and sets via buckleChoices).
     const buckle = this.buckleChoices.find(p => p.id === config.buckle?.id) ?? null;
     if (buckle) {
@@ -3339,10 +3363,6 @@ sizeStep.view = () => {
     }
 
     // Conchos — max 9 total.
-    // Conchos aren't fully drained on initial load (only page 1 of `tag:concho`
-    // is fetched), so requested IDs that sit on later pages would be silently
-    // dropped. Paginate until every requested ID is resolved or we run out.
-    await this.drainConchosUntilFound((config.conchos ?? []).map(c => c.id));
     const conchos = this.beltData[3];
     let conchoAppended = 0;
     for (const entry of config.conchos ?? []) {
@@ -3419,10 +3439,19 @@ sizeStep.view = () => {
           this.pendingDefaultLoopsForBaseId = null;
           await this.rebuildStepsForBaseWidth();
 
-          // Conchos beyond page 1 of the unfiltered fetch aren't loaded yet —
-          // paginate until every persisted concho ID resolves (or we run out).
+          // Products beyond page 1 of each tag aren't loaded yet — paginate
+          // until every persisted ID resolves (or we run out). Same rationale
+          // as the URL-restore drain above.
+          const buckleId = this.selection.get("buckle") as string | null;
+          const tipId = this.selection.get("tip") as string | null;
+          const loopIds = (this.selection.getAll("loop") as string[]) ?? [];
           const conchoIds = (this.selection.getAll("concho") as string[]) ?? [];
-          if (conchoIds.length) await this.drainConchosUntilFound(conchoIds);
+          await Promise.all([
+            this.drainTagsUntilFound([1, 6], buckleId ? [buckleId] : []),
+            this.drainTagsUntilFound([2], loopIds),
+            this.drainTagsUntilFound([3], conchoIds),
+            this.drainTagsUntilFound([4], tipId ? [tipId] : []),
+          ]);
 
           if (draft.currentBeltUid) this.currentBeltUid = draft.currentBeltUid;
           this.applySelectionToPreview();
