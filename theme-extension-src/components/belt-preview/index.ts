@@ -42,8 +42,6 @@ export default class BeltPreview extends LitElement {
   static readonly DESKTOP_REF = 1200;
   /** Mobile breakpoint: render at fixed 472px and scale down */
   static readonly MOBILE_REF = 472;
-  /** Below this width, switch to tablet/mobile rendering */
-  static readonly TABLET_BREAK = 991;
   /** Below this width, use the fixed mobile reference width */
   static readonly MOBILE_BREAK = 767;
 
@@ -67,6 +65,8 @@ export default class BeltPreview extends LitElement {
    * duplicate it (an empty user-loop slot exists). Set from the parent.
    */
   @property({ type: Boolean }) canDuplicateLoop: boolean = false;
+  /** True when there's room to add another concho (< max). Set from the parent. */
+  @property({ type: Boolean }) canDuplicateConcho: boolean = false;
   @state() private isRenderingBase = false;
   @state() private activeRefWidth = 1200;
   @state() private scaleFactor = 1;
@@ -108,18 +108,23 @@ export default class BeltPreview extends LitElement {
         const raw = entry.contentRect.width || 1;
         const vw = typeof window !== 'undefined' ? window.innerWidth : Infinity;
         const w = Math.min(raw, vw);
-        if (w > BeltPreview.TABLET_BREAK) {
-          // Desktop: fixed 1200px layout, scale to fit
+        if (w >= BeltPreview.DESKTOP_REF) {
+          // Wide desktop: fixed 1200px layout, no scaling needed.
           this.activeRefWidth = BeltPreview.DESKTOP_REF;
-          this.scaleFactor = Math.min(1, w / BeltPreview.DESKTOP_REF);
-        } else if (w <= BeltPreview.MOBILE_BREAK) {
-          // Mobile: fixed 472px layout, scale down to fit container
-          this.activeRefWidth = BeltPreview.MOBILE_REF;
-          this.scaleFactor = Math.min(2, w / BeltPreview.MOBILE_REF);
-        } else {
-          // Tablet: render at actual width, no scaling
+          this.scaleFactor = 1;
+        } else if (w > BeltPreview.MOBILE_BREAK) {
+          // Anything below 1200 down to the mobile break — render at actual
+          // width so every child that consumes `--ref-width` (belt, conchos,
+          // etc.) shrinks in lockstep. No CSS transform: at intermediate
+          // widths, transform-based scaling can cause conchos to appear
+          // out of proportion with the belt when the parent container is
+          // narrower than the viewport-derived scaleFactor assumes.
           this.activeRefWidth = Math.round(w);
           this.scaleFactor = 1;
+        } else {
+          // Mobile: fixed 472px layout, scale up/down to fit container
+          this.activeRefWidth = BeltPreview.MOBILE_REF;
+          this.scaleFactor = Math.min(2, w / BeltPreview.MOBILE_REF);
         }
       }
     });
@@ -276,7 +281,11 @@ export default class BeltPreview extends LitElement {
 
   .concho {
     display: block;
-    max-height: 160px;
+    /* Scales with --ref-width so the tablet range (768-991px), which renders
+       without a parent transform, shrinks conchos in step with the belt.
+       Desktop and mobile also get correct sizing here: their scale-wrapper
+       transform is applied on top. */
+    max-height: calc(160px * var(--ref-width, 1200) / 1200);
     margin: 0 auto;
     cursor: grab;
     pointer-events: none;
@@ -335,7 +344,8 @@ export default class BeltPreview extends LitElement {
     pointer-events: auto;
   }
 
-  .remove-badge {
+  .remove-badge,
+  .duplicate-badge {
     position: absolute;
     left: 50%;
     transform: translateX(-50%) translateY(-10px);
@@ -345,7 +355,6 @@ export default class BeltPreview extends LitElement {
     border: none;
     padding: 0;
     background: rgba(220, 220, 220, 0.95);
-    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M5%205%20L19%2019%20M19%205%20L5%2019%22%20stroke%3D%22white%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: center;
     background-size: 8px 8px;
@@ -354,6 +363,15 @@ export default class BeltPreview extends LitElement {
     cursor: pointer;
     transition: opacity 0.15s ease, transform 0.15s ease;
     z-index: 20;
+  }
+
+  .remove-badge {
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M5%205%20L19%2019%20M19%205%20L5%2019%22%20stroke%3D%22white%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E");
+  }
+
+  .duplicate-badge {
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Crect%20x%3D%228%22%20y%3D%228%22%20width%3D%2212%22%20height%3D%2212%22%20rx%3D%222%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%222.5%22/%3E%3Cpath%20d%3D%22M4%2016%20V6%20A2%202%200%200%201%206%204%20H16%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%222.5%22%20stroke-linecap%3D%22round%22/%3E%3C/svg%3E");
+    background-size: 9px 9px;
   }
 
   /* Extend hover zone upward so the mouse can reach the remove badge */
@@ -377,6 +395,19 @@ export default class BeltPreview extends LitElement {
   .concho-wrapper:hover .remove-badge {
     opacity: 1;
     transform: translateX(-50%) translateY(-30px);
+    pointer-events: auto;
+  }
+
+  /* When a duplicate badge is also shown, offset the pair so they sit side by side. */
+  .loop-item.has-duplicate:hover .remove-badge,
+  .concho-wrapper.has-duplicate:hover .remove-badge {
+    transform: translateX(calc(-50% + 7px)) translateY(-30px);
+  }
+
+  .loop-item.has-duplicate:hover .duplicate-badge,
+  .concho-wrapper.has-duplicate:hover .duplicate-badge {
+    opacity: 1;
+    transform: translateX(calc(-50% - 7px)) translateY(-30px);
     pointer-events: auto;
   }
 
@@ -556,9 +587,10 @@ export default class BeltPreview extends LitElement {
                   ? `clip-path: inset(-50px calc(50% - ${halfGap}px) -30px 0);`
                   : `clip-path: inset(-50px 0 -30px calc(50% - ${halfGap}px));`;
               }
+              const showDuplicate = !this.readonly && this.canDuplicateLoop;
               return html`
               <div
-                class="loop-item"
+                class="loop-item${showDuplicate ? ' has-duplicate' : ''}"
                 style="left: ${this.convertToPixels(anchorX)}px; ${clip}"
                 draggable="${!this.readonly}"
                 data-index=${index}
@@ -574,6 +606,13 @@ export default class BeltPreview extends LitElement {
                     this.handleRemoveClick("loop", index, e)}
                   aria-label="Remove loop"
                 ></button>`}
+                ${showDuplicate ? html`<button
+                  type="button"
+                  class="duplicate-badge"
+                  @click=${(e: MouseEvent) =>
+                    this.handleDuplicateClick("loop", index, e)}
+                  aria-label="Duplicate loop"
+                ></button>` : ''}
                 <img class="loop" crossorigin="anonymous" src=${sized(loop, PREVIEW_LOOP_WIDTH)} aria-hidden="true" style="opacity: ${this.isImageReady(sized(loop, PREVIEW_LOOP_WIDTH)) ? 1 : 0}" />
               </div>
             `},
@@ -598,9 +637,11 @@ export default class BeltPreview extends LitElement {
           @dragover=${this.onConchoDragOver}
           @drop=${this.onConchoDrop}>
           ${this.conchos.map(
-            (concho, index) => html`
+            (concho, index) => {
+              const showDuplicate = !this.readonly && this.canDuplicateConcho;
+              return html`
               <div
-                class="concho-wrapper"
+                class="concho-wrapper${showDuplicate ? ' has-duplicate' : ''}"
                 draggable="${!this.readonly}"
                 data-index=${index}
                 @dragstart=${this.readonly ? undefined : this.onConchoDragStart}
@@ -613,9 +654,17 @@ export default class BeltPreview extends LitElement {
                     this.handleRemoveClick("concho", index, e)}
                   aria-label="Remove concho"
                 ></button>`}
+                ${showDuplicate ? html`<button
+                  type="button"
+                  class="duplicate-badge"
+                  @click=${(e: MouseEvent) =>
+                    this.handleDuplicateClick("concho", index, e)}
+                  aria-label="Duplicate concho"
+                ></button>` : ''}
                 <img class="concho" crossorigin="anonymous" src=${sized(concho, PREVIEW_CONCHO_WIDTH)} aria-hidden="true" style="opacity: ${this.isImageReady(sized(concho, PREVIEW_CONCHO_WIDTH)) ? 1 : 0}" />
               </div>
-            `,
+            `;
+            },
           )}
         </div>
         <img
@@ -1382,6 +1431,21 @@ export default class BeltPreview extends LitElement {
 
     this.dispatchEvent(new CustomEvent(`remove-${kind}`, {
       detail: { index },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
+  private handleDuplicateClick(kind: "loop" | "concho", index: number, e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const detail = kind === "concho"
+      ? { sourceIndex: index, insertIndex: index + 1 }
+      : { sourceIndex: index };
+
+    this.dispatchEvent(new CustomEvent(`duplicate-${kind}`, {
+      detail,
       bubbles: true,
       composed: true,
     }));
