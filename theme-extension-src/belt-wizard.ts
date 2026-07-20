@@ -1,6 +1,17 @@
 declare const __BUILD_TIME__: string;
 const BUILD_TIME = typeof __BUILD_TIME__ !== "undefined" ? __BUILD_TIME__ : "dev";
-console.log(`[belt-wizard] build ${BUILD_TIME}`);
+{
+  const builtAt = BUILD_TIME === "dev" ? "dev" : new Date(BUILD_TIME).toLocaleString();
+  const src =
+    (typeof document !== "undefined" &&
+      (document.currentScript as HTMLScriptElement | null)?.src) ||
+    "(unknown)";
+  console.log(
+    `%c[belt-wizard]%c built ${builtAt}\n  from ${src}\n  iso   ${BUILD_TIME}`,
+    "background:#111;color:#0f0;padding:2px 6px;border-radius:3px;font-weight:bold",
+    "color:inherit",
+  );
+}
 
 import { html, LitElement, PropertyValues } from "lit";
 import { customElement, eventOptions, property, state } from "lit/decorators.js";
@@ -1287,6 +1298,12 @@ private getSelectedBaseColor(): string | null {
     return userLoops > 0 && userLoops < maxLoops;
   }
 
+  private canDuplicateConcho(): boolean {
+    if (!this.selection) return false;
+    const count = this.selection.getAll("concho").length;
+    return count > 0 && count < 9;
+  }
+
   private duplicateLoop(sourceIndex: number) {
     if (!this.selection) return;
 
@@ -1610,6 +1627,7 @@ private get selectedBaseColor(): string | null {
             .anchorOverrides=${getAnchorOverrides(this.beltBase?.id ?? "", this.beltBase?.tags ?? [], this.beltBase?.beltAnchors)}
             .readonly=${currentStep.id === "summary"}
             .canDuplicateLoop=${this.canDuplicateUserLoop()}
+            .canDuplicateConcho=${this.canDuplicateConcho()}
             @reorder-loops="${(
               e: CustomEvent<{ fromIndex: number; toIndex: number }>,
             ) => {
