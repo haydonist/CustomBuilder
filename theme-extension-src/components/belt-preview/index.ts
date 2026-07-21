@@ -1002,16 +1002,15 @@ export default class BeltPreview extends LitElement {
     }
 
     // 4. Conchos distributed between conchosX and conchosEndX.
-    // Matches the live preview where `.concho img` is `scale: 5` — i.e. the
-    // concho is drawn ~5× larger than its layout footprint. We draw the full
-    // image at that visual size; overlap between adjacent conchos is expected
-    // and matches what shoppers see in the builder.
+    // Match the live preview: `.concho` max-height is
+    // `calc(160px * var(--ref-width, 1200) / 1200)`, so scale the cap by
+    // activeRefWidth to keep the composite proportional to what the shopper sees.
     const validConchos = conchoImgs.filter(Boolean) as HTMLImageElement[];
     if (validConchos.length > 0) {
       const startX = anchorAt(a.conchosX);
       const endX = anchorAt(a.conchosEndX);
       const span = endX - startX;
-      const conchoH = baseH * 5;
+      const conchoH = 160 * (this.activeRefWidth / BeltPreview.DESKTOP_REF);
       validConchos.forEach((img, i) => {
         if (!img.naturalWidth || !img.naturalHeight) return;
         const w = conchoH * (img.naturalWidth / img.naturalHeight);
